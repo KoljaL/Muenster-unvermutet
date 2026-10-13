@@ -1369,7 +1369,7 @@
       .tool-button.tool-text {
         background: none;
         border-color: transparent;
-        text-decoration: underline;
+        text-decoration: none;
         padding: 0 10px;
       }
       .tool-button.tool-text[aria-pressed='true'] {
@@ -1391,8 +1391,16 @@
         width: 28px;
         height: 28px;
         margin: 8px;
-        border-width: 2px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
         font-size: 0.85rem;
+      }
+      body.layout-classic .map-pin .pin-icon {
+        display: none;
+      }
+      body.layout-classic .legend-icon {
+        display: none;
       }
       body.layout-classic .map-pin .pin-icon img {
         width: 16px;
@@ -1420,7 +1428,6 @@
         background: rgba(255, 255, 255, 0.28);
       }
       .tool-button[aria-pressed='true'] {
-        background: #fff;
         color: var(--brand-dark);
       }
       .tool-button .tool-state {
@@ -1744,7 +1751,7 @@
       <header class="hero">
         <!-- Darstellung: Barrierefrei/Klassisch und Farbmodus -->
         <div class="hero-tools" role="group" aria-label="Darstellung">
-          <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="true" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
+          <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="false" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
           <button type="button" class="tool-button tool-icon" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
             <span id="theme-icon" aria-hidden="true">🌙</span>
           </button>
@@ -2170,9 +2177,16 @@
       }
 
       function categoryImageHtml(category) {
-        return category.icon
-          ? '<img src="' + escapeHtml(photoUrl(category.icon)) + '" alt="">'
-          : '';
+        if (category.icon) return '<img src="' + escapeHtml(photoUrl(category.icon)) + '" alt="">';
+        const fallbackIcons = {
+          history: '🏛️',
+          art: '🎨',
+          legend: '👻',
+          faith: '⛪',
+          detail: '🔎',
+          culture: '🎭',
+        };
+        return fallbackIcons[category.id] || '📍';
       }
 
       function initMap() {
@@ -2669,20 +2683,16 @@
          ========================================================== */
       function initThemeControls() {
         const controller = window.ThemeController;
-        if (!controller) {
-          elements.themeToggle.hidden = true;
-          return;
-        }
         const layoutKey = 'muenster-unvermutet:layout';
         const applyLayout = (accessible) => {
           document.body.classList.toggle('layout-classic', !accessible);
           elements.layoutToggle.setAttribute('aria-pressed', String(accessible));
-          elements.layoutToggle.textContent = accessible ? 'Barrierefrei' : 'Klassisch';
-          elements.layoutToggle.setAttribute('aria-label', accessible ? 'Barrierefrei: Liste und große Pins anzeigen' : 'Klassisch: ohne Liste, kleine Pins');
+          elements.layoutToggle.textContent = accessible ? 'Klassisch' : 'Barrierefrei';
+          elements.layoutToggle.setAttribute('aria-label', accessible ? 'Klassisch: Liste und große Pins ausblenden' : 'Barrierefrei: Liste und große Pins anzeigen');
         };
-        let accessible = true;
+        let accessible = false;
         try {
-          accessible = localStorage.getItem(layoutKey) !== 'classic';
+          accessible = localStorage.getItem(layoutKey) === 'accessible';
         } catch (error) {
           // Speicher blockiert: Standard verwenden.
         }
@@ -2697,6 +2707,10 @@
           }
           announce(accessible ? 'Barrierefrei: Liste und große Pins.' : 'Klassisch: ohne Liste, kleine Pins.');
         });
+        if (!controller) {
+          elements.themeToggle.hidden = true;
+          return;
+        }
         let initialized = false;
         controller.subscribe(({ mode, manual }) => {
           const dark = mode === 'dark';
