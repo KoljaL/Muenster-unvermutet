@@ -16,7 +16,7 @@ $root = config('root');
 
 function find_photo(string $root, string $name): ?string
 {
-    foreach ([$root, $root . '/OLD', $root . '/setup/photos'] as $dir) {
+    foreach ([$root, $root . '/OLD', $root . '/setup/images', $root . '/setup/photos'] as $dir) {
         if (is_file($dir . '/' . $name)) {
             return $dir . '/' . $name;
         }
@@ -40,11 +40,29 @@ function import_photo(string $root, string $name): string
 }
 
 $imported = 0;
-$exists = $pdo->prepare('SELECT 1 FROM stations WHERE id = ?');
+$exists = $pdo->prepare('SELECT task_image, solution_image FROM stations WHERE id = ?');
 foreach ($seed as $s) {
     $exists->execute([$s['id']]);
-    if ($exists->fetchColumn()) {
-        echo "Übersprungen (vorhanden): {$s['id']}\n";
+    $row = $exists->fetch(PDO::FETCH_ASSOC);
+    if ($row !== false) {
+        // Bereits vorhandene Stationen: fehlende Bilder nachtragen
+        $fix = [];
+        if (($row['task_image'] ?? '') === '') {
+            $p = import_photo($root, 'Aufgabe ' . $s['number'] . '.jpg');
+            if ($p !== '') {
+                $fix['task_image'] = $p;
+            }
+        }
+        if (($row['solution_image'] ?? '') === '') {
+            $p = import_photo($root, 'Loesung ' . $s['number'] . '.jpg');
+            if ($p !== '') {
+                $fix['solution_image'] = $p;
+            }
+        }
+        foreach ($fix as $col => $val) {
+            $pdo->prepare("UPDATE stations SET {$col} = ?, updated_at = ? WHERE id = ?")->execute([$val, now(), $s['id']]);
+        }
+        echo ($fix ? 'Bilder nachgetragen: ' : 'Übersprungen (vorhanden): ') . "{$s['id']}\n";
         continue;
     }
     echo "Importiere {$s['number']} {$s['id']}\n";

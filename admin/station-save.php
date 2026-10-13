@@ -47,21 +47,12 @@ if ($mode === 'create' && $suggestionId !== null) {
 if ($mode === 'update') {
     $id = $origId;
 } else {
-    $posted = is_string($_POST['id'] ?? null) ? trim($_POST['id']) : '';
-    if ($posted !== '' && !preg_match('/^[a-z0-9][a-z0-9-]{0,79}$/', $posted)) {
-        $errors[] = 'Ungültige ID (nur a–z, 0–9 und Bindestrich).';
-        $posted = '';
-    }
-    $base = $posted !== '' ? $posted : slugify($s['title']);
+    $base = slugify($s['title']);
     $id = $base;
     $check = $pdo->prepare('SELECT 1 FROM stations WHERE id = ?');
     for ($n = 2;; $n++) {
         $check->execute([$id]);
         if (!$check->fetchColumn()) {
-            break;
-        }
-        if ($posted !== '') {
-            $errors[] = 'Diese ID existiert bereits.';
             break;
         }
         $id = $base . '-' . $n;

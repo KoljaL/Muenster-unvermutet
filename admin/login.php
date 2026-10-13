@@ -32,14 +32,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
 admin_header('Login');
 ?>
-<h1>Admin-Login</h1>
-<?php if ($error): ?><div class="msg err"><?= h($error) ?></div><?php endif; ?>
+<h1 class="admin-title">Admin-Login</h1>
+<?php if ($error): ?><div class="error-message" role="alert"><?= h($error) ?></div><?php endif; ?>
 <form method="post" autocomplete="off" style="max-width:360px">
   <?= csrf_field() ?>
   <label for="username">Benutzername</label>
   <input type="text" id="username" name="username" required autofocus>
   <label for="password">Passwort</label>
   <input type="password" id="password" name="password" required>
-  <p><button>Anmelden</button></p>
+  <p><button class="next-button">Anmelden</button></p>
 </form>
 <?php admin_footer();

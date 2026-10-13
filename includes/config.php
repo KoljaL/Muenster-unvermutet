@@ -24,7 +24,6 @@ function config(string $key = null)
             'login_max_attempts' => 5,
             'login_window' => 900,
             'suggest_max_per_hour' => 5,
-            'categories' => ['history', 'art', 'legend', 'faith', 'detail', 'culture'],
             'allow_http_links' => true,
             'timezone' => 'Europe/Berlin',
         ];

@@ -4,32 +4,30 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 $admin = require_admin();
 
-$stations = db()->query('SELECT id, number, title, category, status, task_image FROM stations ORDER BY number')->fetchAll();
+$stations = db()->query('SELECT id, title, category, status, task_image FROM stations ORDER BY number')->fetchAll();
+$categories = array_column(all_categories(), null, 'id');
 $pending = (int) db()->query("SELECT COUNT(*) FROM station_suggestions WHERE status = 'pending'")->fetchColumn();
 
 admin_header('Stationen', $admin);
 ?>
-<h1>Stationen</h1>
-<p><a class="btn" href="station-edit.php">+ Neue Station</a>
-   <a class="btn secondary" href="suggestions.php">Vorschläge (<?= $pending ?> offen)</a></p>
-<table>
-  <tr><th>Nr.</th><th>Titel</th><th>Kategorie</th><th>Status</th><th>Aktionen</th></tr>
-  <?php foreach ($stations as $s): ?>
-  <tr>
-    <td><?= (int) $s['number'] ?></td>
-    <td><?= h($s['title']) ?><br><span class="muted"><?= h($s['id']) ?><?= $s['task_image'] === '' ? ' – ⚠ Aufgabenbild fehlt' : '' ?></span></td>
-    <td><?= h($s['category']) ?></td>
-    <td><?= $s['status'] === 'published' ? 'veröffentlicht' : 'archiviert' ?></td>
-    <td>
-      <a href="station-edit.php?id=<?= h(urlencode($s['id'])) ?>">Bearbeiten</a>
-      <form method="post" action="station-delete.php" style="display:inline">
-        <?= csrf_field() ?>
-        <input type="hidden" name="id" value="<?= h($s['id']) ?>">
-        <input type="hidden" name="status" value="<?= $s['status'] === 'published' ? 'archived' : 'published' ?>">
-        <button class="secondary"><?= $s['status'] === 'published' ? 'Archivieren' : 'Wiederherstellen' ?></button>
-      </form>
-    </td>
-  </tr>
+<h1 class="admin-title">Stationen</h1>
+<p class="page-subtitle task-intro"><?= count($stations) ?> Stationen · <?= $pending ?> offene Vorschläge</p>
+<div class="admin-toolbar">
+  <a class="btn" href="station-edit.php">+ Neue Station</a>
+  <a class="btn secondary" href="suggestions.php">Vorschläge (<?= $pending ?>)</a>
+</div>
+<?php if (!$stations): ?><p>Noch keine Stationen vorhanden.</p><?php endif; ?>
+<ul class="station-list">
+  <?php foreach ($stations as $s): $c = $categories[$s['category']] ?? null; $archived = $s['status'] !== 'published'; ?>
+  <li class="station-item<?= $archived ? ' station-item--archived' : '' ?>">
+    <span class="ico" aria-hidden="true"><?= category_ico($c) ?></span>
+    <a class="admin-main" href="station-edit.php?id=<?= h(urlencode($s['id'])) ?>"><?= h($s['title']) ?>
+      <small><?= h($c['name'] ?? $s['category']) ?><?= $s['task_image'] === '' ? ' · ⚠ Aufgabenbild fehlt' : '' ?></small></span>
+    <span class="badge<?= $archived ? ' badge--archived' : '' ?>"><?= $archived ? 'archiviert' : 'veröffentlicht' ?></span>
+    <span class="admin-actions">
+      <a class="btn secondary small" href="station-edit.php?id=<?= h(urlencode($s['id'])) ?>">Bearbeiten</a>
+    </span>
+  </li>
   <?php endforeach; ?>
-</table>
+</ul>
 <?php admin_footer();

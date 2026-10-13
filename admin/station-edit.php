@@ -62,7 +62,7 @@ $head = '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leafl
 admin_header($isNew ? 'Neue Station' : 'Station bearbeiten', $admin, $head);
 $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
 ?>
-<h1><?= $isNew ? 'Neue Station' : 'Station bearbeiten' ?></h1>
+<h1 class="admin-title"><?= $isNew ? 'Neue Station' : 'Station bearbeiten' ?></h1>
 <form method="post" action="station-save.php" enctype="multipart/form-data">
   <?= csrf_field() ?>
   <input type="hidden" name="mode" value="<?= $isNew ? 'create' : 'update' ?>">
@@ -70,15 +70,12 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
   <input type="hidden" name="suggestion_id" value="<?= h($suggestionId ?? '') ?>">
   <input type="hidden" name="MAX_FILE_SIZE" value="<?= (int) config('upload_max_bytes') ?>">
 
-  <fieldset><legend>Stammdaten</legend>
+  <fieldset class="task-card"><legend>Stammdaten</legend>
     <div class="row">
-      <div><label for="id">ID (stabil, nicht änderbar)</label>
-        <input type="text" id="id" name="id" value="<?= h($st['id']) ?>" pattern="[a-z0-9][a-z0-9\-]{0,79}" <?= $isNew ? 'placeholder="leer = automatisch"' : 'readonly' ?>></div>
-      <div><label for="number">Nummer</label>
-        <input type="number" min="1" id="number" name="number" value="<?= h($st['number']) ?>" placeholder="leer = nächste"></div>
       <div><label for="category">Kategorie</label>
-        <select id="category" name="category"><?php foreach (config('categories') as $c): ?>
-          <option value="<?= h($c) ?>" <?= $c === $st['category'] ? 'selected' : '' ?>><?= h($c) ?></option><?php endforeach; ?></select></div>
+        <select id="category" name="category"><?php foreach (all_categories() as $c): ?>
+          <option value="<?= h($c['id']) ?>" <?= $c['id'] === $st['category'] ? 'selected' : '' ?>><?= h($c['name']) ?></option><?php endforeach; ?></select>
+        <span class="muted"><a href="categories.php">Kategorien verwalten</a></span></div>
       <div><label for="status">Status</label>
         <select id="status" name="status">
           <option value="published" <?= $st['status'] === 'published' ? 'selected' : '' ?>>veröffentlicht</option>
@@ -90,7 +87,7 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     <textarea id="hint" name="hint" required maxlength="1000"><?= h($st['hint']) ?></textarea>
   </fieldset>
 
-  <fieldset><legend>Standort</legend>
+  <fieldset class="task-card"><legend>Standort</legend>
     <div class="row">
       <div><label for="lat">Breitengrad</label><input type="text" id="lat" name="lat" required value="<?= h($st['lat']) ?>"></div>
       <div><label for="lon">Längengrad</label><input type="text" id="lon" name="lon" required value="<?= h($st['lon']) ?>"></div>
@@ -99,7 +96,7 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     <div id="picker"></div>
   </fieldset>
 
-  <fieldset><legend>Frage &amp; Antworten (2–4 Optionen, leere werden ignoriert)</legend>
+  <fieldset class="task-card"><legend>Frage &amp; Antworten (2–4 Optionen, leere werden ignoriert)</legend>
     <?php foreach ($st['options'] as $i => $text): ?>
       <div class="opt">
         <input type="radio" name="correct" value="<?= $i ?>" id="c<?= $i ?>" <?= (int) $st['correct'] === $i ? 'checked' : '' ?> aria-label="Richtige Antwort <?= $i + 1 ?>">
@@ -109,7 +106,7 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     <p class="muted">Der Punkt markiert die richtige Antwort.</p>
   </fieldset>
 
-  <fieldset><legend>Lösung</legend>
+  <fieldset class="task-card"><legend>Lösung</legend>
     <label for="solution_title">Lösungstitel</label>
     <input type="text" id="solution_title" name="solution_title" required maxlength="300" value="<?= h($st['solution_title']) ?>">
     <label for="solution_caption">Bildunterschrift Lösungsfoto (optional)</label>
@@ -118,16 +115,22 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     <textarea id="info" name="info" required maxlength="8000" style="min-height:12rem"><?= h($st['info']) ?></textarea>
   </fieldset>
 
-  <fieldset><legend>Bilder (JPEG/PNG, max. <?= (int) (config('upload_max_bytes') / 1048576) ?> MB, <?= (int) config('upload_max_edge') ?> px)</legend>
-    <label for="task_image">Aufgabenfoto</label>
-    <?php if ($st['task_image'] !== ''): ?><img class="thumb" src="<?= $img($st['task_image']) ?>" alt="Aufgabenfoto"><?php endif; ?>
-    <input type="file" id="task_image" name="task_image" accept="image/jpeg,image/png">
-    <label for="solution_image">Lösungsfoto</label>
-    <?php if ($st['solution_image'] !== ''): ?><img class="thumb" src="<?= $img($st['solution_image']) ?>" alt="Lösungsfoto"><?php endif; ?>
-    <input type="file" id="solution_image" name="solution_image" accept="image/jpeg,image/png">
+  <fieldset class="task-card"><legend>Bilder (JPEG/PNG, max. <?= (int) (config('upload_max_bytes') / 1048576) ?> MB, <?= (int) config('upload_max_edge') ?> px)</legend>
+    <div class="admin-media-grid">
+      <div class="admin-media-item">
+        <label for="task_image">Aufgabenfoto</label>
+        <?php if ($st['task_image'] !== ''): ?><img class="thumb" src="<?= $img($st['task_image']) ?>" alt="Aufgabenfoto"><?php endif; ?>
+        <input type="file" id="task_image" name="task_image" accept="image/jpeg,image/png">
+      </div>
+      <div class="admin-media-item">
+        <label for="solution_image">Lösungsfoto</label>
+        <?php if ($st['solution_image'] !== ''): ?><img class="thumb" src="<?= $img($st['solution_image']) ?>" alt="Lösungsfoto"><?php endif; ?>
+        <input type="file" id="solution_image" name="solution_image" accept="image/jpeg,image/png">
+      </div>
+    </div>
   </fieldset>
 
-  <fieldset><legend>Weiterführende Links (nur http/https)</legend>
+  <fieldset class="task-card"><legend>Weiterführende Links (nur http/https)</legend>
     <?php foreach ($st['links'] as $l): ?>
       <div class="row">
         <input type="text" name="link_title[]" maxlength="200" placeholder="Titel" value="<?= h($l['title']) ?>" aria-label="Linktitel">
@@ -137,7 +140,7 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     <p class="muted">Weitere Links: speichern, dann erscheint eine zusätzliche leere Zeile.</p>
   </fieldset>
 
-  <p><button>Speichern</button> <a class="btn secondary" href="index.php">Abbrechen</a></p>
+  <div class="admin-sticky"><button class="next-button">Speichern</button> <a class="btn secondary" href="index.php">Abbrechen</a></div>
 </form>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

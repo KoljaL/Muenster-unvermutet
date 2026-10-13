@@ -32,13 +32,20 @@ Vorgesehene Struktur:
 ├── api/
 │   ├── bootstrap.php
 │   ├── map_pins.php
+│   ├── categories.php
 │   ├── get_details.php
 │   └── submit_station.php
 ├── admin/
 │   ├── _bootstrap.php
 │   ├── login.php
 │   ├── logout.php
+│   ├── admin.css
 │   ├── index.php
+│   ├── categories.php
+│   ├── category-edit.php
+│   ├── category-save.php
+│   ├── category-delete.php
+│   ├── help.php
 │   ├── station-edit.php
 │   ├── station-save.php
 │   ├── station-delete.php
@@ -473,3 +480,50 @@ In der ersten Version werden nicht umgesetzt:
 - offene CORS-Freigaben,
 - MySQL-Unterstützung als parallele Laufzeitdatenbank.
 
+## 13. Plan: Kategorienverwaltung, Admin-Redesign und Dark Mode
+
+### 13.1 Ziele
+
+- Kategorien im Admin-Bereich erstellen, bearbeiten und (wenn unbenutzt) löschen.
+- Je Kategorie: Name, kurze Beschreibung und ein vom Admin hochgeladenes Symbol (Icon).
+- Unveränderliche, automatisch vergebene Stammdaten (ID, Nummer) werden im Admin nicht mehr angezeigt oder abgefragt.
+- Moderneres Admin-Design auf Basis der Farben und Klassen von `index-with-api.html`.
+- Automatischer Dark Mode (Farbschema One Dark) über `prefers-color-scheme`.
+- Dokumentation der neuen Funktionen im Admin-Bereich.
+
+### 13.2 Datenmodell
+
+Neue Tabelle `categories` in `setup/schema.sql` (idempotent, wird bei jedem DB-Zugriff ausgeführt):
+
+| Feld | Beschreibung |
+|---|---|
+| `id` | stabile, aus dem Namen erzeugte Kennung (Slug), unveränderlich, entspricht `stations.category` |
+| `name` | Anzeigename, eindeutig (ohne Beachtung der Groß-/Kleinschreibung) |
+| `description` | kurze Beschreibung, max. 300 Zeichen |
+| `icon` | Pfad zum Upload (`uploads/<hash>.jpg/png`) oder `NULL` |
+| `created_at`, `updated_at` | Zeitstempel |
+
+Die sechs bisherigen Kategorien (`history`, `art`, `legend`, `faith`, `detail`, `culture`) werden per `INSERT OR IGNORE` übernommen, sodass bestehende Stationen gültig bleiben. Die feste Liste `categories` in `config.php` entfällt; `validate_station_input()` prüft gegen die Tabelle.
+
+### 13.3 Umsetzungsschritte
+
+1. Schema erweitern und Hilfsfunktionen `category_exists()` und `all_categories()` ergänzen.
+2. Admin-Seiten `categories.php`, `category-edit.php`, `category-save.php`, `category-delete.php`:
+   - Erstellen/Bearbeiten mit CSRF-Schutz, Validierung und Upload über `store_upload()` (JPEG/PNG, Größen- und Kantenlängenprüfung).
+   - Ersetztes oder entferntes Symbol wird erst nach erfolgreichem Speichern gelöscht; bei Fehlern wird der neue Upload verworfen.
+   - Löschen nur ohne zugeordnete Stationen.
+3. Stationsformular: Kategorie-Auswahl aus der Tabelle (Anzeige des Namens), Felder ID und Nummer entfernt. ID (Slug aus Titel) und Nummer (nächste freie) werden beim Anlegen automatisch vergeben und danach nie geändert. Die Stationsliste zeigt Titel, Kategorie mit Symbol und Status.
+4. Öffentliche API `GET api/categories.php` liefert `id`, `name`, `description`, `icon`. Das Frontend kann Legende, Chips und Pins mittelfristig damit statt der fest codierten `CATEGORIES` aufbauen (Farben bleiben bis dahin im Frontend).
+5. Design: neue Datei `admin/admin.css` ersetzt die Inline-Styles. Sie übernimmt Variablennamen (`--green`, `--green-dark`, `--green-soft`, `--ink`, `--muted`, `--cat`, `--cat-soft`) und Klassen des Frontends (`.page`, `.hero`, `.task-card`, `.task-body`, `.station-list`, `.station-item`, `.ico`, `.state`, `.category-chip`, `.legend`, `.badge`, `.back-button`, `.next-button`, `.hint-box`, `.error-message`, `.how-to`, `.visually-hidden`). Admin-spezifisches trägt das Präfix `admin-`. Dadurch kann später eine gemeinsame CSS-Datei entstehen.
+6. Dark Mode: alle Farben liegen in CSS-Variablen; ein `@media (prefers-color-scheme: dark)`-Block überschreibt sie mit One-Dark-Werten (Hintergrund `#282c34`/`#21252b`, Text `#abb2bf`, Rahmen `#3e4451`, Akzente `#98c379`, `#61afef`, `#e5c07b`, Fehler `#e06c75`). Kein Schalter, Umschaltung automatisch nach Browser-/Systemeinstellung (`color-scheme: light dark`).
+7. Dokumentation: neue Seite `admin/help.php` (Navigationspunkt „Hilfe“) beschreibt Stationen, Kategorien (inkl. Symbol-Upload und Löschregel), Dark Mode und Vorschläge.
+
+### 13.4 Abnahmekriterien
+
+- Kategorie anlegen, Name/Beschreibung ändern, Symbol hochladen, ersetzen und entfernen funktioniert; ungültige Dateien werden abgelehnt.
+- Eine Kategorie mit Stationen lässt sich nicht löschen; eine unbenutzte schon (inkl. Entfernen der Bilddatei).
+- Neue Stationen erhalten automatisch eindeutige ID und Nummer; im Formular und in der Liste erscheinen beide nicht.
+- Bestehende Stationen sind nach der Migration weiterhin einer gültigen Kategorie zugeordnet.
+- Admin-Oberfläche ist mit hellen und dunklen System-/Browsereinstellungen lesbar (Kontrast, Fokusmarkierung, Mobilansicht).
+- `api/categories.php` liefert die Kategorien; `map_pins.php` und `get_details.php` bleiben unverändert kompatibel.
+- Hilfeseite erklärt Kategorien und Dark Mode.

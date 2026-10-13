@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/database.php';
 
 function clean_text($value, int $max, bool $multiline = false): string
 {
@@ -104,7 +105,7 @@ function validate_station_input(array $in): array
             $errors[] = $label . ' ist erforderlich.';
         }
     }
-    if (!in_array($s['category'], config('categories'), true)) {
+    if (!category_exists($s['category'])) {
         $errors[] = 'Ungültige Kategorie.';
     }
     $lat = parse_float($in['lat'] ?? '');
@@ -115,8 +116,8 @@ function validate_station_input(array $in): array
     $s['lat'] = $lat;
     $s['lon'] = $lon;
 
-    $number = $in['number'] ?? '';
-    $s['number'] = ctype_digit((string) $number) && (int) $number > 0 ? (int) $number : null;
+    // Nummer und ID werden automatisch vergeben und sind unveränderlich.
+    $s['number'] = null;
 
     [$s['options'], $s['correct'], $optErrors] = clean_options($in['options'] ?? [], $in['correct'] ?? null);
     [$s['links'], $linkErrors] = clean_links($in['link_title'] ?? [], $in['link_url'] ?? []);
@@ -128,4 +129,17 @@ function slugify(string $text): string
     $text = strtr(mb_strtolower($text), ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss']);
     $text = trim((string) preg_replace('/[^a-z0-9]+/', '-', $text), '-');
     return substr($text !== '' ? $text : 'station', 0, 50);
+}
+
+function category_exists(string $id): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM categories WHERE id = ?');
+    $stmt->execute([$id]);
+    return (bool) $stmt->fetchColumn();
+}
+
+/** @return array<int, array{id:string,name:string,description:string,icon:?string}> */
+function all_categories(): array
+{
+    return db()->query('SELECT id, name, description, icon FROM categories ORDER BY name COLLATE NOCASE')->fetchAll();
 }

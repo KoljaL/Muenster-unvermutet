@@ -77,3 +77,20 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 
 CREATE INDEX IF NOT EXISTS rate_limits_lookup ON rate_limits(bucket, key, created_at);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    icon TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at) VALUES
+    ('history', 'Geschichte', 'Historische Ereignisse und Orte.', datetime('now'), datetime('now')),
+    ('art', 'Kunst', 'Kunstwerke und Skulpturen im Stadtbild.', datetime('now'), datetime('now')),
+    ('legend', 'Sagen', 'Sagen und Legenden aus Münster.', datetime('now'), datetime('now')),
+    ('faith', 'Glaube', 'Kirchen und religiöse Orte.', datetime('now'), datetime('now')),
+    ('detail', 'Details', 'Kleine Besonderheiten am Wegesrand.', datetime('now'), datetime('now')),
+    ('culture', 'Kultur', 'Kultur, Brauchtum und Kuriositäten.', datetime('now'), datetime('now'));

@@ -51,11 +51,11 @@ Die vollständige technische Planung steht in [`Backend-Umsetzung.md`](./Backend
 
 Die folgenden Zugangsdaten sind ausschließlich für eine Testinstallation vorgesehen:
 
-| Benutzername | Testpasswort |
-|---|---|
-| `admin1` | `Muenster-Test-2026-1!` |
-| `admin2` | `Muenster-Test-2026-2!` |
-| `admin3` | `Muenster-Test-2026-3!` |
+| Benutzername | Testpasswort            |
+| ------------ | ----------------------- |
+| `admin1`     | `Muenster-Test-2026-1!` |
+| `admin2`     | `Muenster-Test-2026-2!` |
+| `admin3`     | `Muenster-Test-2026-3!` |
 
 **Wichtig:** Diese Testpasswörter dürfen nicht unverändert produktiv verwendet werden. Vor dem öffentlichen Deployment müssen neue Zugangsdaten gesetzt werden. In der SQLite-Datenbank werden nur Passwort-Hashes gespeichert.
 
@@ -78,12 +78,14 @@ php -S 127.0.0.1:8080              # lokaler Server
 
 ### Struktur
 
-| Pfad | Inhalt |
-|---|---|
-| `api/` | `map_pins.php`, `get_details.php`, `submit_station.php` (Vorschläge, rate-limitiert, Honeypot) |
-| `admin/` | Login (5 Min. Inaktivitäts-Timeout), Stationsverwaltung mit Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation |
-| `includes/` | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads |
-| `setup/` | Schema, Seed-Daten, Import- und Admin-Skripte (nur per CLI) |
-| `data/`, `uploads/` | SQLite-Datei bzw. Bilder, jeweils per `.htaccess` abgesichert |
+| Pfad                | Inhalt                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `api/`              | `map_pins.php`, `get_details.php`, `submit_station.php` (Vorschläge, rate-limitiert, Honeypot)                      |
+| `admin/`            | Login (5 Min. Inaktivitäts-Timeout), Stationsverwaltung mit Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation |
+| `includes/`         | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads                                                                |
+| `setup/`            | Schema, Seed-Daten, Import- und Admin-Skripte (nur per CLI)                                                         |
+| `data/`, `uploads/` | SQLite-Datei bzw. Bilder, jeweils per `.htaccess` abgesichert                                                       |
 
 Stationen werden im Admin nur archiviert, nicht gelöscht. Beim Deployment auf Apache/All-Inkl müssen `data/` und `uploads/` für PHP beschreibbar sein; HTTPS wird für das Session-Cookie (`Secure`) vorausgesetzt. Testkonten vor dem Livegang ersetzen.
+
+
