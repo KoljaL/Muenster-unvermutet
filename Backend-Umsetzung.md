@@ -160,13 +160,14 @@ Vorschläge werden getrennt von offiziellen Stationen gespeichert:
 CREATE TABLE station_suggestions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
-    hint TEXT NOT NULL,
-    lat NUMERIC NOT NULL,
-    lon NUMERIC NOT NULL,
-    question TEXT NOT NULL,
-    options_json TEXT NOT NULL,
-    correct_option_index INTEGER NOT NULL,
+    hint TEXT,
+    lat NUMERIC,
+    lon NUMERIC,
+    question TEXT,
+    options_json TEXT,
+    correct_option_index INTEGER,
     info TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'detail',
     suggested_by_name TEXT,
     suggested_by_email TEXT,
     task_image TEXT,
@@ -179,6 +180,8 @@ CREATE TABLE station_suggestions (
 ```
 
 So bleiben untrusted Benutzereingaben von den veröffentlichten Stationen getrennt.
+Basisdaten reichen für eine Einreichung aus; redaktionelle Felder und Standort
+dürfen fehlen und werden vor der Veröffentlichung im Admin-Bereich ergänzt.
 
 ## 4. API-Design
 
@@ -242,16 +245,21 @@ Die Auslieferung der richtigen Antwort ist bewusst akzeptiert, weil es keine Wer
 
 ### 4.3 `POST /api/submit_station.php`
 
-Der Endpunkt bleibt optional und wird erst umgesetzt, wenn Spielervorschläge tatsächlich benötigt werden. Er akzeptiert zunächst keine automatische Veröffentlichung.
+Der Endpunkt akzeptiert JSON mit `version: 1`, `name`, `description`,
+`categoryId` und optionalem `location`-/`editorial`-Block. Der optionale
+Frageblock wird nur vollständig akzeptiert (zwei bis vier Optionen und gültiger
+Index). Der Eintrag wird immer als `pending` gespeichert und nie automatisch
+veröffentlicht. Das bisherige vollständige Formulardatenformat bleibt für
+bestehende Integrationen verfügbar.
 
 Pflichtmaßnahmen:
 
 - ausschließlich `POST`
 - Größen- und Feldlimits
-- Koordinaten- und URL-Validierung
+- Koordinaten- und Kategorie-Validierung
 - Rate-Limiting
 - Honeypot gegen einfache Bots
-- serverseitige Upload-Prüfung
+- serverseitige Upload-Prüfung für das alte Formularformat
 - Speicherung als `pending`
 
 ## 5. Frontend-Umstellung

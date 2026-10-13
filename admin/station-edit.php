@@ -38,6 +38,7 @@ if ($id !== null) {
     }
     $st = array_merge($st, [
         'title' => $sg['title'], 'hint' => $sg['hint'], 'lat' => $sg['lat'], 'lon' => $sg['lon'], 'info' => $sg['info'],
+        'category' => $sg['category'] ?: 'detail',
         'solution_title' => $sg['title'], 'task_image' => (string) $sg['task_image'], 'solution_image' => (string) $sg['solution_image'],
         'options' => array_pad((array) json_decode($sg['options_json'], true), 4, ''), 'correct' => (int) $sg['correct_option_index'],
     ]);

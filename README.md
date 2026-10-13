@@ -25,6 +25,133 @@ Der Fortschrittsbalken zeigt an, wie viele Stationen bereits gelöst sind. Der S
 
 Mit **Zurücksetzen** kann der gesamte Fortschritt gelöscht und das Spiel neu begonnen werden. Beim vollständigen Durchspielen werden zusätzlich Rang und Spielstatistik angezeigt.
 
+## Bedienung und Barrierefreiheit
+
+Die Oberfläche kann vollständig mit der Tastatur bedient werden:
+
+- Mit **Tab** werden Skip-Link, Theme-Schalter, Kategorie-Filter, Stationsvorschlag,
+  Stationsliste, Karten-Pins und die jeweilige Detailansicht erreicht.
+- Karten-Pins reagieren auf **Enter** und **Leertaste**. Die Stationsliste ist eine
+  gleichwertige Alternative zur Karte.
+- Der sichtbare Fokus-Ring bleibt auch bei aktivem Dark Mode erhalten.
+- Der Dialog **Station vorschlagen** setzt den Fokus beim Öffnen in das Formular,
+  unterstützt **Escape** und führt den Fokus beim Schließen zum auslösenden Button zurück.
+- Pflichtfelder und Koordinatenfehler werden direkt am jeweiligen Feld angezeigt und
+  per `aria-describedby` mit dem Feld verknüpft. Dynamische Statusmeldungen werden
+  über eine `aria-live`-Region angekündigt.
+
+### Farbmodus
+
+Beim ersten Aufruf folgt die Anwendung `prefers-color-scheme`. Der Schalter
+**Dunkler Modus** speichert eine manuelle Auswahl unter
+`muenster-unvermutet:color-mode` in `localStorage`. Mit **Systemeinstellung verwenden**
+wird die manuelle Auswahl entfernt; danach werden Änderungen der Systemeinstellung
+wieder übernommen. Ist `localStorage` nicht verfügbar, funktioniert der Farbmodus
+nur für die aktuelle Sitzung.
+
+### Filter und Animations-Hooks
+
+Die Kategorien unter der Karte sind Filter-Schalter. Ein leerer Filter zeigt alle
+Stationen. Der UI-Zustand liegt in `uiState`; Rendering und Interaktionen sind getrennt.
+Für zukünftige Animationen oder Erweiterungen stellt `index.html` folgende
+`CustomEvent`s auf `document` bereit:
+
+`ms:beforeRender`, `ms:afterRender`, `ms:beforeDetailsOpen`,
+`ms:afterDetailsOpen`, `ms:beforeDetailsClose`, `ms:afterDetailsClose`,
+`ms:beforeFilterChange`, `ms:afterFilterChange`, `ms:beforeDialogOpen`,
+`ms:afterDialogOpen`, `ms:beforeDialogClose`, `ms:afterDialogClose`.
+
+Beispiel:
+
+```js
+document.addEventListener('ms:afterDetailsOpen', (event) => {
+  console.log('Station geöffnet:', event.detail.stationId);
+});
+```
+
+Animationen dürfen keine Information voraussetzen und müssen bei
+`prefers-reduced-motion: reduce` entfallen oder minimiert werden.
+
+## Station vorschlagen
+
+Der Button **Station vorschlagen** öffnet einen zugänglichen Dialog. Das Formular
+verlangt:
+
+- `name`: Stationsname, getrimmt, maximal 100 Zeichen
+- `description`: Beschreibung oder Besonderheiten, getrimmt, maximal 1000 Zeichen
+- `categoryId`: stabile ID der ausgewählten Kategorie
+- optional `editorial`: Hinweis, Frage, zwei bis vier Antwortoptionen, richtige
+  Antwort und Hintergrundinformationen
+
+Der Standort ist optional. Werden Koordinaten eingetragen, müssen beide Werte
+vorhanden und gültig sein:
+
+- `latitude`: Zahl zwischen `-90` und `90`
+- `longitude`: Zahl zwischen `-180` und `180`
+
+Dezimal-Kommas werden akzeptiert und in Dezimalpunkte normalisiert. Alternativ
+kann der Standort per Kartenklick übernommen werden. Unvollständige oder ungültige
+Eingaben werden nicht als Erfolg behandelt.
+
+### Frontend-Datenformat
+
+Nach erfolgreicher Validierung erzeugt das Frontend dieses stabile Objekt:
+
+```json
+{
+  "version": 1,
+  "name": "Beispielstation",
+  "description": "Beschreibung und Besonderheiten",
+  "categoryId": "history",
+  "location": {
+    "latitude": 51.9607,
+    "longitude": 7.6261
+  },
+  "editorial": {
+    "hint": "Achte auf das Detail über dem Eingang.",
+    "question": "Was ist hier zu sehen?",
+    "options": ["Ein Wappen", "Eine Uhr"],
+    "correctOptionIndex": 0,
+    "info": "Zusätzlicher Hintergrund"
+  }
+}
+```
+
+Das Feld `location` wird nur bei vollständig ausgefüllten und gültigen
+Koordinaten aufgenommen. Ohne Standort enthält es kein `location`-Feld. Der
+`editorial`-Block ist ebenfalls optional; sobald Frage oder Antworten erfasst
+werden, muss er vollständig und mit zwei bis vier Antworten ausgefüllt sein.
+Die Übertragung erfolgt als JSON an `api/submit_station.php`; zusätzlich wird
+ein `ms:stationSuggested`-Event ausgelöst:
+
+```js
+document.addEventListener('ms:stationSuggested', (event) => {
+  const suggestion = event.detail;
+  // Erweiterungen können den validierten Payload beobachten.
+});
+```
+
+### Backend-Anbindung
+
+Der Endpoint akzeptiert den neuen JSON-Vertrag und bleibt für das bisherige
+vollständige Formularformat rückwärtskompatibel. Basisdaten werden direkt als
+`pending`-Vorschlag gespeichert; fehlende redaktionelle Angaben und ein fehlender
+Standort sind erlaubt. Die Redaktion ergänzt und validiert die vollständigen
+Stationsdaten im Admin-Bereich, bevor ein Vorschlag veröffentlicht wird.
+
+## Browserunterstützung und bekannte Einschränkungen
+
+- Benötigt werden JavaScript, `fetch`, `localStorage`, `window.matchMedia`,
+  `CustomEvent` und das native HTML-Element `<dialog>`.
+- Für die Kartenansicht werden Leaflet und OpenStreetMap-Kacheln aus dem Internet
+  geladen. Ohne Netzwerkverbindung bleibt die Stationslogik nutzbar, die Karte
+  kann jedoch nicht dargestellt werden.
+- Die Standortübernahme per Karte ist eine Maus-/Touch-Interaktion. Per Tastatur
+  stehen die Koordinatenfelder als gleichwertiger Eingabeweg zur Verfügung.
+- `prefers-reduced-motion` deaktiviert bzw. reduziert Übergänge und Animationen.
+- Bei nicht erreichbarem Backend zeigt das Formular den Fehler an und behandelt
+  den Vorschlag nicht als erfolgreich übermittelt.
+
 ## Voraussetzungen und Dateien
 
 - Für die interaktive Karte und die Kartendaten wird eine Internetverbindung benötigt.

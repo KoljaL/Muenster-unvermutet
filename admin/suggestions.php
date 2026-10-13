@@ -14,7 +14,9 @@ admin_header('Vorschläge', $admin);
   <fieldset class="task-card">
     <legend><a href="station-edit.php?suggestion=<?= (int) $r['id'] ?>"><?= h($r['title']) ?></a> <span class="muted">(<?= h($r['created_at']) ?>)</span></legend>
     <p><?= nl2br(h($r['info'])) ?></p>
-    <p class="muted">Frage: <?= h($r['question']) ?> · Koordinaten: <?= h($r['lat']) ?>, <?= h($r['lon']) ?><br>
+    <p class="muted">Kategorie: <?= h($r['category']) ?> · Frage: <?= h($r['question'] ?: 'noch nicht ergänzt') ?><br>
+       Koordinaten: <?= h($r['lat'] !== null && $r['lon'] !== null ? $r['lat'] . ', ' . $r['lon'] : 'noch nicht angegeben') ?> ·
+       Zusatzdaten: <?= $r['question'] || $r['hint'] ? 'vorhanden' : 'keine' ?><br>
        Von: <?= h($r['suggested_by_name'] ?: 'anonym') ?> <?= h($r['suggested_by_email']) ?></p>
     <?php foreach (['task_image', 'solution_image'] as $f): if ($r[$f] && is_managed_upload($r[$f])): ?>
       <img class="thumb" src="../<?= h($r[$f]) ?>" alt="<?= h($f) ?>">

@@ -4,6 +4,77 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Münster unvermutet – Foto-Schnitzeljagd</title>
+    <!-- Farbmodus (Roadmap 2.2): läuft vor dem ersten Rendern, damit kein Aufblitzen entsteht. -->
+    <script>
+      window.ThemeController = (function () {
+        var STORAGE_KEY = 'muenster-unvermutet:color-mode';
+        var query = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+        var listeners = [];
+
+        function readStored() {
+          try {
+            var value = localStorage.getItem(STORAGE_KEY);
+            return value === 'dark' || value === 'light' ? value : null;
+          } catch (error) {
+            return null; // Speicher blockiert: nur Systemeinstellung verwenden
+          }
+        }
+        function writeStored(value) {
+          try {
+            if (value) localStorage.setItem(STORAGE_KEY, value);
+            else localStorage.removeItem(STORAGE_KEY);
+          } catch (error) {
+            // Präferenz gilt nur für diese Sitzung.
+          }
+        }
+
+        var preference = readStored(); // 'dark' | 'light' | null (= System folgen)
+
+        function systemMode() {
+          return query && query.matches ? 'dark' : 'light';
+        }
+        function effective() {
+          return preference || systemMode();
+        }
+        function apply() {
+          var mode = effective();
+          document.documentElement.classList.toggle('dark', mode === 'dark');
+          listeners.forEach(function (listener) {
+            listener({ mode: mode, manual: preference !== null });
+          });
+        }
+
+        if (query) {
+          var onSystemChange = function () {
+            if (preference === null) apply();
+          };
+          if (query.addEventListener) query.addEventListener('change', onSystemChange);
+          else if (query.addListener) query.addListener(onSystemChange);
+        }
+        apply();
+
+        return {
+          getMode: effective,
+          isManual: function () {
+            return preference !== null;
+          },
+          toggle: function () {
+            preference = effective() === 'dark' ? 'light' : 'dark';
+            writeStored(preference);
+            apply();
+          },
+          reset: function () {
+            preference = null;
+            writeStored(null);
+            apply();
+          },
+          subscribe: function (listener) {
+            listeners.push(listener);
+            listener({ mode: effective(), manual: preference !== null });
+          },
+        };
+      })();
+    </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
       /* ==========================================================
@@ -420,6 +491,10 @@
          7. Optimierungen (k2): Kontrast, Touch-Ziele, Einführung, Kategorien, Abschluss
          ========================================================== */
       :root {
+        /* Markenfarben bleiben in beiden Modi gleich (weißer Text darauf) */
+        --brand: #065f46;
+        --brand-dark: #064e3b;
+        /* Theme-abhängige Aliase (siehe Abschnitt 8: Farbmodi) */
         --green: #065f46;
         --green-dark: #064e3b;
         --green-soft: #ecfdf5;
@@ -427,7 +502,7 @@
         --muted: #44403c;
       }
       body {
-        background: linear-gradient(180deg, #ecfdf5 0, #f5f5f4 320px);
+        background: linear-gradient(180deg, var(--color-background-top) 0, var(--color-background) 320px);
         color: var(--ink);
         font-size: 1.0625rem;
       }
@@ -441,8 +516,11 @@
         border-radius: 12px;
       }
       :focus-visible {
-        outline: 3px solid #f59e0b;
+        outline: 3px solid var(--color-focus);
         outline-offset: 2px;
+      }
+      .hero :focus-visible {
+        outline-color: #fff;
       }
       .page {
         padding-top: 20px;
@@ -507,7 +585,7 @@
         height: 34px;
         border-radius: 50%;
         background: #fff;
-        color: var(--green);
+        color: var(--brand);
         font-weight: 800;
         display: flex;
         align-items: center;
@@ -644,12 +722,12 @@
       }
       .map-pin--solved {
         background: #fff;
-        color: var(--green);
-        border-color: var(--green);
+        color: var(--brand);
+        border-color: var(--brand);
         font-weight: 900;
       }
       .map-pin--solved .pin-number {
-        background: var(--green);
+        background: var(--brand);
       }
       .leaflet-container a.leaflet-control-zoom-in,
       .leaflet-container a.leaflet-control-zoom-out {
@@ -804,12 +882,12 @@
       .badge {
         font-size: 0.9rem;
         padding: 6px 14px;
-        background: var(--green-dark);
+        background: var(--brand-dark);
       }
       .badge--solved {
         background: #fff;
-        color: var(--green-dark);
-        border: 2px solid var(--green);
+        color: var(--brand-dark);
+        border: 2px solid var(--brand);
       }
       .task-title {
         font-size: 1.3rem;
@@ -937,13 +1015,13 @@
         font-size: 0.9rem;
       }
       .next-button {
-        background: var(--green);
+        background: var(--brand);
         color: #fff;
         width: 100%;
         font-size: 1.05rem;
       }
       .next-button:hover {
-        background: var(--green-dark);
+        background: var(--brand-dark);
       }
       .next-button {
         transition:
@@ -1000,7 +1078,7 @@
         font-weight: 800;
         font-size: 1.15rem;
         background: #fff;
-        color: var(--green-dark);
+        color: var(--brand-dark);
         display: inline-block;
         border-radius: 999px;
         padding: 8px 18px;
@@ -1014,7 +1092,7 @@
       }
       .completion-actions button {
         background: #fff;
-        color: var(--green-dark);
+        color: var(--brand-dark);
         font-weight: 800;
       }
       .confetti {
@@ -1077,6 +1155,522 @@
           transform: translateY(0);
         }
       }
+      /* ==========================================================
+         8. Farbmodi (Roadmap 2): Light = Standard, Dark über Klasse .dark auf <html>
+         Alle Flächenfarben laufen über Variablen; Overrides folgen unten.
+         ========================================================== */
+      :root {
+        color-scheme: light;
+        --color-background: #f5f5f4;
+        --color-background-top: #ecfdf5;
+        --color-surface: #ffffff;
+        --color-surface-alt: #fafaf9;
+        --color-surface-sunken: #e7e5e4;
+        --color-text: #1c1917;
+        --color-muted-text: #44403c;
+        --color-accent: #065f46;
+        --color-border: #d6d3d1;
+        --color-border-strong: #a8a29e;
+        --color-focus: #b45309;
+        --color-danger: #b91c1c;
+        --color-danger-bg: #fef2f2;
+        --color-danger-border: #fecaca;
+        --color-hint-bg: #fffbeb;
+        --color-hint-text: #451a03;
+        --color-hint-border: #f59e0b;
+        --color-chip-bg: #f5f5f4;
+        --color-option-hover-bg: #f0fdf4;
+        --color-letter-bg: #1c1917;
+        --color-overlay: rgba(28, 25, 23, 0.6);
+        --map-tile-filter: none;
+      }
+      :root.dark {
+        color-scheme: dark;
+        --color-background: #121614;
+        --color-background-top: #0f2a22;
+        --color-surface: #1c201e;
+        --color-surface-alt: #262b28;
+        --color-surface-sunken: #2d3330;
+        --color-text: #f5f5f4;
+        --color-muted-text: #d6d3d1;
+        --color-accent: #34d399;
+        --color-border: #57605b;
+        --color-border-strong: #8b948f;
+        --color-focus: #fbbf24;
+        --color-danger: #fca5a5;
+        --color-danger-bg: #3b1515;
+        --color-danger-border: #7f1d1d;
+        --color-hint-bg: #3a2a08;
+        --color-hint-text: #fde68a;
+        --color-hint-border: #d97706;
+        --color-chip-bg: #262b28;
+        --color-option-hover-bg: #12332a;
+        --color-letter-bg: #57534e;
+        --color-overlay: rgba(0, 0, 0, 0.75);
+        --map-tile-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+        --green: #34d399;
+        --green-dark: #a7f3d0;
+        --green-soft: #12332a;
+        --ink: #f5f5f4;
+        --muted: #d6d3d1;
+      }
+      body {
+        color: var(--color-text);
+      }
+      .leaflet-tile-pane {
+        filter: var(--map-tile-filter);
+      }
+      .progress,
+      .station-item,
+      .back-button,
+      .task-card,
+      .hint-button,
+      .option {
+        background: var(--color-surface);
+        color: var(--color-text);
+      }
+      .progress,
+      .task-card,
+      #map,
+      .solution-photo {
+        border-color: var(--color-border);
+      }
+      .progress-track {
+        background: var(--color-border);
+      }
+      .station-item,
+      .back-button,
+      .hint-button,
+      .option {
+        border-color: var(--color-border-strong);
+      }
+      .station-item {
+        border-color: var(--color-border);
+      }
+      .station-item:hover {
+        background: var(--green-soft);
+        border-color: var(--green);
+      }
+      .station-item--solved {
+        background: var(--green-soft);
+        border-color: var(--green);
+      }
+      .back-button:hover,
+      .hint-button:hover {
+        background: var(--color-surface-alt);
+      }
+      .option:hover {
+        background: var(--color-option-hover-bg);
+        border-color: var(--green);
+      }
+      .option--wrong {
+        background: var(--color-danger-bg);
+        border-color: var(--color-danger);
+        color: var(--color-danger);
+      }
+      .option-letter {
+        background: var(--color-letter-bg);
+      }
+      .mini {
+        background: var(--category-color, var(--color-surface-sunken));
+        border-color: var(--color-border);
+      }
+      .mini--solved {
+        background: var(--green-soft);
+        border-color: var(--green);
+      }
+      .task-photo {
+        background: var(--color-surface-sunken);
+      }
+      .task-title {
+        color: var(--color-text);
+      }
+      .map-fallback,
+      .photo-fallback,
+      .solution-photo-fallback {
+        color: var(--color-muted-text);
+      }
+      .solution-photo figcaption {
+        background: var(--color-surface-alt);
+      }
+      .category-chip {
+        background: var(--color-chip-bg);
+        color: var(--color-text);
+      }
+      .coordinates {
+        background: var(--color-chip-bg);
+        color: var(--color-text);
+        border-color: var(--color-border-strong);
+      }
+      .hint-box {
+        background: var(--color-hint-bg);
+        color: var(--color-hint-text);
+        border-color: var(--color-hint-border);
+      }
+      .error-message,
+      .load-error,
+      .task-status {
+        background: var(--color-danger-bg);
+        color: var(--color-danger);
+        border-color: var(--color-danger);
+      }
+      .load-error,
+      .task-status {
+        color: var(--color-text);
+        border-color: var(--color-danger-border);
+      }
+      .task-status--loading {
+        background: var(--color-surface-alt);
+        border-color: var(--color-border);
+      }
+      .reset-button {
+        background: none;
+        color: var(--color-muted-text);
+      }
+      .reveal-button {
+        background: none;
+      }
+
+      /* Fokus: Pins der Karte (Leaflet-Marker sind fokussierbare Buttons) */
+      .leaflet-marker-icon:focus {
+        outline: none;
+      }
+      .leaflet-marker-icon:focus-visible .map-pin {
+        outline: 4px solid var(--color-focus);
+        outline-offset: 3px;
+      }
+      .map-pin {
+        transition: transform 0.15s;
+      }
+
+      /* Werkzeugleiste im Kopfbereich */
+      .skip-link {
+        position: absolute;
+        left: 8px;
+        top: -100px;
+        z-index: 2000;
+        background: #fff;
+        color: var(--brand-dark);
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+      .skip-link:focus {
+        top: 8px;
+      }
+      .hero-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .tool-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+      .tool-button:hover {
+        background: rgba(255, 255, 255, 0.28);
+      }
+      .tool-button[aria-pressed='true'] {
+        background: #fff;
+        color: var(--brand-dark);
+      }
+      .tool-button .tool-state {
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      /* Kategorie-Filter (Legende) */
+      .legend-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 44px;
+        padding: 0.25rem 0.75rem 0.25rem 0.35rem;
+        border: 2px solid var(--color-border-strong);
+        border-radius: 999px;
+        background: var(--color-surface);
+        color: var(--color-text);
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      .legend-button[aria-pressed='true'] {
+        border-color: var(--green);
+        background: var(--green-soft);
+      }
+      .legend-button[aria-pressed='true']::after {
+        content: '✓';
+        font-weight: 800;
+        color: var(--green);
+      }
+      .plan-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 14px;
+      }
+      .primary-button {
+        background: var(--brand);
+        color: #fff;
+        font-weight: 700;
+      }
+      .primary-button:hover {
+        background: var(--brand-dark);
+      }
+      .secondary-button {
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: 2px solid var(--color-border-strong);
+        font-weight: 700;
+      }
+      .secondary-button:hover {
+        background: var(--color-surface-alt);
+      }
+      .filter-empty {
+        margin: 12px 0 0;
+        padding: 12px 14px;
+        border: 2px dashed var(--color-border-strong);
+        border-radius: 12px;
+        color: var(--color-muted-text);
+      }
+      .pick-banner {
+        position: sticky;
+        top: 8px;
+        z-index: 1100;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--brand-dark);
+        color: #fff;
+        font-weight: 600;
+      }
+      .pick-banner button {
+        background: #fff;
+        color: var(--brand-dark);
+        min-height: 44px;
+      }
+      #map.is-picking {
+        cursor: crosshair;
+        outline: 4px dashed var(--color-focus);
+        outline-offset: 3px;
+      }
+      #map.is-picking .leaflet-grab {
+        cursor: crosshair;
+      }
+
+      /* Animations-Hooks (Roadmap 5): wiederverwendbare Klassen, standardmäßig ohne Wirkung */
+      .transition-fade {
+        transition: opacity 0.25s ease;
+      }
+      .transition-fade.is-entering,
+      .transition-fade.is-exiting {
+        opacity: 0;
+      }
+      .slide-enter {
+        transition:
+          transform 0.25s ease,
+          opacity 0.25s ease;
+      }
+      .slide-enter.is-entering {
+        transform: translateY(16px);
+        opacity: 0;
+      }
+      .slide-exit {
+        transition:
+          transform 0.2s ease,
+          opacity 0.2s ease;
+      }
+      .slide-exit.is-exiting {
+        transform: translateY(16px);
+        opacity: 0;
+      }
+
+      /* Dialog „Station vorschlagen“ */
+      .suggest-dialog {
+        width: min(36rem, calc(100vw - 1.5rem));
+        max-height: calc(100vh - 1.5rem);
+        padding: 0;
+        border: 2px solid var(--color-border-strong);
+        border-radius: 1rem;
+        background: var(--color-surface);
+        color: var(--color-text);
+        overflow: auto;
+      }
+      .suggest-dialog::backdrop {
+        background: var(--color-overlay);
+      }
+      .suggest-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.25rem 0;
+      }
+      .suggest-header h2 {
+        margin: 0;
+        font-size: 1.3rem;
+      }
+      .suggest-body {
+        padding: 0.75rem 1.25rem 1.25rem;
+        display: grid;
+        gap: 1rem;
+      }
+      .suggest-intro {
+        margin: 0;
+        color: var(--color-muted-text);
+        font-size: 0.95rem;
+      }
+      .suggest-form {
+        display: grid;
+        gap: 1rem;
+      }
+      .suggest-optional {
+        border: 2px solid var(--color-border);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+      }
+      .suggest-optional summary {
+        cursor: pointer;
+        min-height: 2.75rem;
+        display: flex;
+        align-items: center;
+        font-weight: 700;
+      }
+      .suggest-optional[open] summary {
+        margin-bottom: 1rem;
+      }
+      .suggest-optional-body {
+        display: grid;
+        gap: 1rem;
+      }
+      .answer-grid {
+        display: grid;
+        gap: 0.6rem;
+      }
+      .answer-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .answer-row input[type='radio'] {
+        width: 1.25rem;
+        height: 1.25rem;
+        accent-color: var(--green);
+      }
+      .field {
+        display: grid;
+        gap: 0.35rem;
+      }
+      .field label,
+      .field legend {
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0;
+      }
+      .required-mark {
+        color: var(--color-danger);
+      }
+      .field input,
+      .field textarea,
+      .field select {
+        width: 100%;
+        font: inherit;
+        padding: 0.65rem 0.75rem;
+        min-height: 48px;
+        color: var(--color-text);
+        background: var(--color-surface-alt);
+        border: 2px solid var(--color-border-strong);
+        border-radius: 0.6rem;
+      }
+      .field textarea {
+        min-height: 7rem;
+        resize: vertical;
+      }
+      .field [aria-invalid='true'] {
+        border-color: var(--color-danger);
+        border-width: 3px;
+      }
+      .field-hint {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--color-muted-text);
+      }
+      .field-error {
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-danger);
+      }
+      .field-error::before {
+        content: '⚠ ';
+      }
+      fieldset.field {
+        border: 2px solid var(--color-border);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+        margin: 0;
+        min-width: 0;
+      }
+      .coord-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+        gap: 0.75rem;
+      }
+      .form-status {
+        margin: 0;
+        padding: 0.75rem;
+        border-radius: 0.6rem;
+        font-weight: 600;
+      }
+      .form-status[data-kind='error'] {
+        background: var(--color-danger-bg);
+        color: var(--color-danger);
+        border: 2px solid var(--color-danger);
+      }
+      .form-status[data-kind='success'] {
+        background: var(--green-soft);
+        color: var(--color-text);
+        border: 2px solid var(--green);
+      }
+      .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+      .suggest-dialog.transition-fade,
+      .suggest-dialog.slide-enter,
+      .suggest-dialog.slide-exit {
+        transition:
+          transform 0.25s ease,
+          opacity 0.25s ease;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .transition-fade,
+        .slide-enter,
+        .slide-exit,
+        .suggest-dialog,
+        .map-pin {
+          transition: none !important;
+          animation: none !important;
+        }
+        .slide-enter.is-entering,
+        .slide-exit.is-exiting {
+          transform: none;
+        }
+      }
       @media (prefers-reduced-motion: reduce) {
         .confetti,
         .completion-trophy,
@@ -1103,10 +1697,18 @@
     </style>
   </head>
   <body>
-    <main class="page">
+    <a class="skip-link" href="#main">Zum Hauptinhalt springen</a>
+    <main class="page" id="main">
       <header class="hero">
         <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
         <p class="page-subtitle">Eine Foto-Schnitzeljagd von Bettina Säger · Idee inspiriert durch ein Buch von Clemens Köyer</p>
+        <!-- Farbmodus-Schalter (Roadmap 2.3) -->
+        <div class="hero-tools" role="group" aria-label="Darstellung">
+          <button type="button" class="tool-button" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
+            <span id="theme-icon" aria-hidden="true">🌙</span><span aria-hidden="true">Dunkler Modus</span><span class="tool-state" id="theme-state" aria-hidden="true">aus</span>
+          </button>
+          <button type="button" class="tool-button" id="theme-reset" hidden>Systemeinstellung verwenden</button>
+        </div>
         <details class="how-to" id="how-to" open>
           <summary>So funktioniert's</summary>
           <ol>
@@ -1143,7 +1745,15 @@
           <p id="load-error-text">Kategorien oder Stationen konnten nicht geladen werden.</p>
           <button type="button" id="load-retry">Erneut versuchen</button>
         </div>
-        <ul class="legend" id="legend" aria-label="Kategorien"></ul>
+        <ul class="legend" id="legend" aria-label="Kategorien – zum Filtern auswählen"></ul>
+        <div class="plan-actions">
+          <button type="button" class="primary-button" id="suggest-open" aria-haspopup="dialog"><span aria-hidden="true">+</span> Station vorschlagen</button>
+        </div>
+        <div class="pick-banner" id="pick-banner" role="group" aria-label="Standort auf der Karte wählen" hidden>
+          <span>Klicke auf die Karte, um den Standort zu übernehmen.</span>
+          <button type="button" id="pick-cancel">Abbrechen</button>
+        </div>
+        <p class="filter-empty" id="filter-empty" hidden>Keine Stationen in den gewählten Kategorien.</p>
         <ul class="station-list" id="station-list" aria-label="Alle Stationen"></ul>
       </section>
 
@@ -1166,6 +1776,97 @@
         </div>
       </div>
     </main>
+
+    <!-- Dialog: Station vorschlagen (Roadmap 6). Natives <dialog> mit showModal(): Fokus-Falle, inerter Hintergrund. -->
+    <dialog class="suggest-dialog" id="suggest-dialog" aria-labelledby="suggest-title" aria-describedby="suggest-intro">
+      <div class="suggest-header">
+        <h2 id="suggest-title" tabindex="-1">Station vorschlagen</h2>
+        <button type="button" class="secondary-button" id="suggest-close" aria-label="Dialog schließen">✕ Schließen</button>
+      </div>
+      <div class="suggest-body">
+        <p class="suggest-intro" id="suggest-intro">Kennst du einen besonderen Ort in Münster? Felder mit <span class="required-mark" aria-hidden="true">*</span> sind Pflichtfelder.</p>
+        <form class="suggest-form" id="suggest-form" novalidate>
+          <div class="field">
+            <label for="suggest-name">Stationsname <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
+            <input type="text" id="suggest-name" name="name" maxlength="100" required autocomplete="off" aria-describedby="suggest-name-error" />
+            <p class="field-error" id="suggest-name-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="suggest-category">Kategorie <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
+            <select id="suggest-category" name="category" required aria-describedby="suggest-category-error">
+              <option value="">Bitte wählen …</option>
+            </select>
+            <p class="field-error" id="suggest-category-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="suggest-description">Beschreibung / Besonderheiten <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
+            <textarea id="suggest-description" name="description" maxlength="1000" required aria-describedby="suggest-description-hint suggest-description-error"></textarea>
+            <p class="field-hint" id="suggest-description-hint">Was ist dort zu entdecken? Maximal 1000 Zeichen.</p>
+            <p class="field-error" id="suggest-description-error" hidden></p>
+          </div>
+          <details class="suggest-optional">
+            <summary>Weitere Informationen (optional)</summary>
+            <div class="suggest-optional-body">
+              <p class="field-hint">Diese Angaben helfen bei der redaktionellen Prüfung. Du kannst sie auch leer lassen.</p>
+              <div class="field">
+                <label for="suggest-hint">Hinweis</label>
+                <textarea id="suggest-hint" name="hint" maxlength="1000" aria-describedby="suggest-hint-error"></textarea>
+                <p class="field-error" id="suggest-hint-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="suggest-question">Frage</label>
+                <input type="text" id="suggest-question" name="question" maxlength="500" aria-describedby="suggest-editorial-error" />
+              </div>
+              <fieldset class="field" aria-describedby="suggest-editorial-hint suggest-editorial-error">
+                <legend>Antwortoptionen</legend>
+                <p class="field-hint" id="suggest-editorial-hint">Wenn du eine Frage einträgst, ergänze bitte zwei bis vier Antworten und markiere die richtige.</p>
+                <div class="answer-grid">
+                  <div class="answer-row"><input type="radio" name="correct-option" value="0" aria-label="Erste Antwort ist richtig" /><input type="text" id="suggest-option-0" maxlength="500" placeholder="Antwort 1" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="1" aria-label="Zweite Antwort ist richtig" /><input type="text" id="suggest-option-1" maxlength="500" placeholder="Antwort 2" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="2" aria-label="Dritte Antwort ist richtig" /><input type="text" id="suggest-option-2" maxlength="500" placeholder="Antwort 3 (optional)" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="3" aria-label="Vierte Antwort ist richtig" /><input type="text" id="suggest-option-3" maxlength="500" placeholder="Antwort 4 (optional)" /></div>
+                </div>
+                <p class="field-error" id="suggest-editorial-error" hidden></p>
+              </fieldset>
+              <div class="field">
+                <label for="suggest-info">Hintergrundinformationen</label>
+                <textarea id="suggest-info" name="editorial-info" maxlength="1000"></textarea>
+              </div>
+            </div>
+          </details>
+          <fieldset class="field" aria-describedby="suggest-location-hint suggest-location-error">
+            <legend>Standort (optional)</legend>
+            <p class="field-hint" id="suggest-location-hint">Koordinaten als Dezimalgrad eingeben (z. B. 51.9607 und 7.6261) oder auf der Karte wählen.</p>
+            <div class="coord-grid">
+              <div class="field">
+                <label for="suggest-lat">Breitengrad</label>
+                <input type="text" inputmode="decimal" id="suggest-lat" name="latitude" autocomplete="off" aria-describedby="suggest-location-error" />
+              </div>
+              <div class="field">
+                <label for="suggest-lon">Längengrad</label>
+                <input type="text" inputmode="decimal" id="suggest-lon" name="longitude" autocomplete="off" aria-describedby="suggest-location-error" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="secondary-button" id="suggest-pick">📍 Auf der Karte wählen</button>
+            </div>
+            <p class="field-error" id="suggest-location-error" hidden></p>
+          </fieldset>
+          <p class="form-status" id="suggest-status" role="status" data-kind="" hidden></p>
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Vorschlag absenden</button>
+            <button type="button" class="secondary-button" id="suggest-cancel">Abbrechen</button>
+          </div>
+        </form>
+        <div class="suggest-result" id="suggest-result" hidden>
+          <p class="form-status" data-kind="success" id="suggest-success" tabindex="-1">Danke! Dein Vorschlag wurde zur Prüfung übermittelt.</p>
+          <div class="form-actions">
+            <button type="button" class="primary-button" id="suggest-another">Weitere Station vorschlagen</button>
+            <button type="button" class="secondary-button" id="suggest-done">Schließen</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
 
     <!-- Unsichtbare Statusmeldungen für Screenreader -->
     <div class="visually-hidden" id="status-message" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -1277,7 +1978,79 @@
       }
 
       let progress = loadProgress();
-      let currentStationId = null;
+
+      /* ==========================================================
+         3b. UI-Zustand & Lifecycle-Hooks (Roadmap 4)
+         Zustand wird ausschließlich über die set…-Funktionen geändert,
+         Rendering passiert in render*-Funktionen, Eingaben in handle*-Funktionen.
+         Hooks werden als CustomEvents auf `document` gesendet (Präfix "ms:"), z. B.
+           document.addEventListener('ms:afterDetailsOpen', (e) => e.detail.stationId …)
+         Verfügbare Hooks: beforeRender, afterRender, beforeDetailsOpen, afterDetailsOpen,
+         beforeDetailsClose, afterDetailsClose, beforeFilterChange, afterFilterChange,
+         beforeDialogOpen, afterDialogOpen, beforeDialogClose, afterDialogClose.
+         ========================================================== */
+      const uiState = {
+        selectedStationId: null, // ausgewählte Station
+        detailsOpen: false, // Detailansicht geöffnet
+        activeCategories: new Set(), // aktive Filter (leer = alle Kategorien)
+        colorMode: window.ThemeController ? window.ThemeController.getMode() : 'light',
+        suggestion: { open: false, picking: false, submitted: false }, // Vorschlagsformular
+      };
+
+      function emitHook(name, detail) {
+        document.dispatchEvent(new CustomEvent('ms:' + name, { detail: detail || {} }));
+      }
+
+      function reducedMotion() {
+        return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      }
+
+      // Animations-Helfer: setzt CSS-Klassen für Ein-/Ausblenden und ruft danach `done` auf.
+      // Ohne CSS-Transition oder bei reduzierter Bewegung wird `done` sofort ausgeführt.
+      function transitionIn(element, kind) {
+        element.classList.add(kind || 'transition-fade', 'is-entering');
+        void element.offsetWidth;
+        requestAnimationFrame(() => element.classList.remove('is-entering'));
+      }
+
+      function transitionOut(element, done, kind) {
+        if (reducedMotion()) {
+          done();
+          return;
+        }
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          element.classList.remove('is-exiting');
+          done();
+        };
+        element.classList.add(kind || 'transition-fade', 'is-exiting');
+        element.addEventListener('transitionend', finish, { once: true });
+        window.setTimeout(finish, 350); // Fallback, falls keine Transition definiert ist
+      }
+
+      function setSelectedStation(stationId) {
+        uiState.selectedStationId = stationId;
+        uiState.detailsOpen = Boolean(stationId);
+      }
+
+      function setCategoryFilter(categoryId) {
+        const detail = { categoryId, active: new Set(uiState.activeCategories) };
+        emitHook('beforeFilterChange', detail);
+        if (categoryId === null) uiState.activeCategories.clear();
+        else if (uiState.activeCategories.has(categoryId)) uiState.activeCategories.delete(categoryId);
+        else uiState.activeCategories.add(categoryId);
+        render();
+        const count = visibleStations().length;
+        announce(count === 1 ? '1 Station sichtbar.' : count + ' Stationen sichtbar.');
+        emitHook('afterFilterChange', { categoryId, active: new Set(uiState.activeCategories), count });
+      }
+
+      function visibleStations() {
+        if (!uiState.activeCategories.size) return stations;
+        return stations.filter((station) => uiState.activeCategories.has(station.category));
+      }
 
       /* ==========================================================
          4. Hilfsfunktionen
@@ -1305,6 +2078,11 @@
         loadError: document.getElementById('load-error'),
         loadErrorText: document.getElementById('load-error-text'),
         loadRetry: document.getElementById('load-retry'),
+        filterEmpty: document.getElementById('filter-empty'),
+        themeToggle: document.getElementById('theme-toggle'),
+        themeReset: document.getElementById('theme-reset'),
+        themeIcon: document.getElementById('theme-icon'),
+        themeState: document.getElementById('theme-state'),
       };
 
       function escapeHtml(text) {
@@ -1368,6 +2146,15 @@
         }).addTo(map);
       }
 
+      // Während der Standortwahl übernimmt ein Pin-Klick dessen Position, statt die Station zu öffnen.
+      function handleMarkerActivate(station) {
+        if (uiState.suggestion.picking) {
+          handleMapPick({ latlng: L.latLng(station.lat, station.lon) });
+          return;
+        }
+        openStation(station.id);
+      }
+
       function addMarkers() {
         if (!map) return;
         mapMarkers.forEach((marker) => marker.remove());
@@ -1377,7 +2164,14 @@
             keyboard: true,
             icon: L.divIcon({ className: '', iconSize: [44, 44], iconAnchor: [22, 22], html: pinHtml(station) }),
           }).addTo(map);
-          marker.on('click', () => openStation(station.id));
+          marker.on('click', () => handleMarkerActivate(station));
+          // Leaflet löst Enter aus; Leertaste für echtes Button-Verhalten ergänzen.
+          marker.getElement().addEventListener('keydown', (event) => {
+            if (event.key === ' ' || event.key === 'Spacebar') {
+              event.preventDefault();
+              handleMarkerActivate(station);
+            }
+          });
           mapMarkers.set(station.id, marker);
         });
         if (stations.length) {
@@ -1396,13 +2190,24 @@
           const pin = markerElement.querySelector('.map-pin');
           pin.classList.toggle('map-pin--solved', solved);
           pin.querySelector('.pin-icon').innerHTML = solved ? '✓' : categoryImageHtml(categoryOf(station));
-          markerElement.setAttribute('aria-label', 'Aufgabe ' + station.number + (solved ? ' (gelöst)' : ''));
+          markerElement.hidden = !isStationVisible(station);
+          markerElement.setAttribute('aria-label', 'Station ' + station.number + ', ' + categoryOf(station).name + (solved ? ' (gelöst)' : ' (offen)'));
         });
+      }
+
+      function isStationVisible(station) {
+        return !uiState.activeCategories.size || uiState.activeCategories.has(station.category);
       }
 
       function focusMapPin(stationId) {
         const marker = mapMarkers.get(stationId);
-        if (marker) marker.getElement().focus({ preventScroll: true });
+        if (marker && !marker.getElement().hidden) {
+          marker.getElement().focus({ preventScroll: true });
+          return;
+        }
+        const listItem = elements.stationList.querySelector('[data-station-id="' + stationId + '"]');
+        if (listItem) listItem.focus({ preventScroll: true });
+        else elements.pageTitle.focus({ preventScroll: true });
       }
 
       /* ==========================================================
@@ -1445,7 +2250,7 @@
       }
 
       function nextButtonHtml() {
-        const next = nextUnsolvedStation(currentStationId);
+        const next = nextUnsolvedStation(uiState.selectedStationId);
         if (!next) return '';
         return '<button type="button" class="next-button" data-action="next" data-next-id="' + next.id + '">Nächste Station: ' + escapeHtml(categoryOf(next).name) + ' – Nr. ' + next.number + ' →</button>';
       }
@@ -1486,17 +2291,28 @@
       }
 
       function renderStationList() {
-        elements.stationList.innerHTML = stations.map((station) => {
+        const visible = visibleStations();
+        elements.stationList.innerHTML = visible.map((station) => {
           const category = categoryOf(station);
           const solved = isSolved(station.id);
-          return '<li><button type="button" class="station-item' + (solved ? ' station-item--solved' : '') + '" data-station-id="' + station.id + '">' + '<span class="ico" aria-hidden="true" style="--category-color:' + escapeHtml(category.color) + '">' + (solved ? '✓' : categoryImageHtml(category)) + '</span>' + '<span>Station ' + station.number + '<small>' + escapeHtml(solved ? station.solutionTitle : category.name) + '</small></span>' + '<span class="state">' + (solved ? 'gelöst' : 'Los →') + '</span></button></li>';
+          return '<li><button type="button" class="station-item' + (solved ? ' station-item--solved' : '') + '" data-station-id="' + station.id + '">' + '<span class="ico" aria-hidden="true" style="--category-color:' + escapeHtml(category.color) + '">' + (solved ? '✓' : categoryImageHtml(category)) + '</span>' + '<span>Station ' + station.number + '<small>' + escapeHtml(solved ? station.solutionTitle : category.name) + '</small></span>' + '<span class="state">' + (solved ? '✓ gelöst' : 'Los →') + '</span></button></li>';
         }).join('');
+        elements.filterEmpty.hidden = visible.length > 0 || !stations.length;
       }
 
+      // Legende = Kategorie-Filter. Gerendert wird nur bei neuen Kategorien, der Zustand separat,
+      // damit der Fokus auf dem gedrückten Button erhalten bleibt.
       function renderLegend() {
         elements.legend.innerHTML = Array.from(categoriesById.values())
-          .map((category) => '<li><span class="legend-icon" style="--category-color:' + escapeHtml(category.color) + '" aria-hidden="true">' + categoryImageHtml(category) + '</span>' + escapeHtml(category.name) + '</li>')
+          .map((category) => '<li><button type="button" class="legend-button" data-category-id="' + escapeHtml(category.id) + '" aria-pressed="false"><span class="legend-icon" style="--category-color:' + escapeHtml(category.color) + '" aria-hidden="true">' + categoryImageHtml(category) + '</span>' + escapeHtml(category.name) + '</button></li>')
           .join('');
+        renderLegendState();
+      }
+
+      function renderLegendState() {
+        elements.legend.querySelectorAll('[data-category-id]').forEach((button) => {
+          button.setAttribute('aria-pressed', String(uiState.activeCategories.has(button.dataset.categoryId)));
+        });
       }
 
       function renderCompletion() {
@@ -1565,12 +2381,16 @@
         });
       }
 
+      // Gemeinsamer Renderpfad: Karte, Liste, Aufgabenansicht, Fortschritt.
       function render() {
+        emitHook('beforeRender', { selectedStationId: uiState.selectedStationId });
         updateMapPins();
+        renderLegendState();
         renderStationList();
-        const station = stationsById.get(currentStationId);
+        const station = stationsById.get(uiState.selectedStationId);
         renderTaskView(station);
         renderProgress();
+        emitHook('afterRender', { selectedStationId: uiState.selectedStationId });
       }
 
       /* ==========================================================
@@ -1588,16 +2408,19 @@
       }
 
       function openStation(stationId) {
+        if (uiState.suggestion.picking) return;
         if (!gameStarted) {
           gameStarted = true;
           elements.howTo.open = false;
           saveIntroState(false);
         }
-        currentStationId = stationId;
+        emitHook('beforeDetailsOpen', { stationId });
+        setSelectedStation(stationId);
         showView(true);
         render();
         focusTaskTitle();
         ensureDetails(stationId);
+        emitHook('afterDetailsOpen', { stationId });
       }
 
       async function fetchApi(url) {
@@ -1670,21 +2493,24 @@
           })
           .finally(() => {
             detailsRequests.delete(stationId);
-            if (currentStationId === stationId) {
+            if (uiState.selectedStationId === stationId) {
               render();
               focusTaskTitle();
+              announce(detailsErrors.has(stationId) ? 'Die Station konnte nicht geladen werden.' : 'Station ' + station.number + ' geladen.');
             }
           });
         detailsRequests.set(stationId, request);
       }
 
       function showPlan() {
-        const previousStationId = currentStationId;
-        currentStationId = null;
+        const previousStationId = uiState.selectedStationId;
+        emitHook('beforeDetailsClose', { stationId: previousStationId });
+        setSelectedStation(null);
         showView(false);
         render();
         if (previousStationId) focusMapPin(previousStationId);
         else elements.pageTitle.focus({ preventScroll: true });
+        emitHook('afterDetailsClose', { stationId: previousStationId });
       }
 
       function loadIntroState() {
@@ -1737,7 +2563,7 @@
         const isVisible = hintBox.classList.toggle('is-visible');
         hintBox.setAttribute('aria-hidden', String(!isVisible));
         button.setAttribute('aria-expanded', String(isVisible));
-        if (isVisible) updateStationProgress(currentStationId, { hintUsed: true });
+        if (isVisible) updateStationProgress(uiState.selectedStationId, { hintUsed: true });
       }
 
       function resetProgress() {
@@ -1746,14 +2572,14 @@
         saveProgress();
         render();
         announce('Fortschritt zurückgesetzt.');
-        if (currentStationId) focusTaskTitle();
+        if (uiState.selectedStationId) focusTaskTitle();
         else elements.pageTitle.focus({ preventScroll: true });
       }
 
       function handleTaskListClick(event) {
         const button = event.target.closest('button[data-action]');
         if (!button) return;
-        const stationId = currentStationId;
+        const stationId = uiState.selectedStationId;
         switch (button.dataset.action) {
           case 'select-option':
             selectOption(stationId, Number(button.dataset.optionIndex));
@@ -1798,8 +2624,374 @@
       }
 
       /* ==========================================================
+         8b. Farbmodus-Schalter (Roadmap 2.3) – Logik liegt im ThemeController im <head>
+         ========================================================== */
+      function initThemeControls() {
+        const controller = window.ThemeController;
+        if (!controller) {
+          elements.themeToggle.hidden = true;
+          return;
+        }
+        let initialized = false;
+        controller.subscribe(({ mode, manual }) => {
+          const dark = mode === 'dark';
+          uiState.colorMode = mode;
+          elements.themeToggle.setAttribute('aria-pressed', String(dark));
+          elements.themeIcon.textContent = dark ? '☀️' : '🌙';
+          elements.themeState.textContent = dark ? 'an' : 'aus';
+          elements.themeReset.hidden = !manual;
+          if (initialized) announce(dark ? 'Dunkler Modus an.' : 'Dunkler Modus aus.');
+          initialized = true;
+        });
+        elements.themeToggle.addEventListener('click', () => controller.toggle());
+        elements.themeReset.addEventListener('click', () => {
+          elements.themeToggle.focus(); // Fokus sichern, bevor der Button verschwindet
+          controller.reset();
+          announce('Systemeinstellung wird verwendet: ' + (controller.getMode() === 'dark' ? 'dunkel' : 'hell') + '.');
+        });
+      }
+
+      /* ==========================================================
+         8c. Station vorschlagen (Roadmap 6)
+         Aufbau: Validierung (rein, ohne DOM) → Formular-Rendering → Dialog-Steuerung → Versand.
+         ========================================================== */
+      const suggest = {
+        dialog: document.getElementById('suggest-dialog'),
+        form: document.getElementById('suggest-form'),
+        openButton: document.getElementById('suggest-open'),
+        status: document.getElementById('suggest-status'),
+        result: document.getElementById('suggest-result'),
+        success: document.getElementById('suggest-success'),
+        category: document.getElementById('suggest-category'),
+        pickButton: document.getElementById('suggest-pick'),
+        pickBanner: document.getElementById('pick-banner'),
+        fields: {
+          name: { input: document.getElementById('suggest-name'), error: document.getElementById('suggest-name-error') },
+          category: { input: document.getElementById('suggest-category'), error: document.getElementById('suggest-category-error') },
+          description: { input: document.getElementById('suggest-description'), error: document.getElementById('suggest-description-error') },
+          latitude: { input: document.getElementById('suggest-lat'), error: document.getElementById('suggest-location-error') },
+          longitude: { input: document.getElementById('suggest-lon'), error: document.getElementById('suggest-location-error') },
+          hint: { input: document.getElementById('suggest-hint'), error: document.getElementById('suggest-hint-error') },
+          question: { input: document.getElementById('suggest-question'), error: document.getElementById('suggest-editorial-error') },
+        },
+        options: Array.from({ length: 4 }, (_, index) => document.getElementById('suggest-option-' + index)),
+        correctOption: () => suggest.form.querySelector('input[name="correct-option"]:checked'),
+        editorialError: document.getElementById('suggest-editorial-error'),
+        editorialInfo: document.getElementById('suggest-info'),
+        trigger: null,
+        closing: false,
+      };
+      const SUGGEST_LIMITS = { name: 100, description: 1000, hint: 1000, question: 500, option: 500, info: 1000 };
+
+      function parseCoordinate(text) {
+        const normalized = text.trim().replace(',', '.');
+        return /^[-+]?\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+      }
+
+      // Reine Validierung: gibt Fehler je Feld sowie bei Erfolg das fertige JSON-Objekt zurück.
+      function validateSuggestion(raw) {
+        const errors = {};
+        const name = raw.name.trim();
+        const description = raw.description.trim();
+        const category = raw.category.trim();
+        const hint = raw.hint.trim();
+        const question = raw.question.trim();
+        const rawOptions = raw.options.map((option) => option.trim());
+        const options = rawOptions.filter(Boolean);
+        const correctOptionIndex = raw.correctOptionIndex;
+        const normalizedCorrectIndex = correctOptionIndex === null ? null : rawOptions.slice(0, correctOptionIndex + 1).filter(Boolean).length - 1;
+        const editorialInfo = raw.editorialInfo.trim();
+        const latText = raw.latitude.trim();
+        const lonText = raw.longitude.trim();
+
+        if (!name) errors.name = 'Bitte gib einen Stationsnamen an.';
+        else if (name.length > SUGGEST_LIMITS.name) errors.name = 'Der Name darf höchstens ' + SUGGEST_LIMITS.name + ' Zeichen lang sein.';
+        if (!category) errors.category = 'Bitte wähle eine Kategorie.';
+        if (!description) errors.description = 'Bitte beschreibe die Station.';
+        else if (description.length > SUGGEST_LIMITS.description) errors.description = 'Die Beschreibung darf höchstens ' + SUGGEST_LIMITS.description + ' Zeichen lang sein.';
+        if (hint.length > SUGGEST_LIMITS.hint) errors.hint = 'Der Hinweis darf höchstens ' + SUGGEST_LIMITS.hint + ' Zeichen lang sein.';
+        if (question.length > SUGGEST_LIMITS.question) errors.question = 'Die Frage darf höchstens ' + SUGGEST_LIMITS.question + ' Zeichen lang sein.';
+        if (editorialInfo.length > SUGGEST_LIMITS.info) errors.editorial = 'Die Hintergrundinformationen dürfen höchstens ' + SUGGEST_LIMITS.info + ' Zeichen lang sein.';
+        const hasEditorial = hint || question || options.length || correctOptionIndex !== null || editorialInfo;
+        if (hasEditorial && (question || options.length || correctOptionIndex !== null)) {
+          if (!question) errors.editorial = 'Bitte ergänze eine Frage.';
+          if (options.length < 2 || options.length > 4) errors.editorial = 'Bitte ergänze zwei bis vier Antwortoptionen.';
+          if (correctOptionIndex === null || normalizedCorrectIndex < 0 || !options[normalizedCorrectIndex]) errors.editorial = 'Bitte markiere eine ausgefüllte Antwort als richtig.';
+          options.forEach((option) => {
+            if (option.length > SUGGEST_LIMITS.option) errors.editorial = 'Eine Antwort darf höchstens ' + SUGGEST_LIMITS.option + ' Zeichen lang sein.';
+          });
+        }
+
+        let location = null;
+        if (latText || lonText) {
+          const latitude = parseCoordinate(latText);
+          const longitude = parseCoordinate(lonText);
+          if (!latText || !lonText) {
+            errors[latText ? 'longitude' : 'latitude'] = 'Bitte gib beide Koordinaten an oder lasse beide Felder leer.';
+          } else if (Number.isNaN(latitude)) {
+            errors.latitude = 'Der Breitengrad muss eine Zahl sein, z. B. 51.9607.';
+          } else if (Number.isNaN(longitude)) {
+            errors.longitude = 'Der Längengrad muss eine Zahl sein, z. B. 7.6261.';
+          } else if (latitude < -90 || latitude > 90) {
+            errors.latitude = 'Der Breitengrad muss zwischen -90 und 90 liegen.';
+          } else if (longitude < -180 || longitude > 180) {
+            errors.longitude = 'Der Längengrad muss zwischen -180 und 180 liegen.';
+          } else {
+            location = { latitude, longitude };
+          }
+        }
+
+        if (Object.keys(errors).length) return { errors, value: null };
+        const value = { version: 1, name, description, categoryId: category };
+        if (location) value.location = location;
+        if (hasEditorial) {
+          value.editorial = { hint, question, options, correctOptionIndex: normalizedCorrectIndex, info: editorialInfo };
+        }
+        return { errors: {}, value };
+      }
+
+      function readSuggestionForm() {
+        const { fields } = suggest;
+        return {
+          name: fields.name.input.value,
+          description: fields.description.input.value,
+          category: fields.category.input.value,
+          latitude: fields.latitude.input.value,
+          longitude: fields.longitude.input.value,
+          hint: fields.hint.input.value,
+          question: fields.question.input.value,
+          options: suggest.options.map((input) => input.value),
+          correctOptionIndex: suggest.correctOption() ? Number(suggest.correctOption().value) : null,
+          editorialInfo: suggest.editorialInfo.value,
+        };
+      }
+
+      function showFieldErrors(errors) {
+        const shownMessages = new Set();
+        const editorialMessage = errors.editorial || '';
+        suggest.editorialError.textContent = editorialMessage;
+        suggest.editorialError.hidden = !editorialMessage;
+        Object.entries(suggest.fields).forEach(([key, { input, error }]) => {
+          const message = errors[key];
+          input.setAttribute('aria-invalid', message ? 'true' : 'false');
+          if (message) {
+            error.textContent = message;
+            error.hidden = false;
+            shownMessages.add(error);
+          } else if (!shownMessages.has(error) && !(key === 'question' && editorialMessage)) {
+            error.textContent = '';
+            error.hidden = true;
+          }
+        });
+      }
+
+      function setSuggestStatus(kind, message) {
+        suggest.status.dataset.kind = kind;
+        suggest.status.textContent = message;
+        suggest.status.hidden = !message;
+      }
+
+      function populateSuggestCategories() {
+        const select = suggest.category;
+        const previous = select.value;
+        const categories = Array.from(categoriesById.values());
+        select.replaceChildren(new Option('Bitte wählen …', ''), ...categories.map((category) => new Option(category.name, category.id)));
+        if (categories.some((category) => category.id === previous)) select.value = previous;
+      }
+
+      function resetSuggestionForm() {
+        suggest.form.reset();
+        showFieldErrors({});
+        setSuggestStatus('', '');
+        uiState.suggestion.submitted = false;
+        suggest.form.hidden = false;
+        suggest.result.hidden = true;
+      }
+
+      // Öffentliche Schnittstelle: Das JSON wird zusätzlich als Hook-Ereignis
+      // veröffentlicht, damit Integrationen und Animationen unabhängig bleiben.
+      async function sendSuggestion(payload) {
+      document.dispatchEvent(new CustomEvent('ms:stationSuggested', { detail: payload }));
+      let response;
+      try {
+        response = await fetch('api/submit_station.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        throw new Error('Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und sende den Vorschlag erneut ab.');
+      }
+      let body = {};
+      try {
+        body = await response.json();
+      } catch (error) {
+        body = {};
+      }
+      if (!response.ok) {
+        const serverMessage = body.error && body.error.message;
+        if (response.status === 422 && body.error && body.error.code === 'validation_failed') {
+          throw new Error('Der Vorschlag wurde nicht akzeptiert: ' + serverMessage + ' Bitte korrigiere die Angaben und sende erneut ab.');
+        }
+        if (response.status === 429) {
+          throw new Error('Du hast in kurzer Zeit zu viele Vorschläge gesendet. Bitte warte etwa eine Stunde und versuche es dann erneut.');
+        }
+        throw new Error('Der Server konnte den Vorschlag gerade nicht verarbeiten (Fehler ' + response.status + '). Deine Eingaben bleiben erhalten – bitte versuche es in ein paar Minuten erneut.');
+      }
+      return { ok: true, data: body.data };
+      }
+
+      async function handleSuggestSubmit(event) {
+        event.preventDefault();
+        const { errors, value } = validateSuggestion(readSuggestionForm());
+        showFieldErrors(errors);
+        const invalidKeys = Object.keys(errors);
+        if (invalidKeys.length) {
+          setSuggestStatus('error', 'Bitte korrigiere die markierten Felder (' + invalidKeys.length + ').');
+          const firstField = suggest.fields[invalidKeys[0]] || suggest.fields.question;
+          firstField.input.focus();
+          return;
+        }
+        setSuggestStatus('', '');
+        let outcome;
+        try {
+          outcome = await sendSuggestion(value);
+        } catch (error) {
+          outcome = { ok: false, message: error.message };
+        }
+        if (!outcome.ok) {
+          setSuggestStatus('error', outcome.message || 'Der Vorschlag konnte nicht verarbeitet werden. Bitte versuche es erneut.');
+          return;
+        }
+        uiState.suggestion.submitted = true;
+        suggest.form.hidden = true;
+        suggest.result.hidden = false;
+        suggest.success.focus();
+        announce('Vorschlag erfolgreich übermittelt.');
+      }
+
+      function openSuggestDialog(options) {
+        const resume = Boolean(options && options.resume);
+        if (suggest.dialog.open) return;
+        emitHook('beforeDialogOpen', { name: 'suggest' });
+        if (!resume) {
+          suggest.trigger = (options && options.trigger) || document.activeElement;
+          resetSuggestionForm();
+        }
+        populateSuggestCategories();
+        uiState.suggestion.open = true;
+        suggest.dialog.showModal();
+        transitionIn(suggest.dialog, 'slide-enter');
+        suggest.fields[resume ? 'latitude' : 'name'].input.focus();
+        emitHook('afterDialogOpen', { name: 'suggest' });
+      }
+
+      function closeSuggestDialog(options) {
+        if (!suggest.dialog.open || suggest.closing) return;
+        suggest.closing = true;
+        const restoreFocus = !options || options.restoreFocus !== false;
+        const afterClose = options && options.afterClose;
+        emitHook('beforeDialogClose', { name: 'suggest' });
+        transitionOut(
+          suggest.dialog,
+          () => {
+            suggest.closing = false;
+            if (suggest.dialog.open) suggest.dialog.close();
+            uiState.suggestion.open = false;
+            if (restoreFocus && suggest.trigger && document.contains(suggest.trigger)) suggest.trigger.focus();
+            emitHook('afterDialogClose', { name: 'suggest' });
+            if (afterClose) afterClose();
+          },
+          'slide-exit',
+        );
+      }
+
+      // Standortübernahme per Kartenklick: Dialog schließt vorübergehend, die Karte wird freigegeben.
+      function startLocationPick() {
+        if (!map) {
+          setSuggestStatus('error', 'Die Karte ist nicht verfügbar. Bitte gib die Koordinaten manuell ein.');
+          return;
+        }
+        uiState.suggestion.picking = true;
+        closeSuggestDialog({
+          restoreFocus: false,
+          afterClose: () => {
+            if (uiState.selectedStationId) showPlan();
+            suggest.pickBanner.hidden = false;
+            document.getElementById('map').classList.add('is-picking');
+            map.once('click', handleMapPick);
+            document.addEventListener('keydown', handlePickKeydown);
+            document.getElementById('map').scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
+            document.getElementById('pick-cancel').focus({ preventScroll: true });
+            announce('Klicke auf die Karte, um den Standort zu wählen. Escape bricht ab.');
+          },
+        });
+      }
+
+      function endLocationPick() {
+        uiState.suggestion.picking = false;
+        suggest.pickBanner.hidden = true;
+        document.getElementById('map').classList.remove('is-picking');
+        document.removeEventListener('keydown', handlePickKeydown);
+        if (map) map.off('click', handleMapPick);
+      }
+
+      function handleMapPick(event) {
+        if (!uiState.suggestion.picking) return;
+        endLocationPick();
+        suggest.fields.latitude.input.value = event.latlng.lat.toFixed(5);
+        suggest.fields.longitude.input.value = event.latlng.lng.toFixed(5);
+        showFieldErrors({ ...validateSuggestion(readSuggestionForm()).errors, name: undefined, category: undefined, description: undefined });
+        openSuggestDialog({ resume: true });
+        announce('Standort übernommen: ' + suggest.fields.latitude.input.value + ', ' + suggest.fields.longitude.input.value + '.');
+      }
+
+      function cancelLocationPick() {
+        endLocationPick();
+        openSuggestDialog({ resume: true });
+        announce('Standortwahl abgebrochen.');
+      }
+
+      function handlePickKeydown(event) {
+        if (event.key === 'Escape') cancelLocationPick();
+      }
+
+      function initSuggestion() {
+        suggest.openButton.addEventListener('click', () => openSuggestDialog({ trigger: suggest.openButton }));
+        suggest.form.addEventListener('submit', handleSuggestSubmit);
+        document.getElementById('suggest-close').addEventListener('click', () => closeSuggestDialog());
+        document.getElementById('suggest-cancel').addEventListener('click', () => closeSuggestDialog());
+        document.getElementById('suggest-done').addEventListener('click', () => closeSuggestDialog());
+        document.getElementById('suggest-another').addEventListener('click', () => {
+          resetSuggestionForm();
+          suggest.fields.name.input.focus();
+        });
+        suggest.pickButton.addEventListener('click', startLocationPick);
+        document.getElementById('pick-cancel').addEventListener('click', cancelLocationPick);
+        // Escape: eigenes Schließen, damit Ausblend-Animation und Fokusrückgabe greifen.
+        suggest.dialog.addEventListener('keydown', (event) => {
+          if (event.key !== 'Escape') return;
+          event.preventDefault();
+          closeSuggestDialog();
+        });
+        suggest.dialog.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          closeSuggestDialog();
+        });
+        suggest.dialog.addEventListener('close', () => {
+          uiState.suggestion.open = false;
+        });
+      }
+
+      /* ==========================================================
          9. Start
          ========================================================== */
+      initThemeControls();
+      initSuggestion();
+      elements.legend.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-category-id]');
+        if (button) setCategoryFilter(button.dataset.categoryId);
+      });
       elements.taskList.addEventListener('click', handleTaskListClick);
       elements.taskList.addEventListener('load', handleImageLoad, true);
       elements.taskList.addEventListener('error', handleImageError, true);
