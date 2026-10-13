@@ -9,4 +9,5 @@ json_ok(array_map(static fn(array $c): array => [
     'name' => $c['name'],
     'description' => $c['description'],
     'icon' => $c['icon'],
+    'color' => $c['color'],
 ], all_categories()));

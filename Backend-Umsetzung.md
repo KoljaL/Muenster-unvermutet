@@ -256,7 +256,7 @@ Pflichtmaßnahmen:
 
 ## 5. Frontend-Umstellung
 
-Das statische `STATIONS`-Array in [index.html](./index.html) wird durch eine Laufzeitstruktur ersetzt:
+Das statische `STATIONS`-Array in [index-without-api.html](./OLD/index-without-api.html) wird durch eine Laufzeitstruktur ersetzt:
 
 ```js
 let stations = [];
@@ -386,7 +386,7 @@ Da Frontend und API voraussichtlich unter derselben Origin laufen, wird zunächs
 
 ### Phase 2: Datenimport
 
-- `STATIONS` aus [index.html](./index.html) in die Datenbank übertragen.
+- `STATIONS` aus [index-without-api.html](./OLD/index-without-api.html) in die Datenbank übertragen.
 - Optionen und Links normalisieren.
 - vorhandene Bilder in den Upload-Ordner übernehmen.
 - Importergebnis mit den 14 Stationen vergleichen.
@@ -487,7 +487,7 @@ In der ersten Version werden nicht umgesetzt:
 - Kategorien im Admin-Bereich erstellen, bearbeiten und (wenn unbenutzt) löschen.
 - Je Kategorie: Name, kurze Beschreibung und ein vom Admin hochgeladenes Symbol (Icon).
 - Unveränderliche, automatisch vergebene Stammdaten (ID, Nummer) werden im Admin nicht mehr angezeigt oder abgefragt.
-- Moderneres Admin-Design auf Basis der Farben und Klassen von `index-with-api.html`.
+- Moderneres Admin-Design auf Basis der Farben und Klassen von `index.html`.
 - Automatischer Dark Mode (Farbschema One Dark) über `prefers-color-scheme`.
 - Dokumentation der neuen Funktionen im Admin-Bereich.
 

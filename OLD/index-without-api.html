@@ -572,33 +572,6 @@
       .map-fallback {
         height: 100%;
       }
-      .load-error,
-      .task-status {
-        margin: 16px 0;
-        padding: 16px;
-        border-radius: 12px;
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        text-align: center;
-      }
-      .task-status--loading {
-        background: #f3f4f6;
-        border-color: #e5e7eb;
-      }
-      .load-error[hidden] {
-        display: none;
-      }
-      .load-error button,
-      .task-status button {
-        min-height: 44px;
-        padding: 8px 18px;
-        border: 0;
-        border-radius: 8px;
-        background: #1f3a5f;
-        color: #fff;
-        font: inherit;
-        cursor: pointer;
-      }
       .map-pin {
         position: relative;
         width: 44px;
@@ -1105,10 +1078,6 @@
         <div id="map" role="region" aria-label="Karte von Münster – die Aufgaben sind per Tastatur erreichbar und mit Enter auswählbar">
           <div class="map-fallback" id="map-fallback" hidden>🗺️ Die OpenStreetMap kann hier in der Vorschau nicht geladen werden –<br />das Spiel herunterladen und im Browser öffnen, dann erscheint die Karte.</div>
         </div>
-        <div class="load-error" id="load-error" role="alert" hidden>
-          <p id="load-error-text">Die Stationen konnten nicht geladen werden.</p>
-          <button type="button" id="load-retry">Erneut versuchen</button>
-        </div>
         <ul class="legend" id="legend" aria-label="Kategorien"></ul>
         <ul class="station-list" id="station-list" aria-label="Alle Stationen"></ul>
       </section>
@@ -1141,6 +1110,9 @@
       /* ==========================================================
          1. Konfiguration
          ========================================================== */
+      // Fotos liegen neben dieser Datei: "Aufgabe <Nr>.jpg" (Rätsel) und "Loesung <Nr>.jpg" (Lösung).
+      // Cache-Buster: bei neuen Fotos die Versionszahl erhöhen.
+      const PHOTO_VERSION = 'v15';
       const STORAGE_KEY = 'muenster-unvermutet:progress';
       const LEGACY_STORAGE_KEY = 'ms-suchspiel'; // altes Format: Array gelöster Stations-IDs
       const INTRO_STATE_KEY = 'muenster-unvermutet:intro-state';
@@ -1151,20 +1123,218 @@
 
       /* ==========================================================
          2. Daten
-         Stationen werden im Admin-Bereich gepflegt und per API geladen:
-         - api/map_pins.php: id, number, title, lat, lon, category (Karte und Liste)
-         - api/get_details.php?id=…: hint, options, correctOptionIndex, solutionTitle,
-           solutionCaption, info, taskImage, solutionImage, links (beim Öffnen einer Station)
-         Die stabile id ist der Schlüssel im LocalStorage.
+         Neue Station = neues Objekt am Ende der Liste.
+         Felder: id (eindeutig, stabil – dient als Schlüssel im LocalStorage), number, title, hint,
+         lat, lon, solutionTitle, solutionCaption (optional), options, correctOptionIndex, info,
+         links ({ title, url }).
          ========================================================== */
-      const API_PINS_URL = 'api/map_pins.php';
-      const API_DETAILS_URL = 'api/get_details.php';
-      // Laufzeitdaten: Pins kommen aus api/map_pins.php, Details werden beim Öffnen nachgeladen.
-      let stations = [];
-      const stationsById = new Map();
-      const stationDetailsCache = new Map();
-      const detailsErrors = new Set();
-      const detailsRequests = new Map();
+      const STATIONS = [
+        {
+          id: 'jan-van-leiden',
+          number: 1,
+          title: 'Der Denker mit dem Strich durch die Rechnung',
+          hint: 'Ein Täuferkönig – heute sitzt er abseits unter Seligen und Heiligen.',
+          lat: 51.963083,
+          lon: 7.626028,
+          solutionTitle: 'Jan van Leiden an der Kreuzigungsgruppe am St.-Paulus-Dom (Horsteberg)',
+          options: ['Ein Anführer der Täuferbewegung, der im 16. Jahrhundert die Stadt Münster prägte.', 'Johann von Hoya, ein Fürstbischof von Münster, der im 16. Jahrhundert die Geschicke des Hochstifts lenkte.', 'Johann von der Recke, ein bedeutender Domherr, der sich für kirchliche Belange in Münster einsetzte.'],
+          correctOptionIndex: 0,
+          info: 'Geschaffen hat die bronzene Kreuzigungsgruppe an der Dom-Nordseite (Horsteberg) der Düsseldorfer Bildhauer Bert Gerresheim – eingesegnet wurde sie am vierten Advent 2004. Ungewöhnlich: Unter dem Kreuz stehen nicht nur Maria und Johannes, sondern auch Gestalten der alten und der neueren Stadtgeschichte – etwa die selige Anna Katharina Emmerick, Schwester Maria Euthymia, Symbole für die heilige Edith Stein, die in Münster lehrte, und Kardinal von Galen. Etwas abseits, auf einem tiefer gelegenen Plateau, thront der Wiedertäuferkönig Jan van Leiden: Eine feine Linie durchschneidet sein Porträt und läuft als „abrechnender Schlussstrich“ über die Pläne auf seinen Knien weiter. Zu seinen Füßen liegen zerbrochene Zeichen – zerschlagene Herrschaftsinsignien und ein Figurentorso als Relikt der Bilderstürmer – und erinnern an dunkle Kapitel der Geschichte. Die Bronze ersetzte eine verwitterte Sandsteingruppe aus dem 18. Jahrhundert.',
+          links: [
+            { title: 'Paulusdom: Kreuzigungsgruppe am Dom', url: 'https://www.paulusdom.de/gotteshaus/kunstwerke/kunstwerke-des-st-paulus-domes/kreuzigungsgruppe-am-dom' },
+            { title: 'Stadt Münster: Kreuzmonument Horsteberg', url: 'https://www.stadt-muenster.de/kriegerdenkmale/erinnern-nach-2000/kreuzmonument-horsteberg' },
+            { title: 'Wikipedia: Bert Gerresheim', url: 'https://de.wikipedia.org/wiki/Bert_Gerresheim' },
+          ],
+        },
+        {
+          id: 'schleifkerben',
+          number: 2,
+          title: 'Ritzen im Stein – aber wofür?',
+          hint: 'Der heimische Baumberger Sandstein ist rau und schleift gut.',
+          lat: 51.96359482684747,
+          lon: 7.627858371163725,
+          solutionTitle: 'Schleifkerben am Sandstein-Portal',
+          solutionCaption: 'Lösungsfoto: die Säulen mit Schleifkerben am Portal',
+          options: ['Als Maßmarkierungen für den mittelalterlichen Handel.', 'Zum Schärfen von Messern durch Marktständler.', 'Zum Befestigen von Marktständen an der Mauer.'],
+          correctOptionIndex: 1,
+          info: 'Was hier wie zufällige Schrammen aussieht, sind sogenannte Schleifkerben: Der heimische Baumberger Sandstein ist so rau, dass er sich hervorragend zum Schärfen eignet. Über Jahrhunderte hinweg griffen deshalb Händler, Wachen und Marktbesucher zu Messern, Sicheln oder Schwertern und zogen die Klingen an den Steinpfeilern entlang. Jede einzelne Rille ist so das stumme Zeugnis unzähliger Handgriffe aus dem Alltag rund um den Dom. Übrigens: Der Kalksandstein aus den Baumbergen bei Havixbeck prägt weite Teile der Münsteraner Baukunst – auch der St.-Paulus-Dom selbst ist daraus errichtet.',
+          links: [
+            { title: 'Wikipedia: Baumberger Kalksandstein', url: 'https://de.wikipedia.org/wiki/Baumberger_Kalksandstein' },
+            { title: 'Baumberger Sandsteinmuseum (Havixbeck)', url: 'https://de.wikipedia.org/wiki/Baumberger_Sandsteinmuseum' },
+          ],
+        },
+        {
+          id: 'kranich-am-dom',
+          number: 3,
+          title: 'Ein Vogel mit Stein in der Kralle',
+          hint: 'Die Bedeutung geht auf eine Vorstellung in der Antike zurück.',
+          lat: 51.962713,
+          lon: 7.625397,
+          solutionTitle: 'Der Kranich am Dom',
+          solutionCaption: 'Lösungsfoto: „Lösung 3.jpg“ – der Dom von Westen',
+          options: ['Ein Greifvogel als Sinnbild für Macht und Stärke.', 'Ein Pelikan als christliches Symbol für Aufopferung und Nächstenliebe.', 'Ein Kranich als Sinnbild für Wachsamkeit und Klugheit.'],
+          correctOptionIndex: 2,
+          info: 'Hoch oben in der Ostwand des Dom-Querhauses stecken zwei runde Tierreliefs: ein sitzender Hund mit offenem Maul und ein Kranich, der das rechte Bein anhebt und in den Krallen einen ovalen Stein trägt. Um 1900 nahm man die Originale mit ihren Grundplatten aus der Wand und setzte Kopien an ihre Stelle, um sie vor weiterer Verwitterung zu bewahren – die echten Reliefs liegen heute in der Domkammer. Der Kranich mit seinem Stein greift eine Vorstellung aus der Antike auf: Auf dem Zug soll immer einer der Vögel Wache halten und dabei einen Stein in der Kralle tragen. Droht er einzunicken, fällt der Stein klirrend herab und weckt ihn – so bleibt der Wächter wach und aufmerksam. Deshalb gilt der Kranich bis heute als Sinnbild für Wachsamkeit und Klugheit.',
+          links: [{ title: 'Museen in Münster: Domkammer', url: 'https://www.museen-in-muenster.de/details/de_de-domkammer-des-st.-paulus-domes-muenster' }],
+        },
+        {
+          id: 'haus-der-niederlande',
+          number: 4,
+          title: 'Ein lateinischer Spruch über der Tür',
+          hint: 'In diesem Haus forscht man heute über die Nachbarn im Westen.',
+          lat: 51.963063745615706,
+          lon: 7.629782830690188,
+          solutionTitle: 'Haus der Niederlande (Krameramtshaus)',
+          solutionCaption: 'Lösungsfoto: „Lösung 4.jpg“ – das Krameramtshaus',
+          options: ['Bücher bewahren das Wissen ihrer Zeit.', 'Bücher erhalten ihre Bedeutung erst durch ihre Leser.', 'Bücher haben ihr Schicksal.'],
+          correctOptionIndex: 2,
+          info: 'Über dem Eingang des Krameramtshauses begrüßt ein Türsturzrelief die Besucher mit dem lateinischen Spruch „Habent sua fata libelli“ – „Bücher haben ihr Schicksal“. Geschaffen wurde es von Hilde Schürk-Frisch; mit dem vielsagenden Hinweis spielt es auf die wechselvolle Zweckbestimmung des Hauses an. Seit 1588 ist der Bau am Alter Steinweg das Haus der Kramer-Gilde. Während des Friedenskongresses wohnte hier die Delegation der Niederlande – heute beherbergt er das Haus der Niederlande: Einrichtungen, die sich in Forschung, Lehre und wissenschaftlicher Dienstleistung den Niederlanden und Flandern widmen. Gekrönt wird der geschichtsträchtige Giebel vom münsterischen Stadtwappen.',
+          links: [
+            { title: 'Haus der Niederlande: Wandlungen eines Baudenkmals', url: 'https://www.uni-muenster.de/HausDerNiederlande/ueber/baudenkmal.shtml' },
+            { title: 'Wikipedia: Haus der Niederlande', url: 'https://de.wikipedia.org/wiki/Haus_der_Niederlande' },
+          ],
+        },
+        {
+          id: 'aegidii-inschriftenstein',
+          number: 5,
+          title: 'Ein Stein voller Geschichte',
+          hint: 'Ein Nonnenkloster stand hier einst.',
+          lat: 51.96051001241073,
+          lon: 7.622080410804537,
+          solutionTitle: 'Ägidii-Inschriftenstein',
+          solutionCaption: 'Lösungsfoto: „Lösung 5.jpg“ – der Ägidii-Inschriftenstein',
+          options: ['Erstes Franziskanerkloster im Bistum Münster', 'Zweites Zisterzienserkloster im Bistum Münster', 'Erstes Zisterzienserkloster im Bistum Münster'],
+          correctOptionIndex: 2,
+          info: 'Der zwei Meter hohe Stein wurde von Rudolf Breilmann aus Roxel gestaltet und am 7.10.1964 errichtet. Erinnert werden soll mit ihm an das Zisterzienserkloster St. Ägidii – das erste Zisterzienserkloster im Bistum Münster, gegründet um 1180. Drei Seiten tragen Inschriften: Vorn liest man „Hier begrub die Sankt Ägidii-Pfarre 600 Jahre ihre Toten“, links „Hier stand das Zisterzienser Nonnenkloster Sankt Ägidii von 1181 bis 1811“, rechts „Hier stürzte 1821 die Sankt Ägidii Klosterpfarrkirche ein.“',
+          links: [],
+        },
+        {
+          id: 'bispingkreuz-nepomuk',
+          number: 6,
+          title: 'Ein Stein mit düsterer Sage',
+          hint: 'Ein Heiliger wacht über den Ort einer düsteren Sage.',
+          lat: 51.96123342007795,
+          lon: 7.622024255106893,
+          solutionTitle: 'Bispingkreuz mit Nepomuk-Statue (Johannesbrücke/Bispinghof)',
+          solutionCaption: 'Lösungsfoto: „Lösung 6.jpg“ – Bispingkreuz mit Nepomuk-Statue',
+          options: ['Studenten erschlugen hier einen Professor', 'Studenten erschlugen hier einen Bürgermeister', 'Der Professor erschlug hier einen Studenten'],
+          correctOptionIndex: 0,
+          info: 'An der Stelle, die das Bispingkreuz kennzeichnet, soll einer alten Sage nach ein Professor von seinen Studenten erschlagen worden sein. Vermutlich war das Kreuz ursprünglich ein Grenzstein, der das Gebiet des Bispinghofes absteckte – ein Gut, das dem Bistum unterstand. Den oberen Abschluss bildet eine Nepomuk-Statue von Rudolf Breilmann; sie wurde 1993 anlässlich des 1200-jährigen Stadtjubiläums aufgestellt. (Ort: Johannesbrücke/Bispinghof)',
+          links: [],
+        },
+        {
+          id: 'lortzingsaal',
+          number: 7,
+          title: 'Ein Saal mit einem berühmten Namen',
+          hint: 'Benannt nach einem Komponisten aus Münster.',
+          lat: 51.96153721426854,
+          lon: 7.633049682804881,
+          solutionTitle: 'Lortzingsaal (Café Grotemeyer, heute Restaurant und Cocktailbar)',
+          solutionCaption: 'Lösungsfoto: „Lösung 7.jpg“ – der Lortzingsaal',
+          options: ['Albert Lortzing: Operettenkomponist, bekannt für humorvolle Bühnenwerke.', 'Albert Lortzing: Deutscher Musikpädagoge und Kirchenmusiker.', 'Albert Lortzing: Schauspieler, Sänger und Komponist.'],
+          correctOptionIndex: 2,
+          info: 'Albert Lortzing gab dem Saal seinen Namen: Der berühmte Komponist („Zar und Zimmermann“) war von 1826 bis 1833 als Schauspieler und Sänger in Münster tätig – verschiedene Spielstätten und Räume der Stadt wurden nach ihm benannt. Einen besonderen Platz in der Kunstgeschichte nimmt der Saal als Geburtsstätte der „Schanze“ ein: 1919 gründeten dort junge Künstler im Lortzingsaal des Café Grotemeyer die Freie Künstlergemeinschaft Schanze, der es zu verdanken ist, dass moderne Kunst in Münster erstmals regelmäßig gezeigt und diskutiert wurde. Nach einer wechselvollen Geschichte und den Zerstörungen des Zweiten Weltkriegs ist von den alten Kulturstätten kaum mehr als Erinnerung geblieben. Heute beherbergen die Räume des historischen Lortzingsaals ein Restaurant mit Cocktailbar. Der Schriftzug „Lortzingsaal“ ist vor Ort leider nicht mehr zu finden. Der Schriftzug auf diesem Bild ist nachträglich nur zur Anschauung durch KI eingefügt.',
+          links: [],
+        },
+        {
+          id: 'jakobsmuschel-lamberti',
+          number: 8,
+          title: 'Ein Zeichen für fernere Ziele',
+          hint: 'Pilger trugen dieses Zeichen einst am Hut.',
+          lat: 51.96301705501186,
+          lon: 7.62892582649689,
+          solutionTitle: 'Jakobsmuschel (Pilgerzeichen) an St. Lamberti',
+          solutionCaption: 'Lösungsfoto: „Loesung 8.jpg“ – Jakobsmuschel an St. Lamberti',
+          options: ['Eine Gedenktafel der Kaufmannsgilde am Markt.', 'Ein Zeichen für den Jakobsweg, der an St. Lamberti vorbeiführt.', 'Das Symbol der Kaufmannsgilde für ihre Handelswege.'],
+          correctOptionIndex: 1,
+          info: 'Als Erkennungszeichen der Jakobspilger gilt die Muschel – getragen von allen, die das Grab des Heiligen Jakobus in Santiago de Compostela in Galizien aufsuchen. Eine Legende berichtet, der Apostel Jakobus habe auch in Spanien gepredigt; nach seinem Tod in Jerusalem hätten seine Jünger den Leichnam dorthin überführt. Seit dem Mittelalter ziehen Pilger aus ganz Europa nach Santiago – der Ort zählt neben Rom und Jerusalem zu den beliebtesten Wallfahrtszielen. Vor Ort erwerben die Pilger Muscheln als Beweis für die vollzogene Reise und befestigten sie meist an ihrem Hut. Im Jahr 2000 brachte die Fahrgemeinde Lamberti die Muschel an der Kirche an – als Erinnerung an eine Wallfahrt und als Hinweis darauf, dass Münster schon im Mittelalter an den Pilgerrouten lag.',
+          links: [],
+        },
+        {
+          id: 'kinderhand-ludgerikirche',
+          number: 9,
+          title: 'Eine bedeutungsvolle Hand',
+          hint: 'Die Sage mahnt: Wer die Mutter schlägt, findet keine Ruhe.',
+          lat: 51.958257681762305,
+          lon: 7.6269997441813695,
+          solutionTitle: 'Die Kinderhand an der Ludgerikirche',
+          solutionCaption: 'Lösungsfoto: „Loesung 9.jpg“ – die Kinderhand an der Ludgerikirche',
+          options: ['Die Hand eines Baumeisters als Signatur des Gotteshauses.', 'Die Hand eines Kindes, das seine Mutter schlug und keine Ruhe fand.', 'Eine Segenshand, die Gläubige willkommen heißt.'],
+          correctOptionIndex: 1,
+          info: 'Unterhalb eines Chorfensters ist hier eine Kinderhand in Sandstein gemeißelt – inzwischen stark verwittert. Die Sage dahinter: Ein widerspenstiges Kind soll seine Mutter geschlagen haben, starb und wurde auf dem Friedhof bei der Ludgerikirche bestattet. Wenig später, so heißt es, wuchs seine rechte Hand aus dem Grab hervor. So oft man den Hügel auch mit neuer Erde überdeckte – die Hand, die die Mutter geschlagen hatte, tauchte immer wieder auf. Erst ein Gelübde brach den Bann: Die Hand sollte zur Warnung an der Kirchenmauer in Stein verewigt werden. Und siehe da – kaum war der Bildhauer mit seiner Arbeit fertig, war die tote Hand aus dem Grab verschwunden.',
+          links: [],
+        },
+        {
+          id: 'nepomuk-denkmal',
+          number: 10,
+          title: 'Ein echter Heiliger',
+          hint: 'Er starb, weil er ein Geheimnis nicht verriet.',
+          lat: 51.956845741207495,
+          lon: 7.61912081164082,
+          solutionTitle: 'Johannes-Nepomuk-Denkmal',
+          solutionCaption: 'Lösungsfoto: „Loesung 10.jpg“ – das Johannes-Nepomuk-Denkmal',
+          options: ['Er starb, weil er den König beleidigte.', 'Er starb, weil er seine Heimat verraten hatte.', 'Er starb, weil er ein Geheimnis nicht verriet.'],
+          correctOptionIndex: 2,
+          info: 'Die berühmteste Erzählung über den Heiligen Johannes Nepomuk (ca. 1345–1393): Weil er das Beichtgeheimnis bewahrte, soll der Beichtvater der Königin von Böhmen mit dem Leben bezahlt haben. Grund war der eifersüchtige König Wenzel IV., der seine Gemahlin (Sophia bzw. Johanna) der Untreue verdächtigte. Mit Todesdrohung verlangte er von Nepomuk zu erfahren, was ihm die Königin gebeichtet hatte – doch Nepomuk schwieg beharrlich. Daraufhin ließ der König ihn foltern und in der Nacht des 20. März 1393 von der Prager Karlsbrücke in die Moldau werfen, wo er ertrank. Was die Forschung heute ergänzt: Diese Legende entstand erst Jahrzehnte nach Nepomuks Tod. In Wahrheit war seine Hinrichtung Folge eines harten kirchenpolitischen Ringens zwischen Wenzel IV. und dem Prager Erzbischof Johann von Jenstein. Als Generalvikar des Erzbischofs durchkreuzte Nepomuk die Pläne des Königs, der Einfluss der Diözese sollte durch ein neues Bistum geschmälert werden. Zudem bestätigte Nepomuk in einem Eilverfahren die Wahl eines Abtes, der nicht dem Wunschkandidaten des Königs entsprach. Den Preis dafür zahlte er stellvertretend für den geflohenen Erzbischof: festgenommen, gefoltert, getötet. (Quellen: Erzbistum Köln; Ökumenisches Heiligenlexikon)',
+          links: [],
+        },
+        {
+          id: 'friedensreiter',
+          number: 11,
+          title: 'Ein Reiter, nicht nur für Münster wichtig',
+          hint: 'Er ritt 1648 zwischen zwei Städten – und brachte endlich Frieden.',
+          lat: 51.96261039991917,
+          lon: 7.629332211641285,
+          solutionTitle: 'Der Friedensreiter am Haus Salzstraße 2',
+          solutionCaption: 'Lösungsfoto: „Loesung 11.jpg“ – der Friedensreiter am Haus Salzstraße 2',
+          options: ['Ein Denkmal für die siegreichen Reitergeneräle des Krieges.', 'Ein Reiter, der als Bote zwischen zwei Städten unterwegs war.', 'Ein Wahrzeichen für den Handel mit Salz auf dieser Straße.'],
+          correctOptionIndex: 1,
+          info: 'Am Haus Salzstraße 2 ist der Friedensreiter zu sehen – während der fünfjährigen Friedensverhandlungen wurde er zum allgemein bekannten Sinnbild des Westfälischen Friedens. Als Postkuriere trugen die Reiter Botschaften und Vertragsentwürfe zwischen den beiden Verhandlungsorten Münster und Osnabrück hin und her – und wurden so zu Garanten dafür, dass der Dreißigjährige Krieg ein Ende fand. Als 1648 die Friedensverträge geschlossen waren, verbreiteten sie selbst die frohe Nachricht: „Jo, gantz Münster, Osnabrugg und alle Welt ist froh“. Zum Jubiläum „350 Jahre Westfälischer Friede“ baute man die alten Wege der Kuriere zu einer 115 Kilometer langen Friedensroute aus, die heute Wanderer, Reiter und Radfahrer anzieht. Stationen der Strecke: Greven, Ladbergen, Tecklenburg, Lengerich, Lienen, Bad Iburg, Hagen und Hasbergen – das Ziel ist das Historische Rathaus von Osnabrück.',
+          links: [],
+        },
+        {
+          id: 'der-lesende',
+          number: 12,
+          title: 'Ein kleines Männchen lässt Münster schmunzeln',
+          hint: '1995 tauchte er einfach auf – und niemand wusste, von wem.',
+          lat: 51.96127365853312,
+          lon: 7.627686142083541,
+          solutionTitle: 'Der Lesende vor der Geschäftsstelle der Westfälischen Nachrichten',
+          solutionCaption: 'Lösungsfoto: „Loesung 12.jpg“ – der Lesende am Prinzipalmarkt',
+          options: ['Ein Denkmal für die Pressefreiheit, gestiftet vom Verlag.', 'Ein Kunstwerk junger Handwerker, das hier ganz offiziell angekauft wurde.', 'Ein Kunstwerk, das heimlich über Nacht an seinem Platz erschien.'],
+          correctOptionIndex: 2,
+          info: '1995 tauchte unter dem Bogen vor der Geschäftsstelle der Westfälischen Nachrichten am Prinzipalmarkt plötzlich ein Lesender auf – einfach so, lustig und witzig. Woher er kam und wozu er gut war, rätselten viele Münsteraner; das Männchen brachte sie zum Nachdenken. Von den Künstlern war zunächst keine Spur. Erst nach einem Aufruf in den Westfälischen Nachrichten vom 11.3.1995 meldeten sich die Schöpfer: die damals 22-jährigen Metallbauer-Azubis Hannes Rademacher und Jan Totzek, denen die Idee in einem kreativen Anflug bei Langeweile in der Berufsschule gekommen war. Ihr Ziel: die Blicke der Münsteraner auf die kleinen, hübschen und amüsanten Details ihres Stadtbilds lenken. Nach konspirativen Vorbereitungen montierten sie das Männeken nachts an seinen Platz.',
+          links: [],
+        },
+        {
+          id: 'bierkrieg',
+          number: 13,
+          title: 'Münster im Streik',
+          hint: 'Wer durstig war, sollte hier 1895 nach 23 Uhr lieber schweigen.',
+          lat: 51.96168303078536,
+          lon: 7.628368198150023,
+          solutionTitle: 'Der Prinzipalmarkt – Schauplatz des Münsterschen Bierkriegs',
+          solutionCaption: 'Lösungsfoto: „Loesung 13.jpg“ – der Prinzipalmarkt, Ort des Bierkriegs',
+          options: ['Die Bürger protestierten gegen eine Bier-Steuer.', 'Die Bürger wehrten sich gegen eine frühere Sperrstunde.', 'Die Wirte streikten gegen zu hohe Pacht.'],
+          correctOptionIndex: 1,
+          info: 'Ende des 19. Jahrhunderts wehrten sich Münsters Wirtshausbesucher mit einer ungewöhnlichen Protestaktion gegen die Vorverlegung der Sperrstunde – der „Münstersche Bierkrieg“. 1895 wollten die preußisch-protestantischen Ordnungsbehörden die bereits seit 1885 angedrohte Schließung der Wirtshäuser um 23 Uhr endlich durchsetzen. Die münsterische Bevölkerung empfand das als Angriff auf ihre individuelle Freiheit. Und so kam es, was kommen musste: Trotz angedrohter Geld- und Gefängnisstrafen versammelten sich in den ersten sieben Oktobernächten die Wirtshausbesucher nach 23 Uhr auf dem Prinzipalmarkt, tranken Bier und sangen Lieder. Zahlreiche Zecher mussten dabei im sogenannten „Höffken“ übernachten – einer Arrestzelle hinter dem Rathaus. Nach sieben Nächten gab der Oberbürgermeister Karl Windthorst nach: Die neue Sperrstunde wurde nicht mehr durchgesetzt.',
+          links: [],
+        },
+        {
+          id: 'elefant-club',
+          number: 14,
+          title: 'Wo der Panther seinen ersten Auftritt hatte',
+          hint: 'In diesem Club durften zwei junge Musiker nur unter Aufsicht auf die Bühne.',
+          lat: 51.96365664312739,
+          lon: 7.628319867460031,
+          solutionTitle: 'Der Elefant (Club) am Roggenmarkt 15',
+          solutionCaption: 'Lösungsfoto: „Loesung 14.jpg“ – der Elefant (Club) am Roggenmarkt',
+          options: ['Die Musiker durften nur mittags auftreten, wenn keine Gäste im Club waren.', 'Eine strickende Mutter neben der Bühne erfüllte die Auflagen des Jugendamts.', 'Ein Vater der Band tauchte als Aufpasser auf und sammelte die Eintritte.'],
+          correctOptionIndex: 1,
+          info: '„Der Elefant“ war eine feste Größe im münsterschen Nachtleben, bis der Club im Februar 2019 für immer schloss. Erzählt wird aus dieser Zeit eine charmante Anekdote aus den Anfängen zweier späterer Stars: Udo Lindenberg und Steffi Stephan standen hier in den 1960er-Jahren als junge Musiker auf der Bühne. Die war für die beiden streng genommen noch verboten – das Jugendamt mahnte sie wegen ihres Alters ab. Die Lösung des Problems war Steffis Mutter: Sie setzte sich neben die Bühne und strickte. Damit galt die nötige Aufsicht als geleistet, der Auftritt konnte stattfinden. Bis heute erinnert das Schild mit dem Elefanten-Logo an diesen legendären Club und seine Geschichten.',
+          links: [],
+        },
+      ];
 
       // Kategorien: unterscheiden Stationen durch Symbol und Farbe (nicht nur Farbe).
       const CATEGORIES = {
@@ -1175,9 +1345,27 @@
         detail: { icon: '🔎', label: 'Details', color: '#065f46', soft: '#d1fae5' },
         culture: { icon: '🎭', label: 'Kultur', color: '#b45309', soft: '#ffedd5' },
       };
+      const STATION_CATEGORY = {
+        'jan-van-leiden': 'history',
+        schleifkerben: 'detail',
+        'kranich-am-dom': 'art',
+        'haus-der-niederlande': 'detail',
+        'aegidii-inschriftenstein': 'history',
+        'bispingkreuz-nepomuk': 'legend',
+        lortzingsaal: 'culture',
+        'jakobsmuschel-lamberti': 'faith',
+        'kinderhand-ludgerikirche': 'legend',
+        'nepomuk-denkmal': 'faith',
+        friedensreiter: 'history',
+        'der-lesende': 'art',
+        bierkrieg: 'history',
+        'elefant-club': 'culture',
+      };
       function categoryOf(station) {
-        return CATEGORIES[station.category] || CATEGORIES.detail;
+        return CATEGORIES[STATION_CATEGORY[station.id]] || CATEGORIES.detail;
       }
+
+      const stationsById = new Map(STATIONS.map((station) => [station.id, station]));
 
       /* ==========================================================
          3. Fortschritt (LocalStorage-fähig)
@@ -1201,7 +1389,7 @@
       function migrateLegacyProgress(solvedIds) {
         const progress = createEmptyProgress();
         solvedIds.forEach((id) => {
-          if (typeof id === 'string') progress.stations[id] = { ...createStationProgress(), solved: true };
+          if (stationsById.has(id)) progress.stations[id] = { ...createStationProgress(), solved: true };
         });
         return progress;
       }
@@ -1240,7 +1428,7 @@
       }
 
       function countSolved() {
-        return stations.filter((station) => isSolved(station.id)).length;
+        return STATIONS.filter((station) => isSolved(station.id)).length;
       }
 
       let progress = loadProgress();
@@ -1269,22 +1457,22 @@
         completionStats: document.getElementById('completion-stats'),
         completionRank: document.getElementById('completion-rank'),
         confetti: document.getElementById('confetti'),
-        loadError: document.getElementById('load-error'),
-        loadErrorText: document.getElementById('load-error-text'),
-        loadRetry: document.getElementById('load-retry'),
       };
 
       function escapeHtml(text) {
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
 
-      // Bildpfade kommen vom Server (relativ zu dieser Seite, z. B. "uploads/<name>.jpg").
-      function photoUrl(path) {
-        return path;
+      function photoUrl(fileName) {
+        return fileName + '?v=' + PHOTO_VERSION;
       }
 
-      function hasDetails(station) {
-        return stationDetailsCache.has(station.id);
+      function taskPhotoFile(station) {
+        return 'Aufgabe ' + station.number + '.jpg';
+      }
+
+      function solutionPhotoFile(station) {
+        return 'Loesung ' + station.number + '.jpg';
       }
 
       function formatCoordinates(station) {
@@ -1327,13 +1515,7 @@
           maxZoom: 18,
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
         }).addTo(map);
-      }
-
-      function addMarkers() {
-        if (!map) return;
-        mapMarkers.forEach((marker) => marker.remove());
-        mapMarkers.clear();
-        stations.forEach((station) => {
+        STATIONS.forEach((station) => {
           const marker = L.marker([station.lat, station.lon], {
             keyboard: true,
             icon: L.divIcon({ className: '', iconSize: [44, 44], iconAnchor: [22, 22], html: pinHtml(station) }),
@@ -1341,12 +1523,10 @@
           marker.on('click', () => openStation(station.id));
           mapMarkers.set(station.id, marker);
         });
-        if (stations.length) {
-          map.fitBounds(
-            stations.map((station) => [station.lat, station.lon]),
-            { padding: [36, 36] },
-          );
-        }
+        map.fitBounds(
+          STATIONS.map((station) => [station.lat, station.lon]),
+          { padding: [36, 36] },
+        );
       }
 
       function updateMapPins() {
@@ -1370,9 +1550,8 @@
          6. Rendering der Aufgaben-Ansicht
          ========================================================== */
       function renderTaskPhoto(station, solved) {
-        const file = station.taskImage;
-        const image = file ? '<img src="' + escapeHtml(photoUrl(file)) + '" alt="Rätselfoto zu Station ' + station.number + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="task" loading="eager" decoding="async">' : '<div class="photo-fallback">📷 Für diese Station liegt noch kein Foto vor.</div>';
-        return '<div class="task-photo">' + '<span class="badge">Station ' + station.number + '</span>' + (solved ? '<span class="badge badge--solved">✓ gelöst</span>' : '') + image + '</div>';
+        const file = taskPhotoFile(station);
+        return '<div class="task-photo">' + '<span class="badge">Station ' + station.number + '</span>' + (solved ? '<span class="badge badge--solved">✓ gelöst</span>' : '') + '<img src="' + photoUrl(file) + '" alt="Rätselfoto zu Station ' + station.number + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="task" loading="eager" decoding="async">' + '</div>';
       }
 
       function renderOptions(station) {
@@ -1390,16 +1569,15 @@
         const coordinates = formatCoordinates(station);
         const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
         const osmUrl = 'https://www.openstreetmap.org/?mlat=' + station.lat + '&mlon=' + station.lon + '#map=18/' + station.lat + '/' + station.lon;
-        const file = station.solutionImage;
-        const solutionImage = file ? '<img src="' + escapeHtml(photoUrl(file)) + '" alt="Lösungsfoto: ' + escapeHtml(station.solutionTitle) + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="solution">' : '<div class="solution-photo-fallback">📷 Für diese Station liegt noch kein Lösungsfoto vor.</div>';
+        const file = solutionPhotoFile(station);
         const sourceLinks = station.links.map((link) => externalLink(link.url, escapeHtml(link.title) + ' ↗')).join('');
-        return '<div class="solution">' + '<figure class="solution-photo">' + solutionImage + '<figcaption>' + escapeHtml(station.solutionCaption || 'Lösungsfoto') + '</figcaption></figure>' + '<div class="coordinates-row"><span class="coordinates">' + coordinates + '</span>' + externalLink(mapsUrl, 'Google Maps ↗') + externalLink(osmUrl, 'OpenStreetMap ↗') + '</div>' + '<p>' + escapeHtml(station.info) + '</p>' + '<div class="sources"><span>Foto: Aufgabenfoto zu Station ' + station.number + '</span>' + sourceLinks + '</div>' + nextButtonHtml() + '</div>';
+        return '<div class="solution">' + '<figure class="solution-photo">' + '<img src="' + photoUrl(file) + '" alt="Lösungsfoto: ' + escapeHtml(station.solutionTitle) + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="solution">' + '<figcaption>' + escapeHtml(station.solutionCaption || 'Lösungsfoto') + '</figcaption></figure>' + '<div class="coordinates-row"><span class="coordinates">' + coordinates + '</span>' + externalLink(mapsUrl, 'Google Maps ↗') + externalLink(osmUrl, 'OpenStreetMap ↗') + '</div>' + '<p>' + escapeHtml(station.info) + '</p>' + '<div class="sources"><span>Foto: Aufgabenfoto: „' + taskPhotoFile(station) + '“</span>' + sourceLinks + '</div>' + nextButtonHtml() + '</div>';
       }
 
       function nextUnsolvedStation(fromId) {
-        const index = stations.findIndex((station) => station.id === fromId);
-        for (let step = 1; step <= stations.length; step++) {
-          const candidate = stations[(index + step) % stations.length];
+        const index = STATIONS.findIndex((station) => station.id === fromId);
+        for (let step = 1; step <= STATIONS.length; step++) {
+          const candidate = STATIONS[(index + step) % STATIONS.length];
           if (!isSolved(candidate.id)) return candidate;
         }
         return null;
@@ -1411,38 +1589,28 @@
         return '<button type="button" class="next-button" data-action="next" data-next-id="' + next.id + '">Nächste Station: ' + categoryOf(next).icon + ' Nr. ' + next.number + ' →</button>';
       }
 
-      function renderTaskPlaceholder(station) {
-        const failed = detailsErrors.has(station.id);
-        const status = failed
-          ? '<div class="task-status" role="alert"><p>Die Station konnte nicht geladen werden.</p><button type="button" data-action="retry">Erneut versuchen</button></div>'
-          : '<div class="task-status task-status--loading" role="status" aria-live="polite"><p>Station wird geladen …</p></div>';
-        return '<article class="task-card" aria-labelledby="task-title" data-station-id="' + station.id + '" style="--cat:' + categoryOf(station).color + ';--cat-soft:' + categoryOf(station).soft + '"><div class="task-body"><span class="category-chip">' + categoryOf(station).icon + ' ' + categoryOf(station).label + '</span><h2 class="task-title" id="task-title" tabindex="-1">Station ' + station.number + '</h2>' + status + '</div></article>';
-      }
-
       function renderTaskCard(station) {
-        if (!hasDetails(station)) return renderTaskPlaceholder(station);
         const solved = isSolved(station.id);
         return '<article class="task-card" aria-labelledby="task-title" data-station-id="' + station.id + '" style="--cat:' + categoryOf(station).color + ';--cat-soft:' + categoryOf(station).soft + '">' + renderTaskPhoto(station, solved) + '<div class="task-body">' + '<span class="category-chip">' + categoryOf(station).icon + ' ' + categoryOf(station).label + '</span>' + '<h2 class="task-title" id="task-title" tabindex="-1">' + escapeHtml(solved ? station.solutionTitle : station.title) + '</h2>' + (solved ? renderSolvedBody(station) : renderUnsolvedBody(station)) + '</div></article>';
       }
 
       function renderProgress() {
         const solvedCount = countSolved();
-        const total = stations.length;
+        const total = STATIONS.length;
         const text = solvedCount + ' von ' + total + ' gelöst';
         elements.progressCount.textContent = text;
-        elements.progressFill.style.width = (total ? Math.round((solvedCount / total) * 100) : 0) + '%';
+        elements.progressFill.style.width = Math.round((solvedCount / total) * 100) + '%';
         elements.progressTrack.setAttribute('aria-valuemax', total);
         elements.progressTrack.setAttribute('aria-valuenow', solvedCount);
         elements.progressTrack.setAttribute('aria-valuetext', text);
         elements.resetButton.hidden = solvedCount === 0;
-        const allSolved = total > 0 && solvedCount === total;
-        elements.completion.hidden = !allSolved;
-        if (allSolved) renderCompletion();
-        elements.miniBadges.innerHTML = stations.map((station) => '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '">' + categoryOf(station).icon + '</span>').join('');
+        elements.completion.hidden = solvedCount !== total;
+        if (solvedCount === total) renderCompletion();
+        elements.miniBadges.innerHTML = STATIONS.map((station) => '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '">' + categoryOf(station).icon + '</span>').join('');
       }
 
       function renderStationList() {
-        elements.stationList.innerHTML = stations.map((station) => {
+        elements.stationList.innerHTML = STATIONS.map((station) => {
           const category = categoryOf(station);
           const solved = isSolved(station.id);
           return '<li><button type="button" class="station-item' + (solved ? ' station-item--solved' : '') + '" data-station-id="' + station.id + '" style="--c:' + category.soft + '">' + '<span class="ico" aria-hidden="true">' + (solved ? '✓' : category.icon) + '</span>' + '<span>Station ' + station.number + '<small>' + escapeHtml(solved ? station.solutionTitle : category.label) + '</small></span>' + '<span class="state">' + (solved ? 'gelöst' : 'Los →') + '</span></button></li>';
@@ -1456,12 +1624,12 @@
       }
 
       function renderCompletion() {
-        const stats = stations.map((station) => getStationProgress(station.id));
+        const stats = STATIONS.map((station) => getStationProgress(station.id));
         const attempts = stats.reduce((sum, item) => sum + item.attempts, 0);
         const hints = stats.filter((item) => item.hintUsed).length;
         const revealed = stats.filter((item) => item.revealed).length;
-        const own = stations.length - revealed;
-        elements.completionStats.innerHTML = '<div class="stat"><b>' + own + '/' + stations.length + '</b><span>selbst gelöst</span></div>' + '<div class="stat"><b>' + hints + '</b><span>Hints genutzt</span></div>' + '<div class="stat"><b>' + attempts + '</b><span>Fehlversuche</span></div>';
+        const own = STATIONS.length - revealed;
+        elements.completionStats.innerHTML = '<div class="stat"><b>' + own + '/' + STATIONS.length + '</b><span>selbst gelöst</span></div>' + '<div class="stat"><b>' + hints + '</b><span>Hints genutzt</span></div>' + '<div class="stat"><b>' + attempts + '</b><span>Fehlversuche</span></div>';
         let rank = '🧭 Stadtentdecker:in';
         if (revealed === 0 && attempts === 0) rank = '🏅 Münster-Meister:in';
         else if (revealed === 0) rank = '🥈 Spürnase';
@@ -1553,74 +1721,6 @@
         showView(true);
         render();
         focusTaskTitle();
-        ensureDetails(stationId);
-      }
-
-      async function fetchApi(url) {
-        const response = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-cache' });
-        let payload = null;
-        try {
-          payload = await response.json();
-        } catch (error) {
-          // Keine gültige JSON-Antwort: unten als Fehler behandelt.
-        }
-        if (!response.ok || !payload || payload.error || payload.data === null || payload.data === undefined) {
-          throw new Error((payload && payload.error && payload.error.message) || 'HTTP ' + response.status);
-        }
-        return payload.data;
-      }
-
-      function isValidPin(pin) {
-        return pin && typeof pin.id === 'string' && pin.id !== '' && Number.isFinite(pin.number) && typeof pin.title === 'string' && Number.isFinite(pin.lat) && Number.isFinite(pin.lon);
-      }
-
-      function isValidDetails(details) {
-        return details && Array.isArray(details.options) && details.options.length >= 2 && Number.isInteger(details.correctOptionIndex) && details.correctOptionIndex >= 0 && details.correctOptionIndex < details.options.length && typeof details.hint === 'string' && typeof details.solutionTitle === 'string' && typeof details.info === 'string' && Array.isArray(details.links);
-      }
-
-      async function loadStations() {
-        elements.loadError.hidden = true;
-        try {
-          const pins = await fetchApi(API_PINS_URL);
-          if (!Array.isArray(pins) || !pins.every(isValidPin)) throw new Error('Ungültige Stationsdaten');
-          stations = pins.map((pin) => ({ ...pin }));
-          stationsById.clear();
-          stations.forEach((station) => stationsById.set(station.id, station));
-          addMarkers();
-          render();
-          if (!stations.length) showLoadError('Aktuell sind keine Stationen verfügbar.', false);
-        } catch (error) {
-          showLoadError('Die Stationen konnten nicht geladen werden.', true);
-        }
-      }
-
-      function showLoadError(message, canRetry) {
-        elements.loadErrorText.textContent = message;
-        elements.loadRetry.hidden = !canRetry;
-        elements.loadError.hidden = false;
-      }
-
-      function ensureDetails(stationId) {
-        const station = stationsById.get(stationId);
-        if (!station || hasDetails(station) || detailsRequests.has(stationId)) return;
-        detailsErrors.delete(stationId);
-        const request = fetchApi(API_DETAILS_URL + '?id=' + encodeURIComponent(stationId))
-          .then((details) => {
-            if (!isValidDetails(details)) throw new Error('Ungültige Stationsdetails');
-            Object.assign(station, details);
-            stationDetailsCache.set(stationId, details);
-          })
-          .catch(() => {
-            detailsErrors.add(stationId);
-          })
-          .finally(() => {
-            detailsRequests.delete(stationId);
-            if (currentStationId === stationId) {
-              render();
-              focusTaskTitle();
-            }
-          });
-        detailsRequests.set(stationId, request);
       }
 
       function showPlan() {
@@ -1657,7 +1757,7 @@
         updateStationProgress(stationId, { solved: true, selectedOptionIndex });
         render();
         focusTaskTitle();
-        announce('Station ' + station.number + ' gelöst: ' + station.solutionTitle + (countSolved() === stations.length ? '. Alle Aufgaben sind gelöst.' : ''));
+        announce('Station ' + station.number + ' gelöst: ' + station.solutionTitle + (countSolved() === STATIONS.length ? '. Alle Aufgaben sind gelöst.' : ''));
       }
 
       function selectOption(stationId, optionIndex) {
@@ -1710,11 +1810,6 @@
             updateStationProgress(stationId, { revealed: true });
             markSolved(stationId, null);
             break;
-          case 'retry':
-            detailsErrors.delete(stationId);
-            render();
-            ensureDetails(stationId);
-            break;
           case 'next':
             openStation(button.dataset.nextId);
             window.scrollTo(0, 0);
@@ -1727,12 +1822,13 @@
         const image = event.target;
         if (!(image instanceof HTMLImageElement) || !image.dataset.fallback) return;
         const fallback = document.createElement('div');
+        const file = escapeHtml(image.dataset.photoFile);
         if (image.dataset.fallback === 'task') {
           fallback.className = 'photo-fallback';
-          fallback.innerHTML = '📷 Das Foto konnte nicht geladen werden.';
+          fallback.innerHTML = '📷 In dieser Vorschau werden eigene Fotos blockiert.<br><b>Spiel herunterladen</b> und die Fotodatei „' + file + '“ in denselben Ordner legen – dann erscheint das Foto.';
         } else {
           fallback.className = 'solution-photo-fallback';
-          fallback.innerHTML = '📷 Das Lösungsfoto konnte nicht geladen werden.';
+          fallback.innerHTML = '📷 Foto nicht gefunden – die Datei muss im Spiel-Ordner liegen: ' + file;
         }
         image.replaceWith(fallback);
       }
@@ -1766,10 +1862,8 @@
       renderLegend();
       elements.resetButton.addEventListener('click', resetProgress);
 
-      elements.loadRetry.addEventListener('click', loadStations);
       initMap();
       render();
-      loadStations();
     </script>
   </body>
 </html>

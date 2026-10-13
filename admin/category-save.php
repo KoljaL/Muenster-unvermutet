@@ -19,7 +19,11 @@ function fail(array $errors, string $back): void
 
 $name = clean_text($_POST['name'] ?? '', 60);
 $description = clean_text($_POST['description'] ?? '', 300, true);
+$color = is_string($_POST['color'] ?? null) ? $_POST['color'] : '';
 $errors = $name === '' ? ['Name ist erforderlich.'] : [];
+if (!preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+    $errors[] = 'Bitte wähle eine gültige Farbe.';
+}
 
 $existing = null;
 if ($mode === 'update') {
@@ -74,11 +78,11 @@ if ($errors) {
 try {
     $ts = now();
     if ($mode === 'update') {
-        $pdo->prepare('UPDATE categories SET name=?, description=?, icon=?, updated_at=? WHERE id=?')
-            ->execute([$name, $description, $icon, $ts, $id]);
+        $pdo->prepare('UPDATE categories SET name=?, description=?, icon=?, color=?, updated_at=? WHERE id=?')
+            ->execute([$name, $description, $icon, $color, $ts, $id]);
     } else {
-        $pdo->prepare('INSERT INTO categories (id, name, description, icon, created_at, updated_at) VALUES (?,?,?,?,?,?)')
-            ->execute([$id, $name, $description, $icon, $ts, $ts]);
+        $pdo->prepare('INSERT INTO categories (id, name, description, icon, color, created_at, updated_at) VALUES (?,?,?,?,?,?,?)')
+            ->execute([$id, $name, $description, $icon, $color, $ts, $ts]);
     }
 } catch (Throwable $e) {
     delete_upload($newFile);

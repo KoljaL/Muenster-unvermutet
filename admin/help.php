@@ -24,10 +24,10 @@ admin_header('Hilfe', $admin);
   <summary>Kategorien verwalten</summary>
   <div>
     <ul>
-      <li>Unter „Kategorien“ sind alle Kategorien mit Symbol, Beschreibung und Anzahl der Stationen aufgelistet.</li>
-      <li><strong>Neue Kategorie:</strong> „+ Neue Kategorie“ wählen, Name und eine kurze Beschreibung (max. 300 Zeichen) eingeben und optional ein Symbol hochladen.</li>
-      <li><strong>Symbol (Icon):</strong> JPEG oder PNG, möglichst quadratisch. Beim Bearbeiten ersetzt ein neues Bild das bisherige; „Symbol entfernen“ löscht es. Ohne Bild wird der Anfangsbuchstabe angezeigt.</li>
-      <li><strong>Bearbeiten:</strong> Name, Beschreibung und Symbol sind änderbar. Die interne Kennung bleibt gleich, bestehende Stationen behalten ihre Kategorie.</li>
+      <li>Unter „Kategorien“ sind alle Kategorien mit Bild, Farbe, Beschreibung und Anzahl der Stationen aufgelistet.</li>
+      <li><strong>Neue Kategorie:</strong> „+ Neue Kategorie“ wählen, Name, Beschreibung und Farbe festlegen und optional ein Bild hochladen.</li>
+      <li><strong>Bild:</strong> JPEG oder PNG, möglichst quadratisch. Beim Bearbeiten ersetzt ein neues Bild das bisherige; „Symbol entfernen“ löscht es.</li>
+      <li><strong>Bearbeiten:</strong> Name, Beschreibung, Farbe und Bild sind änderbar. Die interne Kennung bleibt gleich, bestehende Stationen behalten ihre Kategorie.</li>
       <li><strong>Löschen</strong> ist nur für Kategorien ohne Stationen möglich. Ordne Stationen vorher einer anderen Kategorie zu.</li>
       <li>Die Kategorien stehen öffentlich unter <code>api/categories.php</code> zur Verfügung.</li>
     </ul>

@@ -5,7 +5,7 @@ require __DIR__ . '/_bootstrap.php';
 $admin = require_admin();
 
 $id = isset($_GET['id']) && is_string($_GET['id']) ? $_GET['id'] : null;
-$cat = ['name' => '', 'description' => '', 'icon' => ''];
+$cat = ['name' => '', 'description' => '', 'icon' => '', 'color' => '#065f46'];
 if ($id !== null) {
     $stmt = db()->prepare('SELECT * FROM categories WHERE id = ?');
     $stmt->execute([$id]);
@@ -17,7 +17,7 @@ if ($id !== null) {
     $cat = array_merge($cat, $row);
 }
 if (!empty($_SESSION['old_input'])) {
-    $cat = array_merge($cat, array_intersect_key($_SESSION['old_input'], ['name' => 1, 'description' => 1]));
+    $cat = array_merge($cat, array_intersect_key($_SESSION['old_input'], ['name' => 1, 'description' => 1, 'color' => 1]));
     unset($_SESSION['old_input']);
 }
 $isNew = $id === null;
@@ -37,6 +37,8 @@ admin_header($isNew ? 'Neue Kategorie' : 'Kategorie bearbeiten', $admin);
     <input type="text" id="name" name="name" required maxlength="60" value="<?= h($cat['name']) ?>">
     <label for="description">Kurze Beschreibung</label>
     <textarea id="description" name="description" maxlength="300"><?= h($cat['description']) ?></textarea>
+    <label for="color">Farbe</label>
+    <input type="color" id="color" name="color" required value="<?= h($cat['color']) ?>">
   </fieldset>
 
   <fieldset class="task-card"><legend>Symbol (Icon)</legend>

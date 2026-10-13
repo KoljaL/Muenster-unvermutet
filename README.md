@@ -35,12 +35,12 @@ Mit **Zurücksetzen** kann der gesamte Fortschritt gelöscht und das Spiel neu b
 
 ## Backend
 
-Das Spiel hat ein schlankes PHP-Backend mit SQLite-Datenbank und einem geschützten Admin-Bereich. Die API-Variante des Frontends ist [`index-with-api.html`](./index-with-api.html): Sie lädt zunächst nur die Karten-Pins (`api/map_pins.php`) und die vollständigen Stationsdaten erst beim Öffnen einer Station (`api/get_details.php`, mit Ladezustand, Fehleranzeige und Retry). Der Spielfortschritt bleibt weiterhin lokal im Browser (`localStorage`). Die statische [`index.html`](./index.html) bleibt unverändert als Referenz erhalten.
+Das Spiel hat ein schlankes PHP-Backend mit SQLite-Datenbank und einem geschützten Admin-Bereich. Die API-Variante des Frontends ist [`index.html`](./index.html): Sie lädt zunächst Kategorien (`api/categories.php`) und Karten-Pins (`api/map_pins.php`) und erst beim Öffnen einer Station die vollständigen Stationsdaten (`api/get_details.php`, mit Ladezustand, Fehleranzeige und Retry). Namen, hochgeladene Kategoriebilder und Farben stammen aus der Datenbank und werden im Admin-Bereich gepflegt. Der Spielfortschritt bleibt weiterhin lokal im Browser (`localStorage`). Die statische [`index.html`](./index.html) bleibt unverändert als Referenz erhalten.
 
 Die vollständige technische Planung steht in [`Backend-Umsetzung.md`](./Backend-Umsetzung.md). Das Backend verwendet:
 
 - Vanilla PHP mit PDO und SQLite
-- JSON-API für Pins und Stationsdetails
+- JSON-API für Kategorien, Pins und Stationsdetails; Kategorienamen, hochgeladene Bilder und Farben werden zentral in der Datenbank gepflegt
 - Apache und HTTPS auf dem All-Inkl-Webspace
 - PHP-Sessions für drei Administratoren
 - einen fünfminütigen Admin-Session-Timeout
@@ -66,12 +66,16 @@ Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
 ```bash
 php setup/create_admins.php        # legt admin1–admin3 mit den Testpasswörtern an
 php setup/migrate_stations.php     # importiert Stationen und Beispielvorschläge (idempotent)
+./setup/reset_database.sh          # löscht die lokale DB, fragt Passwörter ab und richtet alles neu ein
 php -S 127.0.0.1:8080              # lokaler Server
 ```
 
-- Spiel: `http://127.0.0.1:8080/index-with-api.html`
+- Spiel: `http://127.0.0.1:8080/index.html`
 - Admin: `http://127.0.0.1:8080/admin/login.php`
+- `setup/reset_database.sh --yes` überspringt die Löschbestätigung und startet anschließend den PHP-Server. Das Spiel ist dann unter `http://127.0.0.1:8080/index.html`, der Admin-Bereich unter `http://127.0.0.1:8080/admin/login.php` erreichbar. Für automatisierte Aufrufe können `ADMIN_STINA_PASSWORD`, `ADMIN_KOLJA_PASSWORD` und `ADMIN_ADMIN_PASSWORD` als Umgebungsvariablen gesetzt werden.
+- Host und Port lassen sich über `PHP_SERVER_HOST` und `PHP_SERVER_PORT` ändern.
 - Die Datenbank wird beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`).
+- Vorhandene SQLite-Datenbanken werden nicht automatisch migriert; die ergänzte Kategoriespalte setzt eine frisch angelegte Datenbank voraus.
 - Der Import übernimmt vorhandene Fotos `Aufgabe N.jpg` / `Loesung N.jpg` (im Projektordner, `OLD/`, `setup/images/` oder `setup/photos/`) in `uploads/`. Fehlende Fotos können im Admin-Bereich hochgeladen werden.
 - Der Migrationslauf legt zusätzlich die drei offenen Beispielvorschläge aus `setup/suggestions_seed.json` an. Bereits vorhandene Vorschläge werden nicht dupliziert; die Beispielbilder werden aus den vorhandenen `Aufgabe N.jpg`-Dateien übernommen.
 - Eigenes Passwort setzen: `php setup/create_admins.php <benutzer> <passwort>` (mind. 12 Zeichen).

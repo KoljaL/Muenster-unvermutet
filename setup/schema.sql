@@ -83,14 +83,16 @@ CREATE TABLE IF NOT EXISTS categories (
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     icon TEXT,
+    color TEXT NOT NULL DEFAULT '#065f46'
+        CHECK (length(color) = 7 AND color GLOB '#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]'),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
 
-INSERT OR IGNORE INTO categories (id, name, description, created_at, updated_at) VALUES
-    ('history', 'Geschichte', 'Historische Ereignisse und Orte.', datetime('now'), datetime('now')),
-    ('art', 'Kunst', 'Kunstwerke und Skulpturen im Stadtbild.', datetime('now'), datetime('now')),
-    ('legend', 'Sagen', 'Sagen und Legenden aus Münster.', datetime('now'), datetime('now')),
-    ('faith', 'Glaube', 'Kirchen und religiöse Orte.', datetime('now'), datetime('now')),
-    ('detail', 'Details', 'Kleine Besonderheiten am Wegesrand.', datetime('now'), datetime('now')),
-    ('culture', 'Kultur', 'Kultur, Brauchtum und Kuriositäten.', datetime('now'), datetime('now'));
+INSERT OR IGNORE INTO categories (id, name, description, icon, color, created_at, updated_at) VALUES
+    ('history', 'Geschichte', 'Historische Ereignisse und Orte.', NULL, '#92400e', datetime('now'), datetime('now')),
+    ('art', 'Kunst', 'Kunstwerke und Skulpturen im Stadtbild.', NULL, '#9d174d', datetime('now'), datetime('now')),
+    ('legend', 'Sagen', 'Sagen und Legenden aus Münster.', NULL, '#5b21b6', datetime('now'), datetime('now')),
+    ('faith', 'Glaube', 'Kirchen und religiöse Orte.', NULL, '#1d4ed8', datetime('now'), datetime('now')),
+    ('detail', 'Details', 'Kleine Besonderheiten am Wegesrand.', NULL, '#065f46', datetime('now'), datetime('now')),
+    ('culture', 'Kultur', 'Kultur, Brauchtum und Kuriositäten.', NULL, '#b45309', datetime('now'), datetime('now'));

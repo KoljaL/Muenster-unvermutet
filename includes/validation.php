@@ -138,8 +138,8 @@ function category_exists(string $id): bool
     return (bool) $stmt->fetchColumn();
 }
 
-/** @return array<int, array{id:string,name:string,description:string,icon:?string}> */
+/** @return array<int, array{id:string,name:string,description:string,icon:?string,color:string}> */
 function all_categories(): array
 {
-    return db()->query('SELECT id, name, description, icon FROM categories ORDER BY name COLLATE NOCASE')->fetchAll();
+    return db()->query('SELECT id, name, description, icon, color FROM categories ORDER BY name COLLATE NOCASE')->fetchAll();
 }
