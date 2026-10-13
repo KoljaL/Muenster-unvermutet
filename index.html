@@ -1,0 +1,1869 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Münster unvermutet – Foto-Schnitzeljagd</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      /* ==========================================================
+         1. Basis
+         ========================================================== */
+      :root {
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        background: #f5f5f4;
+        color: #292524;
+      }
+      a {
+        color: #047857;
+      }
+      button {
+        cursor: pointer;
+        font-size: 0.85rem;
+        border-radius: 10px;
+        padding: 10px 14px;
+        border: none;
+        font-weight: 600;
+      }
+      :focus-visible {
+        outline: 3px solid #047857;
+        outline-offset: 2px;
+      }
+      [tabindex='-1']:focus {
+        outline: none;
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* ==========================================================
+         2. Seitenrahmen & Fortschritt
+         ========================================================== */
+      .page {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 32px 16px 48px;
+      }
+      h1 {
+        font-size: 1.7rem;
+        letter-spacing: -0.02em;
+        margin: 0;
+        color: #1c1917;
+      }
+      .page-subtitle {
+        color: #57534e;
+        margin: 8px 0 0;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+      .progress {
+        background: #fff;
+        border: 1px solid #e7e5e4;
+        border-radius: 14px;
+        padding: 14px 18px;
+        margin-top: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+      .progress-main {
+        flex: 1;
+      }
+      .progress-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #78716c;
+        margin-bottom: 4px;
+      }
+      .progress-track {
+        height: 12px;
+        background: #e7e5e4;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: #047857;
+        border-radius: 999px;
+        transition: width 0.4s;
+      }
+      .reset-button {
+        font-size: 0.75rem;
+        color: #78716c;
+        background: none;
+        text-decoration: underline;
+        white-space: nowrap;
+        padding: 0;
+      }
+
+      /* ==========================================================
+         3. Stadtplan (Leaflet / OpenStreetMap)
+         ========================================================== */
+      #map {
+        height: 520px;
+        border-radius: 16px;
+        border: 1px solid #e7e5e4;
+        overflow: hidden;
+        margin-top: 22px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      }
+      .map-fallback {
+        height: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #78716c;
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 12px;
+      }
+      .map-pin {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #047857;
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.82rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+        transition: transform 0.15s;
+      }
+      .map-pin:hover {
+        transform: scale(1.15);
+        background: #065f46;
+      }
+      .map-pin--solved {
+        background: #fff;
+        color: #047857;
+      }
+
+      /* ==========================================================
+         4. Aufgaben-Ansicht
+         ========================================================== */
+      .back-button {
+        font-size: 0.85rem;
+        padding: 9px 14px;
+        border: 1px solid #d6d3d1;
+        background: #fff;
+        color: #57534e;
+        margin-bottom: 14px;
+        margin: 10px;
+      }
+      .back-button:hover {
+        background: #fafaf9;
+      }
+      .task-card {
+        background: #fff;
+        border: 1px solid #e7e5e4;
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        margin-top: 22px;
+      }
+      .task-photo {
+        position: relative;
+        background: #e7e5e4;
+        height: clamp(230px, 58vw, 320px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .task-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        opacity: 0;
+        transition: opacity 0.45s ease;
+      }
+      .task-photo img.is-loaded {
+        opacity: 1;
+      }
+      .photo-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #78716c;
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 16px;
+      }
+      .badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: #047857;
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 999px;
+      }
+      .badge--solved {
+        right: 12px;
+        left: auto;
+        background: rgba(255, 255, 255, 0.92);
+        color: #065f46;
+      }
+      .task-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        flex: 1;
+      }
+      .task-title {
+        margin: 0;
+        font-size: 1.15rem;
+        color: #292524;
+      }
+      .task-intro {
+        margin: 0;
+        font-size: 0.88rem;
+        color: #78716c;
+      }
+      .hint-box {
+        font-size: 0.88rem;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #78350f;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .coordinates {
+        font-family: ui-monospace, monospace;
+        background: #f5f5f4;
+        border-radius: 8px;
+        padding: 4px 10px;
+        color: #292524;
+        font-size: 0.82rem;
+      }
+      .coordinates-link {
+        text-decoration: none;
+      }
+      .task-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+      .option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        text-align: left;
+        border: 1px solid #d6d3d1;
+        border-radius: 10px;
+        background: #fff;
+        color: inherit;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        font-weight: normal;
+      }
+      .option:hover {
+        border-color: #059669;
+        background: #f0fdf4;
+      }
+      .option-letter {
+        flex: 0 0 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #1c1917;
+        color: #fff;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+      }
+      .hint-button {
+        background: #fff;
+        border: 1px solid #d6d3d1;
+        color: #57534e;
+      }
+      .hint-button:hover {
+        background: #fafaf9;
+      }
+      .error-message {
+        color: #dc2626;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0;
+      }
+      .reveal-button {
+        margin-top: auto;
+        align-self: flex-start;
+        font-size: 0.8rem;
+        color: #78716c;
+        background: none;
+        text-decoration: underline;
+        padding: 0;
+      }
+
+      /* ==========================================================
+         5. Lösungs-Ansicht
+         ========================================================== */
+      .solution {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        color: #44403c;
+      }
+      .solution p {
+        margin: 0;
+      }
+      .solution-photo {
+        margin: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #e7e5e4;
+      }
+      .solution-photo img {
+        width: 100%;
+        max-height: 320px;
+        object-fit: contain;
+        display: block;
+      }
+      .solution-photo figcaption {
+        font-size: 0.75rem;
+        color: #78716c;
+        padding: 8px 12px;
+        background: #fafaf9;
+      }
+      .solution-photo-fallback {
+        padding: 20px;
+        text-align: center;
+        color: #78716c;
+        font-size: 0.85rem;
+      }
+      .coordinates-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .sources {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        font-size: 0.75rem;
+        color: #78716c;
+      }
+
+      /* ==========================================================
+         6. Abschluss
+         ========================================================== */
+      .completion {
+        margin-top: 26px;
+        text-align: center;
+        background: #047857;
+        color: #fff;
+        border-radius: 16px;
+        padding: 24px;
+      }
+      .completion p {
+        margin: 0;
+      }
+      .completion-title {
+        font-size: 1.3rem;
+        font-weight: 900;
+      }
+      .completion .completion-text {
+        color: #d1fae5;
+        margin-top: 8px;
+      }
+
+      /* ==========================================================
+         7. Optimierungen (k2): Kontrast, Touch-Ziele, Einführung, Kategorien, Abschluss
+         ========================================================== */
+      :root {
+        --green: #065f46;
+        --green-dark: #064e3b;
+        --green-soft: #ecfdf5;
+        --ink: #1c1917;
+        --muted: #44403c;
+      }
+      body {
+        background: linear-gradient(180deg, #ecfdf5 0, #f5f5f4 320px);
+        color: var(--ink);
+        font-size: 1.0625rem;
+      }
+      a {
+        color: var(--green);
+      }
+      button {
+        font-size: 1rem;
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: 12px;
+      }
+      :focus-visible {
+        outline: 3px solid #f59e0b;
+        outline-offset: 2px;
+      }
+      .page {
+        padding-top: 20px;
+      }
+
+      /* Kopfbereich */
+      .hero {
+        background: linear-gradient(135deg, #064e3b, #047857);
+        color: #fff;
+        border-radius: 20px;
+        padding: 22px 20px;
+        box-shadow: 0 6px 18px rgba(6, 78, 59, 0.25);
+      }
+      .hero h1 {
+        color: #fff;
+        font-size: 1.9rem;
+      }
+      .hero .page-subtitle {
+        color: #d1fae5;
+        font-size: 0.95rem;
+      }
+      .how-to {
+        margin-top: 16px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+      }
+      .how-to summary {
+        cursor: pointer;
+        font-weight: 700;
+        padding: 14px 16px;
+        min-height: 48px;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .how-to summary::-webkit-details-marker {
+        display: none;
+      }
+      .how-to summary::after {
+        content: '▾';
+        transition: transform 0.2s;
+      }
+      .how-to[open] summary::after {
+        transform: rotate(180deg);
+      }
+      .how-to ol {
+        list-style: none;
+        margin: 0;
+        padding: 0 16px 16px;
+        display: grid;
+        gap: 10px;
+      }
+      .how-to li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        line-height: 1.4;
+      }
+      .how-to li span.step {
+        flex: 0 0 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #fff;
+        color: var(--green);
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Fortschritt */
+      .progress {
+        border: 2px solid #d6d3d1;
+        margin-top: 16px;
+      }
+      .progress-labels {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .progress-track {
+        height: 16px;
+        background: #d6d3d1;
+      }
+      .progress-fill {
+        background: linear-gradient(90deg, #059669, #065f46);
+      }
+      .reset-button {
+        color: var(--muted);
+        min-height: 44px;
+        padding: 0 8px;
+        font-size: 0.9rem;
+        text-decoration: underline;
+      }
+      .badges {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .mini {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #e7e5e4;
+        border: 2px solid #d6d3d1;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        filter: grayscale(1);
+        opacity: 0.7;
+      }
+      .mini--solved {
+        background: var(--green-soft);
+        border-color: var(--green);
+        filter: none;
+        opacity: 1;
+      }
+
+      /* Karte: kompakter und an Bildschirmhöhe angepasst */
+      #map {
+        height: clamp(300px, 52vh, 440px);
+        border: 2px solid #d6d3d1;
+        margin-top: 16px;
+      }
+      .map-fallback {
+        height: 100%;
+      }
+      .map-pin {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        font-size: 1.3rem;
+        background: var(--pin, #065f46);
+        border: 3px solid #fff;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+      }
+      .map-pin:hover {
+        background: var(--pin, #065f46);
+        filter: brightness(0.85);
+      }
+      .map-pin .pin-number {
+        position: absolute;
+        top: -7px;
+        right: -7px;
+        min-width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: #1c1917;
+        color: #fff;
+        font-size: 0.75rem;
+        line-height: 22px;
+        text-align: center;
+        border: 2px solid #fff;
+      }
+      .map-pin--solved {
+        background: #fff;
+        color: var(--green);
+        border-color: var(--green);
+        font-weight: 900;
+      }
+      .map-pin--solved .pin-number {
+        background: var(--green);
+      }
+      .leaflet-container a.leaflet-control-zoom-in,
+      .leaflet-container a.leaflet-control-zoom-out {
+        width: 44px;
+        height: 44px;
+        line-height: 44px;
+        font-size: 22px;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin: 12px 2px 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      .legend li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend i {
+        font-style: normal;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--c);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+      }
+
+      /* Stationsliste unter der Karte (große Touch-Ziele) */
+      .station-list {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .station-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        background: #fff;
+        color: var(--ink);
+        border: 2px solid #d6d3d1;
+        padding: 10px 14px;
+        min-height: 60px;
+        font-weight: 600;
+      }
+      .station-item:hover {
+        border-color: var(--green);
+        background: var(--green-soft);
+      }
+      .station-item .ico {
+        flex: 0 0 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--c);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+      .station-item small {
+        display: block;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      .station-item .state {
+        margin-left: auto;
+        font-weight: 800;
+        color: var(--green);
+        white-space: nowrap;
+      }
+      .station-item--solved {
+        border-color: var(--green);
+        background: var(--green-soft);
+      }
+
+      /* Aufgabenkarte */
+      .back-button {
+        font-size: 1rem;
+        border: 2px solid #a8a29e;
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .task-card {
+        border: 2px solid #d6d3d1;
+        border-top: 6px solid var(--cat, #065f46);
+        animation: card-in 0.34s ease-out both;
+      }
+      #task-list .task-card--stable {
+        animation: none;
+      }
+      #task-list {
+        position: relative;
+      }
+      #task-list.task-list-crossfade {
+        overflow: hidden;
+        transition: height 0.34s ease;
+        isolation: isolate;
+      }
+      #task-list .task-card--leaving {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        width: 100%;
+        animation: none;
+        opacity: 1;
+        transform: translateY(0);
+        transition:
+          opacity 0.3s ease,
+          transform 0.3s ease;
+        will-change: opacity, transform;
+      }
+      #task-list .task-card--leaving.task-card--exit {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      #task-list .task-card--entering {
+        position: relative;
+        z-index: 2;
+        opacity: 0;
+        transform: translateY(10px);
+        animation: none;
+        transition:
+          opacity 0.34s ease,
+          transform 0.34s ease;
+        will-change: opacity, transform;
+      }
+      #task-list .task-card--entering.task-card--active {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .badge {
+        font-size: 0.9rem;
+        padding: 6px 14px;
+        background: var(--green-dark);
+      }
+      .badge--solved {
+        background: #fff;
+        color: var(--green-dark);
+        border: 2px solid var(--green);
+      }
+      .task-title {
+        font-size: 1.3rem;
+        line-height: 1.25;
+      }
+      .category-chip {
+        align-self: flex-start;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--cat-soft, #ecfdf5);
+        color: var(--ink);
+        border: 1px solid var(--cat);
+      }
+      .task-intro,
+      .reveal-button,
+      .photo-fallback,
+      .solution-photo figcaption,
+      .sources {
+        color: var(--muted);
+      }
+      .task-intro {
+        font-size: 1rem;
+      }
+      .hint-box {
+        font-size: 1rem;
+        color: #451a03;
+        border: 2px solid #f59e0b;
+        max-height: 0;
+        margin: 0;
+        padding: 0 14px;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-6px);
+        transition:
+          max-height 0.28s ease,
+          margin 0.28s ease,
+          padding 0.28s ease,
+          opacity 0.22s ease,
+          transform 0.28s ease;
+      }
+      .hint-box.is-visible {
+        max-height: 160px;
+        margin: 0;
+        padding: 12px 14px;
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .coordinates {
+        font-size: 0.95rem;
+        padding: 10px 14px;
+        display: inline-block;
+        border: 1px solid #a8a29e;
+      }
+      .option {
+        min-height: 56px;
+        font-size: 1rem;
+        border: 2px solid #a8a29e;
+        padding: 12px 14px;
+        transition:
+          border-color 0.18s ease,
+          background-color 0.18s ease,
+          transform 0.18s ease;
+      }
+      .option:hover {
+        border-color: var(--green);
+      }
+      .option-letter {
+        flex: 0 0 34px;
+        height: 34px;
+        font-size: 1rem;
+      }
+      .option--wrong {
+        border-color: #b91c1c;
+        background: #fef2f2;
+        text-decoration: line-through;
+        color: #7f1d1d;
+        animation: wrong-answer 0.34s ease-out;
+      }
+      .hint-button {
+        border: 2px solid #a8a29e;
+        color: var(--ink);
+        width: 100%;
+      }
+      .error-message {
+        color: #b91c1c;
+        font-size: 1rem;
+        background: #fef2f2;
+        border: 2px solid #b91c1c;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .feedback-in {
+        animation: feedback-in 0.28s ease-out both;
+      }
+      .reveal-button {
+        font-size: 0.95rem;
+        min-height: 48px;
+        padding: 0 4px;
+      }
+      .solution {
+        font-size: 1rem;
+        color: var(--ink);
+      }
+      .solution-photo {
+        border: 2px solid #d6d3d1;
+      }
+      .coordinates-row a,
+      .sources a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        font-weight: 600;
+      }
+      .sources {
+        font-size: 0.9rem;
+      }
+      .next-button {
+        background: var(--green);
+        color: #fff;
+        width: 100%;
+        font-size: 1.05rem;
+      }
+      .next-button:hover {
+        background: var(--green-dark);
+      }
+      .next-button {
+        transition:
+          transform 0.18s ease,
+          background-color 0.18s ease;
+      }
+      .next-button:hover {
+        transform: translateY(-2px);
+      }
+
+      /* Abschluss: Siegesansicht */
+      .completion {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #064e3b, #047857 60%, #b45309);
+        padding: 32px 20px;
+        border-radius: 20px;
+        box-shadow: 0 8px 24px rgba(6, 78, 59, 0.35);
+      }
+      .completion-trophy {
+        font-size: 4rem;
+        line-height: 1;
+        animation: pop 0.8s ease-out both;
+      }
+      .completion-title {
+        font-size: 1.7rem;
+        margin-top: 10px;
+      }
+      .completion .completion-text {
+        color: #ecfdf5;
+        font-size: 1.05rem;
+      }
+      .completion-stats {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 18px 0;
+        flex-wrap: wrap;
+      }
+      .stat {
+        background: rgba(255, 255, 255, 0.16);
+        border-radius: 14px;
+        padding: 10px 16px;
+        min-width: 96px;
+      }
+      .stat b {
+        display: block;
+        font-size: 1.6rem;
+      }
+      .stat span {
+        font-size: 0.85rem;
+      }
+      .completion-rank {
+        font-weight: 800;
+        font-size: 1.15rem;
+        background: #fff;
+        color: var(--green-dark);
+        display: inline-block;
+        border-radius: 999px;
+        padding: 8px 18px;
+      }
+      .completion-actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .completion-actions button {
+        background: #fff;
+        color: var(--green-dark);
+        font-weight: 800;
+      }
+      .confetti {
+        position: absolute;
+        top: -12px;
+        width: 10px;
+        height: 14px;
+        border-radius: 2px;
+        animation: fall 3.2s linear infinite;
+        opacity: 0.9;
+        pointer-events: none;
+      }
+      @keyframes fall {
+        to {
+          transform: translateY(380px) rotate(540deg);
+          opacity: 0;
+        }
+      }
+      @keyframes pop {
+        0% {
+          transform: scale(0.3);
+        }
+        70% {
+          transform: scale(1.2);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes card-in {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes wrong-answer {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        30%,
+        70% {
+          transform: translateX(-5px);
+        }
+        50% {
+          transform: translateX(5px);
+        }
+      }
+      @keyframes feedback-in {
+        from {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .confetti,
+        .completion-trophy,
+        .progress-fill,
+        .task-card,
+        .option--wrong,
+        .feedback-in {
+          animation: none;
+          transition: none;
+        }
+        #task-list.task-list-crossfade {
+          transition: none;
+        }
+        .hint-box {
+          transition: none;
+        }
+        .task-photo img {
+          transition: none;
+        }
+        .confetti {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
+        <p class="page-subtitle">Eine Foto-Schnitzeljagd von Bettina Säger · Idee inspiriert durch ein Buch von Clemens Köyer</p>
+        <details class="how-to" id="how-to" open>
+          <summary>So funktioniert's</summary>
+          <ol>
+            <li>
+              <span class="step" aria-hidden="true">1</span><span><b>Pin antippen:</b> Wähle eine Station auf der Karte oder in der Liste.</span>
+            </li>
+            <li>
+              <span class="step" aria-hidden="true">2</span><span><b>Ort finden:</b> Erkenne das Detail auf dem Foto – bei Bedarf hilft ein Hint.</span>
+            </li>
+            <li>
+              <span class="step" aria-hidden="true">3</span><span><b>Frage beantworten:</b> Die richtige Antwort verrät die Geschichte dahinter.</span>
+            </li>
+          </ol>
+        </details>
+      </header>
+
+      <section class="progress" aria-label="Fortschritt">
+        <div class="progress-main">
+          <div class="progress-labels"><span id="progress-label">Fortschritt</span><span id="progress-count">0 von 14 gelöst</span></div>
+          <div class="progress-track" id="progress-track" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="14" aria-valuenow="0" aria-valuetext="0 von 14 gelöst">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="badges" id="mini-badges" aria-hidden="true"></div>
+        </div>
+        <button type="button" class="reset-button" id="reset-button" hidden>Zurücksetzen</button>
+      </section>
+
+      <!-- Startseite: Stadtplan als OpenStreetMap (Leaflet) -->
+      <section id="plan-view" aria-label="Stadtplan mit Aufgaben">
+        <div id="map" role="region" aria-label="Karte von Münster – die Aufgaben sind per Tastatur erreichbar und mit Enter auswählbar">
+          <div class="map-fallback" id="map-fallback" hidden>🗺️ Die OpenStreetMap kann hier in der Vorschau nicht geladen werden –<br />das Spiel herunterladen und im Browser öffnen, dann erscheint die Karte.</div>
+        </div>
+        <ul class="legend" id="legend" aria-label="Kategorien"></ul>
+        <ul class="station-list" id="station-list" aria-label="Alle Stationen"></ul>
+      </section>
+
+      <!-- Aufgaben-Ansicht -->
+      <section id="task-view" hidden>
+        <button type="button" class="back-button" id="back-button">← Zurück zum Stadtplan</button>
+        <div id="task-list"></div>
+      </section>
+
+      <div class="completion" id="completion" hidden>
+        <div id="confetti" aria-hidden="true"></div>
+        <div class="completion-trophy" aria-hidden="true">🏆</div>
+        <p class="completion-title">Geschafft – Münster entdeckt!</p>
+        <p class="completion-text">Du hast alle Stationen gelöst. Gut gesehen!</p>
+        <div class="completion-stats" id="completion-stats"></div>
+        <p class="completion-rank" id="completion-rank"></p>
+        <div class="completion-actions">
+          <button type="button" id="completion-map">🗺️ Zur Karte</button>
+          <button type="button" id="completion-restart">↻ Nochmal spielen</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Unsichtbare Statusmeldungen für Screenreader -->
+    <div class="visually-hidden" id="status-message" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      /* ==========================================================
+         1. Konfiguration
+         ========================================================== */
+      // Fotos liegen neben dieser Datei: "Aufgabe <Nr>.jpg" (Rätsel) und "Loesung <Nr>.jpg" (Lösung).
+      // Cache-Buster: bei neuen Fotos die Versionszahl erhöhen.
+      const PHOTO_VERSION = 'v15';
+      const STORAGE_KEY = 'muenster-unvermutet:progress';
+      const LEGACY_STORAGE_KEY = 'ms-suchspiel'; // altes Format: Array gelöster Stations-IDs
+      const INTRO_STATE_KEY = 'muenster-unvermutet:intro-state';
+      const PROGRESS_VERSION = 1;
+      const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+      const MAP_CENTER = [51.9622, 7.6278];
+      const MAP_TILE_URL = 'https://tile.openstreetmap.de/{z}/{x}/{y}.png';
+
+      /* ==========================================================
+         2. Daten
+         Neue Station = neues Objekt am Ende der Liste.
+         Felder: id (eindeutig, stabil – dient als Schlüssel im LocalStorage), number, title, hint,
+         lat, lon, solutionTitle, solutionCaption (optional), options, correctOptionIndex, info,
+         links ({ title, url }).
+         ========================================================== */
+      const STATIONS = [
+        {
+          id: 'jan-van-leiden',
+          number: 1,
+          title: 'Der Denker mit dem Strich durch die Rechnung',
+          hint: 'Ein Täuferkönig – heute sitzt er abseits unter Seligen und Heiligen.',
+          lat: 51.963083,
+          lon: 7.626028,
+          solutionTitle: 'Jan van Leiden an der Kreuzigungsgruppe am St.-Paulus-Dom (Horsteberg)',
+          options: ['Ein Anführer der Täuferbewegung, der im 16. Jahrhundert die Stadt Münster prägte.', 'Johann von Hoya, ein Fürstbischof von Münster, der im 16. Jahrhundert die Geschicke des Hochstifts lenkte.', 'Johann von der Recke, ein bedeutender Domherr, der sich für kirchliche Belange in Münster einsetzte.'],
+          correctOptionIndex: 0,
+          info: 'Geschaffen hat die bronzene Kreuzigungsgruppe an der Dom-Nordseite (Horsteberg) der Düsseldorfer Bildhauer Bert Gerresheim – eingesegnet wurde sie am vierten Advent 2004. Ungewöhnlich: Unter dem Kreuz stehen nicht nur Maria und Johannes, sondern auch Gestalten der alten und der neueren Stadtgeschichte – etwa die selige Anna Katharina Emmerick, Schwester Maria Euthymia, Symbole für die heilige Edith Stein, die in Münster lehrte, und Kardinal von Galen. Etwas abseits, auf einem tiefer gelegenen Plateau, thront der Wiedertäuferkönig Jan van Leiden: Eine feine Linie durchschneidet sein Porträt und läuft als „abrechnender Schlussstrich“ über die Pläne auf seinen Knien weiter. Zu seinen Füßen liegen zerbrochene Zeichen – zerschlagene Herrschaftsinsignien und ein Figurentorso als Relikt der Bilderstürmer – und erinnern an dunkle Kapitel der Geschichte. Die Bronze ersetzte eine verwitterte Sandsteingruppe aus dem 18. Jahrhundert.',
+          links: [
+            { title: 'Paulusdom: Kreuzigungsgruppe am Dom', url: 'https://www.paulusdom.de/gotteshaus/kunstwerke/kunstwerke-des-st-paulus-domes/kreuzigungsgruppe-am-dom' },
+            { title: 'Stadt Münster: Kreuzmonument Horsteberg', url: 'https://www.stadt-muenster.de/kriegerdenkmale/erinnern-nach-2000/kreuzmonument-horsteberg' },
+            { title: 'Wikipedia: Bert Gerresheim', url: 'https://de.wikipedia.org/wiki/Bert_Gerresheim' },
+          ],
+        },
+        {
+          id: 'schleifkerben',
+          number: 2,
+          title: 'Ritzen im Stein – aber wofür?',
+          hint: 'Der heimische Baumberger Sandstein ist rau und schleift gut.',
+          lat: 51.96359482684747,
+          lon: 7.627858371163725,
+          solutionTitle: 'Schleifkerben am Sandstein-Portal',
+          solutionCaption: 'Lösungsfoto: die Säulen mit Schleifkerben am Portal',
+          options: ['Als Maßmarkierungen für den mittelalterlichen Handel.', 'Zum Schärfen von Messern durch Marktständler.', 'Zum Befestigen von Marktständen an der Mauer.'],
+          correctOptionIndex: 1,
+          info: 'Was hier wie zufällige Schrammen aussieht, sind sogenannte Schleifkerben: Der heimische Baumberger Sandstein ist so rau, dass er sich hervorragend zum Schärfen eignet. Über Jahrhunderte hinweg griffen deshalb Händler, Wachen und Marktbesucher zu Messern, Sicheln oder Schwertern und zogen die Klingen an den Steinpfeilern entlang. Jede einzelne Rille ist so das stumme Zeugnis unzähliger Handgriffe aus dem Alltag rund um den Dom. Übrigens: Der Kalksandstein aus den Baumbergen bei Havixbeck prägt weite Teile der Münsteraner Baukunst – auch der St.-Paulus-Dom selbst ist daraus errichtet.',
+          links: [
+            { title: 'Wikipedia: Baumberger Kalksandstein', url: 'https://de.wikipedia.org/wiki/Baumberger_Kalksandstein' },
+            { title: 'Baumberger Sandsteinmuseum (Havixbeck)', url: 'https://de.wikipedia.org/wiki/Baumberger_Sandsteinmuseum' },
+          ],
+        },
+        {
+          id: 'kranich-am-dom',
+          number: 3,
+          title: 'Ein Vogel mit Stein in der Kralle',
+          hint: 'Die Bedeutung geht auf eine Vorstellung in der Antike zurück.',
+          lat: 51.962713,
+          lon: 7.625397,
+          solutionTitle: 'Der Kranich am Dom',
+          solutionCaption: 'Lösungsfoto: „Lösung 3.jpg“ – der Dom von Westen',
+          options: ['Ein Greifvogel als Sinnbild für Macht und Stärke.', 'Ein Pelikan als christliches Symbol für Aufopferung und Nächstenliebe.', 'Ein Kranich als Sinnbild für Wachsamkeit und Klugheit.'],
+          correctOptionIndex: 2,
+          info: 'Hoch oben in der Ostwand des Dom-Querhauses stecken zwei runde Tierreliefs: ein sitzender Hund mit offenem Maul und ein Kranich, der das rechte Bein anhebt und in den Krallen einen ovalen Stein trägt. Um 1900 nahm man die Originale mit ihren Grundplatten aus der Wand und setzte Kopien an ihre Stelle, um sie vor weiterer Verwitterung zu bewahren – die echten Reliefs liegen heute in der Domkammer. Der Kranich mit seinem Stein greift eine Vorstellung aus der Antike auf: Auf dem Zug soll immer einer der Vögel Wache halten und dabei einen Stein in der Kralle tragen. Droht er einzunicken, fällt der Stein klirrend herab und weckt ihn – so bleibt der Wächter wach und aufmerksam. Deshalb gilt der Kranich bis heute als Sinnbild für Wachsamkeit und Klugheit.',
+          links: [{ title: 'Museen in Münster: Domkammer', url: 'https://www.museen-in-muenster.de/details/de_de-domkammer-des-st.-paulus-domes-muenster' }],
+        },
+        {
+          id: 'haus-der-niederlande',
+          number: 4,
+          title: 'Ein lateinischer Spruch über der Tür',
+          hint: 'In diesem Haus forscht man heute über die Nachbarn im Westen.',
+          lat: 51.963063745615706,
+          lon: 7.629782830690188,
+          solutionTitle: 'Haus der Niederlande (Krameramtshaus)',
+          solutionCaption: 'Lösungsfoto: „Lösung 4.jpg“ – das Krameramtshaus',
+          options: ['Bücher bewahren das Wissen ihrer Zeit.', 'Bücher erhalten ihre Bedeutung erst durch ihre Leser.', 'Bücher haben ihr Schicksal.'],
+          correctOptionIndex: 2,
+          info: 'Über dem Eingang des Krameramtshauses begrüßt ein Türsturzrelief die Besucher mit dem lateinischen Spruch „Habent sua fata libelli“ – „Bücher haben ihr Schicksal“. Geschaffen wurde es von Hilde Schürk-Frisch; mit dem vielsagenden Hinweis spielt es auf die wechselvolle Zweckbestimmung des Hauses an. Seit 1588 ist der Bau am Alter Steinweg das Haus der Kramer-Gilde. Während des Friedenskongresses wohnte hier die Delegation der Niederlande – heute beherbergt er das Haus der Niederlande: Einrichtungen, die sich in Forschung, Lehre und wissenschaftlicher Dienstleistung den Niederlanden und Flandern widmen. Gekrönt wird der geschichtsträchtige Giebel vom münsterischen Stadtwappen.',
+          links: [
+            { title: 'Haus der Niederlande: Wandlungen eines Baudenkmals', url: 'https://www.uni-muenster.de/HausDerNiederlande/ueber/baudenkmal.shtml' },
+            { title: 'Wikipedia: Haus der Niederlande', url: 'https://de.wikipedia.org/wiki/Haus_der_Niederlande' },
+          ],
+        },
+        {
+          id: 'aegidii-inschriftenstein',
+          number: 5,
+          title: 'Ein Stein voller Geschichte',
+          hint: 'Ein Nonnenkloster stand hier einst.',
+          lat: 51.96051001241073,
+          lon: 7.622080410804537,
+          solutionTitle: 'Ägidii-Inschriftenstein',
+          solutionCaption: 'Lösungsfoto: „Lösung 5.jpg“ – der Ägidii-Inschriftenstein',
+          options: ['Erstes Franziskanerkloster im Bistum Münster', 'Zweites Zisterzienserkloster im Bistum Münster', 'Erstes Zisterzienserkloster im Bistum Münster'],
+          correctOptionIndex: 2,
+          info: 'Der zwei Meter hohe Stein wurde von Rudolf Breilmann aus Roxel gestaltet und am 7.10.1964 errichtet. Erinnert werden soll mit ihm an das Zisterzienserkloster St. Ägidii – das erste Zisterzienserkloster im Bistum Münster, gegründet um 1180. Drei Seiten tragen Inschriften: Vorn liest man „Hier begrub die Sankt Ägidii-Pfarre 600 Jahre ihre Toten“, links „Hier stand das Zisterzienser Nonnenkloster Sankt Ägidii von 1181 bis 1811“, rechts „Hier stürzte 1821 die Sankt Ägidii Klosterpfarrkirche ein.“',
+          links: [],
+        },
+        {
+          id: 'bispingkreuz-nepomuk',
+          number: 6,
+          title: 'Ein Stein mit düsterer Sage',
+          hint: 'Ein Heiliger wacht über den Ort einer düsteren Sage.',
+          lat: 51.96123342007795,
+          lon: 7.622024255106893,
+          solutionTitle: 'Bispingkreuz mit Nepomuk-Statue (Johannesbrücke/Bispinghof)',
+          solutionCaption: 'Lösungsfoto: „Lösung 6.jpg“ – Bispingkreuz mit Nepomuk-Statue',
+          options: ['Studenten erschlugen hier einen Professor', 'Studenten erschlugen hier einen Bürgermeister', 'Der Professor erschlug hier einen Studenten'],
+          correctOptionIndex: 0,
+          info: 'An der Stelle, die das Bispingkreuz kennzeichnet, soll einer alten Sage nach ein Professor von seinen Studenten erschlagen worden sein. Vermutlich war das Kreuz ursprünglich ein Grenzstein, der das Gebiet des Bispinghofes absteckte – ein Gut, das dem Bistum unterstand. Den oberen Abschluss bildet eine Nepomuk-Statue von Rudolf Breilmann; sie wurde 1993 anlässlich des 1200-jährigen Stadtjubiläums aufgestellt. (Ort: Johannesbrücke/Bispinghof)',
+          links: [],
+        },
+        {
+          id: 'lortzingsaal',
+          number: 7,
+          title: 'Ein Saal mit einem berühmten Namen',
+          hint: 'Benannt nach einem Komponisten aus Münster.',
+          lat: 51.96153721426854,
+          lon: 7.633049682804881,
+          solutionTitle: 'Lortzingsaal (Café Grotemeyer, heute Restaurant und Cocktailbar)',
+          solutionCaption: 'Lösungsfoto: „Lösung 7.jpg“ – der Lortzingsaal',
+          options: ['Albert Lortzing: Operettenkomponist, bekannt für humorvolle Bühnenwerke.', 'Albert Lortzing: Deutscher Musikpädagoge und Kirchenmusiker.', 'Albert Lortzing: Schauspieler, Sänger und Komponist.'],
+          correctOptionIndex: 2,
+          info: 'Albert Lortzing gab dem Saal seinen Namen: Der berühmte Komponist („Zar und Zimmermann“) war von 1826 bis 1833 als Schauspieler und Sänger in Münster tätig – verschiedene Spielstätten und Räume der Stadt wurden nach ihm benannt. Einen besonderen Platz in der Kunstgeschichte nimmt der Saal als Geburtsstätte der „Schanze“ ein: 1919 gründeten dort junge Künstler im Lortzingsaal des Café Grotemeyer die Freie Künstlergemeinschaft Schanze, der es zu verdanken ist, dass moderne Kunst in Münster erstmals regelmäßig gezeigt und diskutiert wurde. Nach einer wechselvollen Geschichte und den Zerstörungen des Zweiten Weltkriegs ist von den alten Kulturstätten kaum mehr als Erinnerung geblieben. Heute beherbergen die Räume des historischen Lortzingsaals ein Restaurant mit Cocktailbar. Der Schriftzug „Lortzingsaal“ ist vor Ort leider nicht mehr zu finden. Der Schriftzug auf diesem Bild ist nachträglich nur zur Anschauung durch KI eingefügt.',
+          links: [],
+        },
+        {
+          id: 'jakobsmuschel-lamberti',
+          number: 8,
+          title: 'Ein Zeichen für fernere Ziele',
+          hint: 'Pilger trugen dieses Zeichen einst am Hut.',
+          lat: 51.96301705501186,
+          lon: 7.62892582649689,
+          solutionTitle: 'Jakobsmuschel (Pilgerzeichen) an St. Lamberti',
+          solutionCaption: 'Lösungsfoto: „Loesung 8.jpg“ – Jakobsmuschel an St. Lamberti',
+          options: ['Eine Gedenktafel der Kaufmannsgilde am Markt.', 'Ein Zeichen für den Jakobsweg, der an St. Lamberti vorbeiführt.', 'Das Symbol der Kaufmannsgilde für ihre Handelswege.'],
+          correctOptionIndex: 1,
+          info: 'Als Erkennungszeichen der Jakobspilger gilt die Muschel – getragen von allen, die das Grab des Heiligen Jakobus in Santiago de Compostela in Galizien aufsuchen. Eine Legende berichtet, der Apostel Jakobus habe auch in Spanien gepredigt; nach seinem Tod in Jerusalem hätten seine Jünger den Leichnam dorthin überführt. Seit dem Mittelalter ziehen Pilger aus ganz Europa nach Santiago – der Ort zählt neben Rom und Jerusalem zu den beliebtesten Wallfahrtszielen. Vor Ort erwerben die Pilger Muscheln als Beweis für die vollzogene Reise und befestigten sie meist an ihrem Hut. Im Jahr 2000 brachte die Fahrgemeinde Lamberti die Muschel an der Kirche an – als Erinnerung an eine Wallfahrt und als Hinweis darauf, dass Münster schon im Mittelalter an den Pilgerrouten lag.',
+          links: [],
+        },
+        {
+          id: 'kinderhand-ludgerikirche',
+          number: 9,
+          title: 'Eine bedeutungsvolle Hand',
+          hint: 'Die Sage mahnt: Wer die Mutter schlägt, findet keine Ruhe.',
+          lat: 51.958257681762305,
+          lon: 7.6269997441813695,
+          solutionTitle: 'Die Kinderhand an der Ludgerikirche',
+          solutionCaption: 'Lösungsfoto: „Loesung 9.jpg“ – die Kinderhand an der Ludgerikirche',
+          options: ['Die Hand eines Baumeisters als Signatur des Gotteshauses.', 'Die Hand eines Kindes, das seine Mutter schlug und keine Ruhe fand.', 'Eine Segenshand, die Gläubige willkommen heißt.'],
+          correctOptionIndex: 1,
+          info: 'Unterhalb eines Chorfensters ist hier eine Kinderhand in Sandstein gemeißelt – inzwischen stark verwittert. Die Sage dahinter: Ein widerspenstiges Kind soll seine Mutter geschlagen haben, starb und wurde auf dem Friedhof bei der Ludgerikirche bestattet. Wenig später, so heißt es, wuchs seine rechte Hand aus dem Grab hervor. So oft man den Hügel auch mit neuer Erde überdeckte – die Hand, die die Mutter geschlagen hatte, tauchte immer wieder auf. Erst ein Gelübde brach den Bann: Die Hand sollte zur Warnung an der Kirchenmauer in Stein verewigt werden. Und siehe da – kaum war der Bildhauer mit seiner Arbeit fertig, war die tote Hand aus dem Grab verschwunden.',
+          links: [],
+        },
+        {
+          id: 'nepomuk-denkmal',
+          number: 10,
+          title: 'Ein echter Heiliger',
+          hint: 'Er starb, weil er ein Geheimnis nicht verriet.',
+          lat: 51.956845741207495,
+          lon: 7.61912081164082,
+          solutionTitle: 'Johannes-Nepomuk-Denkmal',
+          solutionCaption: 'Lösungsfoto: „Loesung 10.jpg“ – das Johannes-Nepomuk-Denkmal',
+          options: ['Er starb, weil er den König beleidigte.', 'Er starb, weil er seine Heimat verraten hatte.', 'Er starb, weil er ein Geheimnis nicht verriet.'],
+          correctOptionIndex: 2,
+          info: 'Die berühmteste Erzählung über den Heiligen Johannes Nepomuk (ca. 1345–1393): Weil er das Beichtgeheimnis bewahrte, soll der Beichtvater der Königin von Böhmen mit dem Leben bezahlt haben. Grund war der eifersüchtige König Wenzel IV., der seine Gemahlin (Sophia bzw. Johanna) der Untreue verdächtigte. Mit Todesdrohung verlangte er von Nepomuk zu erfahren, was ihm die Königin gebeichtet hatte – doch Nepomuk schwieg beharrlich. Daraufhin ließ der König ihn foltern und in der Nacht des 20. März 1393 von der Prager Karlsbrücke in die Moldau werfen, wo er ertrank. Was die Forschung heute ergänzt: Diese Legende entstand erst Jahrzehnte nach Nepomuks Tod. In Wahrheit war seine Hinrichtung Folge eines harten kirchenpolitischen Ringens zwischen Wenzel IV. und dem Prager Erzbischof Johann von Jenstein. Als Generalvikar des Erzbischofs durchkreuzte Nepomuk die Pläne des Königs, der Einfluss der Diözese sollte durch ein neues Bistum geschmälert werden. Zudem bestätigte Nepomuk in einem Eilverfahren die Wahl eines Abtes, der nicht dem Wunschkandidaten des Königs entsprach. Den Preis dafür zahlte er stellvertretend für den geflohenen Erzbischof: festgenommen, gefoltert, getötet. (Quellen: Erzbistum Köln; Ökumenisches Heiligenlexikon)',
+          links: [],
+        },
+        {
+          id: 'friedensreiter',
+          number: 11,
+          title: 'Ein Reiter, nicht nur für Münster wichtig',
+          hint: 'Er ritt 1648 zwischen zwei Städten – und brachte endlich Frieden.',
+          lat: 51.96261039991917,
+          lon: 7.629332211641285,
+          solutionTitle: 'Der Friedensreiter am Haus Salzstraße 2',
+          solutionCaption: 'Lösungsfoto: „Loesung 11.jpg“ – der Friedensreiter am Haus Salzstraße 2',
+          options: ['Ein Denkmal für die siegreichen Reitergeneräle des Krieges.', 'Ein Reiter, der als Bote zwischen zwei Städten unterwegs war.', 'Ein Wahrzeichen für den Handel mit Salz auf dieser Straße.'],
+          correctOptionIndex: 1,
+          info: 'Am Haus Salzstraße 2 ist der Friedensreiter zu sehen – während der fünfjährigen Friedensverhandlungen wurde er zum allgemein bekannten Sinnbild des Westfälischen Friedens. Als Postkuriere trugen die Reiter Botschaften und Vertragsentwürfe zwischen den beiden Verhandlungsorten Münster und Osnabrück hin und her – und wurden so zu Garanten dafür, dass der Dreißigjährige Krieg ein Ende fand. Als 1648 die Friedensverträge geschlossen waren, verbreiteten sie selbst die frohe Nachricht: „Jo, gantz Münster, Osnabrugg und alle Welt ist froh“. Zum Jubiläum „350 Jahre Westfälischer Friede“ baute man die alten Wege der Kuriere zu einer 115 Kilometer langen Friedensroute aus, die heute Wanderer, Reiter und Radfahrer anzieht. Stationen der Strecke: Greven, Ladbergen, Tecklenburg, Lengerich, Lienen, Bad Iburg, Hagen und Hasbergen – das Ziel ist das Historische Rathaus von Osnabrück.',
+          links: [],
+        },
+        {
+          id: 'der-lesende',
+          number: 12,
+          title: 'Ein kleines Männchen lässt Münster schmunzeln',
+          hint: '1995 tauchte er einfach auf – und niemand wusste, von wem.',
+          lat: 51.96127365853312,
+          lon: 7.627686142083541,
+          solutionTitle: 'Der Lesende vor der Geschäftsstelle der Westfälischen Nachrichten',
+          solutionCaption: 'Lösungsfoto: „Loesung 12.jpg“ – der Lesende am Prinzipalmarkt',
+          options: ['Ein Denkmal für die Pressefreiheit, gestiftet vom Verlag.', 'Ein Kunstwerk junger Handwerker, das hier ganz offiziell angekauft wurde.', 'Ein Kunstwerk, das heimlich über Nacht an seinem Platz erschien.'],
+          correctOptionIndex: 2,
+          info: '1995 tauchte unter dem Bogen vor der Geschäftsstelle der Westfälischen Nachrichten am Prinzipalmarkt plötzlich ein Lesender auf – einfach so, lustig und witzig. Woher er kam und wozu er gut war, rätselten viele Münsteraner; das Männchen brachte sie zum Nachdenken. Von den Künstlern war zunächst keine Spur. Erst nach einem Aufruf in den Westfälischen Nachrichten vom 11.3.1995 meldeten sich die Schöpfer: die damals 22-jährigen Metallbauer-Azubis Hannes Rademacher und Jan Totzek, denen die Idee in einem kreativen Anflug bei Langeweile in der Berufsschule gekommen war. Ihr Ziel: die Blicke der Münsteraner auf die kleinen, hübschen und amüsanten Details ihres Stadtbilds lenken. Nach konspirativen Vorbereitungen montierten sie das Männeken nachts an seinen Platz.',
+          links: [],
+        },
+        {
+          id: 'bierkrieg',
+          number: 13,
+          title: 'Münster im Streik',
+          hint: 'Wer durstig war, sollte hier 1895 nach 23 Uhr lieber schweigen.',
+          lat: 51.96168303078536,
+          lon: 7.628368198150023,
+          solutionTitle: 'Der Prinzipalmarkt – Schauplatz des Münsterschen Bierkriegs',
+          solutionCaption: 'Lösungsfoto: „Loesung 13.jpg“ – der Prinzipalmarkt, Ort des Bierkriegs',
+          options: ['Die Bürger protestierten gegen eine Bier-Steuer.', 'Die Bürger wehrten sich gegen eine frühere Sperrstunde.', 'Die Wirte streikten gegen zu hohe Pacht.'],
+          correctOptionIndex: 1,
+          info: 'Ende des 19. Jahrhunderts wehrten sich Münsters Wirtshausbesucher mit einer ungewöhnlichen Protestaktion gegen die Vorverlegung der Sperrstunde – der „Münstersche Bierkrieg“. 1895 wollten die preußisch-protestantischen Ordnungsbehörden die bereits seit 1885 angedrohte Schließung der Wirtshäuser um 23 Uhr endlich durchsetzen. Die münsterische Bevölkerung empfand das als Angriff auf ihre individuelle Freiheit. Und so kam es, was kommen musste: Trotz angedrohter Geld- und Gefängnisstrafen versammelten sich in den ersten sieben Oktobernächten die Wirtshausbesucher nach 23 Uhr auf dem Prinzipalmarkt, tranken Bier und sangen Lieder. Zahlreiche Zecher mussten dabei im sogenannten „Höffken“ übernachten – einer Arrestzelle hinter dem Rathaus. Nach sieben Nächten gab der Oberbürgermeister Karl Windthorst nach: Die neue Sperrstunde wurde nicht mehr durchgesetzt.',
+          links: [],
+        },
+        {
+          id: 'elefant-club',
+          number: 14,
+          title: 'Wo der Panther seinen ersten Auftritt hatte',
+          hint: 'In diesem Club durften zwei junge Musiker nur unter Aufsicht auf die Bühne.',
+          lat: 51.96365664312739,
+          lon: 7.628319867460031,
+          solutionTitle: 'Der Elefant (Club) am Roggenmarkt 15',
+          solutionCaption: 'Lösungsfoto: „Loesung 14.jpg“ – der Elefant (Club) am Roggenmarkt',
+          options: ['Die Musiker durften nur mittags auftreten, wenn keine Gäste im Club waren.', 'Eine strickende Mutter neben der Bühne erfüllte die Auflagen des Jugendamts.', 'Ein Vater der Band tauchte als Aufpasser auf und sammelte die Eintritte.'],
+          correctOptionIndex: 1,
+          info: '„Der Elefant“ war eine feste Größe im münsterschen Nachtleben, bis der Club im Februar 2019 für immer schloss. Erzählt wird aus dieser Zeit eine charmante Anekdote aus den Anfängen zweier späterer Stars: Udo Lindenberg und Steffi Stephan standen hier in den 1960er-Jahren als junge Musiker auf der Bühne. Die war für die beiden streng genommen noch verboten – das Jugendamt mahnte sie wegen ihres Alters ab. Die Lösung des Problems war Steffis Mutter: Sie setzte sich neben die Bühne und strickte. Damit galt die nötige Aufsicht als geleistet, der Auftritt konnte stattfinden. Bis heute erinnert das Schild mit dem Elefanten-Logo an diesen legendären Club und seine Geschichten.',
+          links: [],
+        },
+      ];
+
+      // Kategorien: unterscheiden Stationen durch Symbol und Farbe (nicht nur Farbe).
+      const CATEGORIES = {
+        history: { icon: '🏛️', label: 'Geschichte', color: '#92400e', soft: '#fef3c7' },
+        art: { icon: '🎨', label: 'Kunst', color: '#9d174d', soft: '#fce7f3' },
+        legend: { icon: '👻', label: 'Sagen', color: '#5b21b6', soft: '#ede9fe' },
+        faith: { icon: '⛪', label: 'Glaube', color: '#1d4ed8', soft: '#dbeafe' },
+        detail: { icon: '🔎', label: 'Details', color: '#065f46', soft: '#d1fae5' },
+        culture: { icon: '🎭', label: 'Kultur', color: '#b45309', soft: '#ffedd5' },
+      };
+      const STATION_CATEGORY = {
+        'jan-van-leiden': 'history',
+        schleifkerben: 'detail',
+        'kranich-am-dom': 'art',
+        'haus-der-niederlande': 'detail',
+        'aegidii-inschriftenstein': 'history',
+        'bispingkreuz-nepomuk': 'legend',
+        lortzingsaal: 'culture',
+        'jakobsmuschel-lamberti': 'faith',
+        'kinderhand-ludgerikirche': 'legend',
+        'nepomuk-denkmal': 'faith',
+        friedensreiter: 'history',
+        'der-lesende': 'art',
+        bierkrieg: 'history',
+        'elefant-club': 'culture',
+      };
+      function categoryOf(station) {
+        return CATEGORIES[STATION_CATEGORY[station.id]] || CATEGORIES.detail;
+      }
+
+      const stationsById = new Map(STATIONS.map((station) => [station.id, station]));
+
+      /* ==========================================================
+         3. Fortschritt (LocalStorage-fähig)
+         Datenmodell:
+         {
+           version: 1,
+           stations: {
+             '<stationId>': { solved: boolean, attempts: number, selectedOptionIndex: number | null }
+           }
+         }
+         Neue Felder (z. B. gespeicherte Antworten) hier in createStationProgress() ergänzen.
+         ========================================================== */
+      function createStationProgress() {
+        return { solved: false, attempts: 0, selectedOptionIndex: null, hintUsed: false, revealed: false };
+      }
+
+      function createEmptyProgress() {
+        return { version: PROGRESS_VERSION, stations: {} };
+      }
+
+      function migrateLegacyProgress(solvedIds) {
+        const progress = createEmptyProgress();
+        solvedIds.forEach((id) => {
+          if (stationsById.has(id)) progress.stations[id] = { ...createStationProgress(), solved: true };
+        });
+        return progress;
+      }
+
+      function loadProgress() {
+        try {
+          const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (stored && stored.version === PROGRESS_VERSION && stored.stations) return stored;
+          const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
+          if (Array.isArray(legacy)) return migrateLegacyProgress(legacy);
+        } catch (error) {
+          // Defekter oder blockierter Speicher: mit leerem Fortschritt starten.
+        }
+        return createEmptyProgress();
+      }
+
+      function saveProgress() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+        } catch (error) {
+          // Speicher nicht verfügbar: Fortschritt gilt nur für diese Sitzung.
+        }
+      }
+
+      function getStationProgress(stationId) {
+        return progress.stations[stationId] || createStationProgress();
+      }
+
+      function updateStationProgress(stationId, changes) {
+        progress.stations[stationId] = { ...getStationProgress(stationId), ...changes };
+        saveProgress();
+      }
+
+      function isSolved(stationId) {
+        return getStationProgress(stationId).solved;
+      }
+
+      function countSolved() {
+        return STATIONS.filter((station) => isSolved(station.id)).length;
+      }
+
+      let progress = loadProgress();
+      let currentStationId = null;
+
+      /* ==========================================================
+         4. Hilfsfunktionen
+         ========================================================== */
+      const elements = {
+        planView: document.getElementById('plan-view'),
+        taskView: document.getElementById('task-view'),
+        taskList: document.getElementById('task-list'),
+        pageTitle: document.getElementById('page-title'),
+        progressCount: document.getElementById('progress-count'),
+        progressTrack: document.getElementById('progress-track'),
+        progressFill: document.getElementById('progress-fill'),
+        resetButton: document.getElementById('reset-button'),
+        backButton: document.getElementById('back-button'),
+        completion: document.getElementById('completion'),
+        mapFallback: document.getElementById('map-fallback'),
+        statusMessage: document.getElementById('status-message'),
+        howTo: document.getElementById('how-to'),
+        stationList: document.getElementById('station-list'),
+        legend: document.getElementById('legend'),
+        miniBadges: document.getElementById('mini-badges'),
+        completionStats: document.getElementById('completion-stats'),
+        completionRank: document.getElementById('completion-rank'),
+        confetti: document.getElementById('confetti'),
+      };
+
+      function escapeHtml(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function photoUrl(fileName) {
+        return fileName + '?v=' + PHOTO_VERSION;
+      }
+
+      function taskPhotoFile(station) {
+        return 'Aufgabe ' + station.number + '.jpg';
+      }
+
+      function solutionPhotoFile(station) {
+        return 'Loesung ' + station.number + '.jpg';
+      }
+
+      function formatCoordinates(station) {
+        return station.lat.toFixed(5) + ', ' + station.lon.toFixed(5);
+      }
+
+      function announce(message) {
+        elements.statusMessage.textContent = '';
+        setTimeout(() => {
+          elements.statusMessage.textContent = message;
+        }, 50);
+      }
+
+      function externalLink(url, text, className) {
+        const classAttribute = className ? ' class="' + className + '"' : '';
+        return '<a' + classAttribute + ' href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + text + '<span class="visually-hidden"> (öffnet in neuem Tab)</span></a>';
+      }
+
+      /* ==========================================================
+         5. Stadtplan (Leaflet / OpenStreetMap)
+         Die Nummern-Pins sitzen automatisch an den GPS-Koordinaten der Stationen.
+         ========================================================== */
+      let map = null;
+      const mapMarkers = new Map();
+      let taskRenderToken = 0;
+      let gameStarted = false;
+
+      function pinHtml(station) {
+        const category = categoryOf(station);
+        return '<div class="map-pin" style="--pin:' + category.color + '" aria-hidden="true"><span class="pin-icon">' + category.icon + '</span><span class="pin-number">' + station.number + '</span></div>';
+      }
+
+      function initMap() {
+        if (typeof L === 'undefined') {
+          elements.mapFallback.hidden = false;
+          return;
+        }
+        map = L.map('map').setView(MAP_CENTER, 15);
+        L.tileLayer(MAP_TILE_URL, {
+          maxZoom: 18,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+        }).addTo(map);
+        STATIONS.forEach((station) => {
+          const marker = L.marker([station.lat, station.lon], {
+            keyboard: true,
+            icon: L.divIcon({ className: '', iconSize: [44, 44], iconAnchor: [22, 22], html: pinHtml(station) }),
+          }).addTo(map);
+          marker.on('click', () => openStation(station.id));
+          mapMarkers.set(station.id, marker);
+        });
+        map.fitBounds(
+          STATIONS.map((station) => [station.lat, station.lon]),
+          { padding: [36, 36] },
+        );
+      }
+
+      function updateMapPins() {
+        mapMarkers.forEach((marker, stationId) => {
+          const station = stationsById.get(stationId);
+          const solved = isSolved(stationId);
+          const markerElement = marker.getElement();
+          const pin = markerElement.querySelector('.map-pin');
+          pin.classList.toggle('map-pin--solved', solved);
+          pin.querySelector('.pin-icon').textContent = solved ? '✓' : categoryOf(station).icon;
+          markerElement.setAttribute('aria-label', 'Aufgabe ' + station.number + (solved ? ' (gelöst)' : ''));
+        });
+      }
+
+      function focusMapPin(stationId) {
+        const marker = mapMarkers.get(stationId);
+        if (marker) marker.getElement().focus({ preventScroll: true });
+      }
+
+      /* ==========================================================
+         6. Rendering der Aufgaben-Ansicht
+         ========================================================== */
+      function renderTaskPhoto(station, solved) {
+        const file = taskPhotoFile(station);
+        return '<div class="task-photo">' + '<span class="badge">Station ' + station.number + '</span>' + (solved ? '<span class="badge badge--solved">✓ gelöst</span>' : '') + '<img src="' + photoUrl(file) + '" alt="Rätselfoto zu Station ' + station.number + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="task" loading="eager" decoding="async">' + '</div>';
+      }
+
+      function renderOptions(station) {
+        const buttons = station.options.map((option, index) => '<button type="button" class="option" data-action="select-option" data-option-index="' + index + '">' + '<span class="option-letter" aria-hidden="true">' + OPTION_LETTERS[index] + '</span>' + '<span>' + escapeHtml(option) + '</span></button>').join('');
+        return '<div class="options" role="group" aria-labelledby="task-intro">' + buttons + '</div>';
+      }
+
+      function renderUnsolvedBody(station) {
+        const coordinates = formatCoordinates(station);
+        const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
+        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box" id="hint-box" aria-hidden="true">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + '<div class="task-actions">' + renderOptions(station) + '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="false" aria-controls="hint-box">💡 Hint anzeigen</button>' + '</div>' + '<p class="error-message" id="error-message" hidden>Noch nicht – probier es nochmal oder nutze den Hint.</p>' + '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>';
+      }
+
+      function renderSolvedBody(station) {
+        const coordinates = formatCoordinates(station);
+        const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
+        const osmUrl = 'https://www.openstreetmap.org/?mlat=' + station.lat + '&mlon=' + station.lon + '#map=18/' + station.lat + '/' + station.lon;
+        const file = solutionPhotoFile(station);
+        const sourceLinks = station.links.map((link) => externalLink(link.url, escapeHtml(link.title) + ' ↗')).join('');
+        return '<div class="solution">' + '<figure class="solution-photo">' + '<img src="' + photoUrl(file) + '" alt="Lösungsfoto: ' + escapeHtml(station.solutionTitle) + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="solution">' + '<figcaption>' + escapeHtml(station.solutionCaption || 'Lösungsfoto') + '</figcaption></figure>' + '<div class="coordinates-row"><span class="coordinates">' + coordinates + '</span>' + externalLink(mapsUrl, 'Google Maps ↗') + externalLink(osmUrl, 'OpenStreetMap ↗') + '</div>' + '<p>' + escapeHtml(station.info) + '</p>' + '<div class="sources"><span>Foto: Aufgabenfoto: „' + taskPhotoFile(station) + '“</span>' + sourceLinks + '</div>' + nextButtonHtml() + '</div>';
+      }
+
+      function nextUnsolvedStation(fromId) {
+        const index = STATIONS.findIndex((station) => station.id === fromId);
+        for (let step = 1; step <= STATIONS.length; step++) {
+          const candidate = STATIONS[(index + step) % STATIONS.length];
+          if (!isSolved(candidate.id)) return candidate;
+        }
+        return null;
+      }
+
+      function nextButtonHtml() {
+        const next = nextUnsolvedStation(currentStationId);
+        if (!next) return '';
+        return '<button type="button" class="next-button" data-action="next" data-next-id="' + next.id + '">Nächste Station: ' + categoryOf(next).icon + ' Nr. ' + next.number + ' →</button>';
+      }
+
+      function renderTaskCard(station) {
+        const solved = isSolved(station.id);
+        return '<article class="task-card" aria-labelledby="task-title" data-station-id="' + station.id + '" style="--cat:' + categoryOf(station).color + ';--cat-soft:' + categoryOf(station).soft + '">' + renderTaskPhoto(station, solved) + '<div class="task-body">' + '<span class="category-chip">' + categoryOf(station).icon + ' ' + categoryOf(station).label + '</span>' + '<h2 class="task-title" id="task-title" tabindex="-1">' + escapeHtml(solved ? station.solutionTitle : station.title) + '</h2>' + (solved ? renderSolvedBody(station) : renderUnsolvedBody(station)) + '</div></article>';
+      }
+
+      function renderProgress() {
+        const solvedCount = countSolved();
+        const total = STATIONS.length;
+        const text = solvedCount + ' von ' + total + ' gelöst';
+        elements.progressCount.textContent = text;
+        elements.progressFill.style.width = Math.round((solvedCount / total) * 100) + '%';
+        elements.progressTrack.setAttribute('aria-valuemax', total);
+        elements.progressTrack.setAttribute('aria-valuenow', solvedCount);
+        elements.progressTrack.setAttribute('aria-valuetext', text);
+        elements.resetButton.hidden = solvedCount === 0;
+        elements.completion.hidden = solvedCount !== total;
+        if (solvedCount === total) renderCompletion();
+        elements.miniBadges.innerHTML = STATIONS.map((station) => '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '">' + categoryOf(station).icon + '</span>').join('');
+      }
+
+      function renderStationList() {
+        elements.stationList.innerHTML = STATIONS.map((station) => {
+          const category = categoryOf(station);
+          const solved = isSolved(station.id);
+          return '<li><button type="button" class="station-item' + (solved ? ' station-item--solved' : '') + '" data-station-id="' + station.id + '" style="--c:' + category.soft + '">' + '<span class="ico" aria-hidden="true">' + (solved ? '✓' : category.icon) + '</span>' + '<span>Station ' + station.number + '<small>' + escapeHtml(solved ? station.solutionTitle : category.label) + '</small></span>' + '<span class="state">' + (solved ? 'gelöst' : 'Los →') + '</span></button></li>';
+        }).join('');
+      }
+
+      function renderLegend() {
+        elements.legend.innerHTML = Object.values(CATEGORIES)
+          .map((category) => '<li><i style="--c:' + category.soft + '" aria-hidden="true">' + category.icon + '</i>' + category.label + '</li>')
+          .join('');
+      }
+
+      function renderCompletion() {
+        const stats = STATIONS.map((station) => getStationProgress(station.id));
+        const attempts = stats.reduce((sum, item) => sum + item.attempts, 0);
+        const hints = stats.filter((item) => item.hintUsed).length;
+        const revealed = stats.filter((item) => item.revealed).length;
+        const own = STATIONS.length - revealed;
+        elements.completionStats.innerHTML = '<div class="stat"><b>' + own + '/' + STATIONS.length + '</b><span>selbst gelöst</span></div>' + '<div class="stat"><b>' + hints + '</b><span>Hints genutzt</span></div>' + '<div class="stat"><b>' + attempts + '</b><span>Fehlversuche</span></div>';
+        let rank = '🧭 Stadtentdecker:in';
+        if (revealed === 0 && attempts === 0) rank = '🏅 Münster-Meister:in';
+        else if (revealed === 0) rank = '🥈 Spürnase';
+        elements.completionRank.textContent = rank;
+        if (!elements.confetti.childElementCount) {
+          const colors = ['#fbbf24', '#fff', '#34d399', '#f472b6', '#60a5fa'];
+          elements.confetti.innerHTML = Array.from({ length: 24 }, (_, i) => '<span class="confetti" style="left:' + (i * 4.2 + 1) + '%;background:' + colors[i % colors.length] + ';animation-delay:' + (i % 8) * 0.35 + 's"></span>').join('');
+        }
+      }
+
+      function renderTaskView(station) {
+        const nextMarkup = station ? renderTaskCard(station) : '';
+        const currentCard = elements.taskList.querySelector('.task-card');
+        const scrollY = window.scrollY;
+
+        if (!currentCard || !nextMarkup) {
+          elements.taskList.innerHTML = nextMarkup;
+          markLoadedImages(elements.taskList);
+          return;
+        }
+
+        const nextWrapper = document.createElement('div');
+        nextWrapper.innerHTML = nextMarkup;
+        const nextCard = nextWrapper.firstElementChild;
+        const previousHeight = currentCard.getBoundingClientRect().height;
+        const renderToken = ++taskRenderToken;
+
+        elements.taskList.classList.add('task-list-crossfade');
+        elements.taskList.style.height = previousHeight + 'px';
+        currentCard.classList.add('task-card--leaving');
+        currentCard.setAttribute('aria-hidden', 'true');
+        nextCard.classList.add('task-card--entering', 'task-card--stable');
+        elements.taskList.append(nextCard);
+        markLoadedImages(nextCard);
+
+        requestAnimationFrame(() => {
+          if (renderToken !== taskRenderToken) return;
+          currentCard.classList.add('task-card--exit');
+          nextCard.classList.add('task-card--active');
+          elements.taskList.style.height = Math.max(previousHeight, nextCard.offsetHeight) + 'px';
+          window.scrollTo(0, scrollY);
+        });
+
+        window.setTimeout(() => {
+          if (renderToken !== taskRenderToken) return;
+          elements.taskList.replaceChildren(nextCard);
+          elements.taskList.style.height = '';
+          elements.taskList.classList.remove('task-list-crossfade');
+          nextCard.classList.remove('task-card--entering', 'task-card--active');
+          window.scrollTo(0, scrollY);
+        }, 360);
+      }
+
+      function markLoadedImages(container) {
+        container.querySelectorAll('img[data-fallback]').forEach((image) => {
+          if (image.complete && image.naturalWidth > 0) image.classList.add('is-loaded');
+        });
+      }
+
+      function render() {
+        updateMapPins();
+        renderStationList();
+        const station = stationsById.get(currentStationId);
+        renderTaskView(station);
+        renderProgress();
+      }
+
+      /* ==========================================================
+         7. Navigation
+         ========================================================== */
+      function showView(taskViewActive) {
+        elements.planView.hidden = taskViewActive;
+        elements.taskView.hidden = !taskViewActive;
+        if (!taskViewActive && map) setTimeout(() => map.invalidateSize(), 50);
+      }
+
+      function focusTaskTitle() {
+        const title = document.getElementById('task-title');
+        if (title) title.focus({ preventScroll: true });
+      }
+
+      function openStation(stationId) {
+        if (!gameStarted) {
+          gameStarted = true;
+          elements.howTo.open = false;
+          saveIntroState(false);
+        }
+        currentStationId = stationId;
+        showView(true);
+        render();
+        focusTaskTitle();
+      }
+
+      function showPlan() {
+        const previousStationId = currentStationId;
+        currentStationId = null;
+        showView(false);
+        render();
+        if (previousStationId) focusMapPin(previousStationId);
+        else elements.pageTitle.focus({ preventScroll: true });
+      }
+
+      function loadIntroState() {
+        try {
+          const stored = localStorage.getItem(INTRO_STATE_KEY);
+          return stored === null ? true : stored === 'open';
+        } catch (error) {
+          return true;
+        }
+      }
+
+      function saveIntroState(isOpen) {
+        try {
+          localStorage.setItem(INTRO_STATE_KEY, isOpen ? 'open' : 'closed');
+        } catch (error) {
+          // Die Einführung bleibt für diese Sitzung korrekt eingestellt.
+        }
+      }
+
+      /* ==========================================================
+         8. Aktionen
+         ========================================================== */
+      function markSolved(stationId, selectedOptionIndex) {
+        const station = stationsById.get(stationId);
+        updateStationProgress(stationId, { solved: true, selectedOptionIndex });
+        render();
+        focusTaskTitle();
+        announce('Station ' + station.number + ' gelöst: ' + station.solutionTitle + (countSolved() === STATIONS.length ? '. Alle Aufgaben sind gelöst.' : ''));
+      }
+
+      function selectOption(stationId, optionIndex) {
+        const station = stationsById.get(stationId);
+        if (optionIndex === station.correctOptionIndex) {
+          markSolved(stationId, optionIndex);
+          return;
+        }
+        updateStationProgress(stationId, { attempts: getStationProgress(stationId).attempts + 1, selectedOptionIndex: optionIndex });
+        const wrongButton = elements.taskList.querySelector('[data-option-index="' + optionIndex + '"]');
+        if (wrongButton) wrongButton.classList.add('option--wrong');
+        const errorMessage = document.getElementById('error-message');
+        errorMessage.hidden = false;
+        errorMessage.classList.remove('feedback-in');
+        void errorMessage.offsetWidth;
+        errorMessage.classList.add('feedback-in');
+        announce(errorMessage.textContent);
+      }
+
+      function toggleHint(button) {
+        const hintBox = document.getElementById('hint-box');
+        const isVisible = hintBox.classList.toggle('is-visible');
+        hintBox.setAttribute('aria-hidden', String(!isVisible));
+        button.setAttribute('aria-expanded', String(isVisible));
+        if (isVisible) updateStationProgress(currentStationId, { hintUsed: true });
+      }
+
+      function resetProgress() {
+        if (!confirm('Fortschritt wirklich zurücksetzen?')) return;
+        progress = createEmptyProgress();
+        saveProgress();
+        render();
+        announce('Fortschritt zurückgesetzt.');
+        if (currentStationId) focusTaskTitle();
+        else elements.pageTitle.focus({ preventScroll: true });
+      }
+
+      function handleTaskListClick(event) {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const stationId = currentStationId;
+        switch (button.dataset.action) {
+          case 'select-option':
+            selectOption(stationId, Number(button.dataset.optionIndex));
+            break;
+          case 'toggle-hint':
+            toggleHint(button);
+            break;
+          case 'reveal':
+            updateStationProgress(stationId, { revealed: true });
+            markSolved(stationId, null);
+            break;
+          case 'next':
+            openStation(button.dataset.nextId);
+            window.scrollTo(0, 0);
+            break;
+        }
+      }
+
+      // Fehler-Ereignisse von <img> bubblen nicht, daher in der Capture-Phase abfangen.
+      function handleImageError(event) {
+        const image = event.target;
+        if (!(image instanceof HTMLImageElement) || !image.dataset.fallback) return;
+        const fallback = document.createElement('div');
+        const file = escapeHtml(image.dataset.photoFile);
+        if (image.dataset.fallback === 'task') {
+          fallback.className = 'photo-fallback';
+          fallback.innerHTML = '📷 In dieser Vorschau werden eigene Fotos blockiert.<br><b>Spiel herunterladen</b> und die Fotodatei „' + file + '“ in denselben Ordner legen – dann erscheint das Foto.';
+        } else {
+          fallback.className = 'solution-photo-fallback';
+          fallback.innerHTML = '📷 Foto nicht gefunden – die Datei muss im Spiel-Ordner liegen: ' + file;
+        }
+        image.replaceWith(fallback);
+      }
+
+      function handleImageLoad(event) {
+        const image = event.target;
+        if (image instanceof HTMLImageElement && image.dataset.fallback) image.classList.add('is-loaded');
+      }
+
+      /* ==========================================================
+         9. Start
+         ========================================================== */
+      elements.taskList.addEventListener('click', handleTaskListClick);
+      elements.taskList.addEventListener('load', handleImageLoad, true);
+      elements.taskList.addEventListener('error', handleImageError, true);
+      elements.backButton.addEventListener('click', showPlan);
+      elements.stationList.addEventListener('click', (event) => {
+        const item = event.target.closest('[data-station-id]');
+        if (item) openStation(item.dataset.stationId);
+      });
+      document.getElementById('completion-map').addEventListener('click', () => {
+        showPlan();
+        document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
+      });
+      document.getElementById('completion-restart').addEventListener('click', () => {
+        resetProgress();
+        window.scrollTo(0, 0);
+      });
+      elements.howTo.open = loadIntroState();
+      elements.howTo.addEventListener('toggle', () => saveIntroState(elements.howTo.open));
+      renderLegend();
+      elements.resetButton.addEventListener('click', resetProgress);
+
+      initMap();
+      render();
+    </script>
+  </body>
+</html>
