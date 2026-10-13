@@ -1361,8 +1361,50 @@
       .hero-tools {
         display: flex;
         flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
         gap: 8px;
-        margin-top: 14px;
+        margin: -6px 0 8px;
+      }
+      .tool-button.tool-text {
+        background: none;
+        border-color: transparent;
+        text-decoration: underline;
+        padding: 0 10px;
+      }
+      .tool-button.tool-text[aria-pressed='true'] {
+        background: none;
+        color: #fff;
+      }
+      .tool-button.tool-icon {
+        padding: 0;
+        width: 44px;
+        justify-content: center;
+        border-color: transparent;
+        background: none;
+        font-size: 1.3rem;
+      }
+      body.layout-classic .station-list {
+        display: none;
+      }
+      body.layout-classic .map-pin {
+        width: 28px;
+        height: 28px;
+        margin: 8px;
+        border-width: 2px;
+        font-size: 0.85rem;
+      }
+      body.layout-classic .map-pin .pin-icon img {
+        width: 16px;
+        height: 16px;
+      }
+      body.layout-classic .map-pin .pin-number {
+        top: -9px;
+        right: -9px;
+        min-width: 18px;
+        height: 18px;
+        line-height: 14px;
+        font-size: 0.65rem;
       }
       .tool-button {
         display: inline-flex;
@@ -1700,15 +1742,15 @@
     <a class="skip-link" href="#main">Zum Hauptinhalt springen</a>
     <main class="page" id="main">
       <header class="hero">
+        <!-- Darstellung: Barrierefrei/Klassisch und Farbmodus -->
+        <div class="hero-tools" role="group" aria-label="Darstellung">
+          <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="true" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
+          <button type="button" class="tool-button tool-icon" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
+            <span id="theme-icon" aria-hidden="true">🌙</span>
+          </button>
+        </div>
         <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
         <p class="page-subtitle">Eine Foto-Schnitzeljagd von Bettina Säger · Idee inspiriert durch ein Buch von Clemens Köyer</p>
-        <!-- Farbmodus-Schalter (Roadmap 2.3) -->
-        <div class="hero-tools" role="group" aria-label="Darstellung">
-          <button type="button" class="tool-button" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
-            <span id="theme-icon" aria-hidden="true">🌙</span><span aria-hidden="true">Dunkler Modus</span><span class="tool-state" id="theme-state" aria-hidden="true">aus</span>
-          </button>
-          <button type="button" class="tool-button" id="theme-reset" hidden>Systemeinstellung verwenden</button>
-        </div>
         <details class="how-to" id="how-to" open>
           <summary>So funktioniert's</summary>
           <ol>
@@ -2080,9 +2122,8 @@
         loadRetry: document.getElementById('load-retry'),
         filterEmpty: document.getElementById('filter-empty'),
         themeToggle: document.getElementById('theme-toggle'),
-        themeReset: document.getElementById('theme-reset'),
+        layoutToggle: document.getElementById('layout-toggle'),
         themeIcon: document.getElementById('theme-icon'),
-        themeState: document.getElementById('theme-state'),
       };
 
       function escapeHtml(text) {
@@ -2632,23 +2673,41 @@
           elements.themeToggle.hidden = true;
           return;
         }
+        const layoutKey = 'muenster-unvermutet:layout';
+        const applyLayout = (accessible) => {
+          document.body.classList.toggle('layout-classic', !accessible);
+          elements.layoutToggle.setAttribute('aria-pressed', String(accessible));
+          elements.layoutToggle.textContent = accessible ? 'Barrierefrei' : 'Klassisch';
+          elements.layoutToggle.setAttribute('aria-label', accessible ? 'Barrierefrei: Liste und große Pins anzeigen' : 'Klassisch: ohne Liste, kleine Pins');
+        };
+        let accessible = true;
+        try {
+          accessible = localStorage.getItem(layoutKey) !== 'classic';
+        } catch (error) {
+          // Speicher blockiert: Standard verwenden.
+        }
+        applyLayout(accessible);
+        elements.layoutToggle.addEventListener('click', () => {
+          accessible = !accessible;
+          applyLayout(accessible);
+          try {
+            localStorage.setItem(layoutKey, accessible ? 'accessible' : 'classic');
+          } catch (error) {
+            // Präferenz gilt nur für diese Sitzung.
+          }
+          announce(accessible ? 'Barrierefrei: Liste und große Pins.' : 'Klassisch: ohne Liste, kleine Pins.');
+        });
         let initialized = false;
         controller.subscribe(({ mode, manual }) => {
           const dark = mode === 'dark';
           uiState.colorMode = mode;
           elements.themeToggle.setAttribute('aria-pressed', String(dark));
           elements.themeIcon.textContent = dark ? '☀️' : '🌙';
-          elements.themeState.textContent = dark ? 'an' : 'aus';
-          elements.themeReset.hidden = !manual;
+          elements.themeToggle.setAttribute('aria-label', dark ? 'Heller Modus' : 'Dunkler Modus');
           if (initialized) announce(dark ? 'Dunkler Modus an.' : 'Dunkler Modus aus.');
           initialized = true;
         });
         elements.themeToggle.addEventListener('click', () => controller.toggle());
-        elements.themeReset.addEventListener('click', () => {
-          elements.themeToggle.focus(); // Fokus sichern, bevor der Button verschwindet
-          controller.reset();
-          announce('Systemeinstellung wird verwendet: ' + (controller.getMode() === 'dark' ? 'dunkel' : 'hell') + '.');
-        });
       }
 
       /* ==========================================================
