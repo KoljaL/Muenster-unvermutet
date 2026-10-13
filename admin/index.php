@@ -22,7 +22,7 @@ admin_header('Stationen', $admin);
   <li class="station-item<?= $archived ? ' station-item--archived' : '' ?>">
     <span class="ico" aria-hidden="true"><?= category_ico($c) ?></span>
     <a class="admin-main" href="station-edit.php?id=<?= h(urlencode($s['id'])) ?>"><?= h($s['title']) ?>
-      <small><?= h($c['name'] ?? $s['category']) ?><?= $s['task_image'] === '' ? ' · ⚠ Aufgabenbild fehlt' : '' ?></small></span>
+      <small><?= h($c['name'] ?? $s['category']) ?><?= $s['task_image'] === '' ? ' · ⚠ Aufgabenbild fehlt' : '' ?></small></a>
     <span class="badge<?= $archived ? ' badge--archived' : '' ?>"><?= $archived ? 'archiviert' : 'veröffentlicht' ?></span>
     <span class="admin-actions">
       <a class="btn secondary small" href="station-edit.php?id=<?= h(urlencode($s['id'])) ?>">Bearbeiten</a>

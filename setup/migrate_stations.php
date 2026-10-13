@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Einmaliger Import der 14 Stationen. Nur per CLI: php setup/migrate_stations.php
+// Import der Stationen und Beispielvorschläge. Nur per CLI: php setup/migrate_stations.php
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit;
@@ -11,6 +11,7 @@ require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/uploads.php';
 
 $seed = json_decode((string) file_get_contents(__DIR__ . '/stations_seed.json'), true, 512, JSON_THROW_ON_ERROR);
+$suggestionSeed = json_decode((string) file_get_contents(__DIR__ . '/suggestions_seed.json'), true, 512, JSON_THROW_ON_ERROR);
 $pdo = db();
 $root = config('root');
 
@@ -92,5 +93,42 @@ foreach ($seed as $s) {
     $imported++;
 }
 
+$suggestionExists = $pdo->prepare('SELECT 1 FROM station_suggestions WHERE title = ? LIMIT 1');
+$suggestionInsert = $pdo->prepare(
+    'INSERT INTO station_suggestions
+        (title, hint, lat, lon, question, options_json, correct_option_index, info,
+         suggested_by_name, suggested_by_email, task_image, solution_image, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)'
+);
+$suggestionsImported = 0;
+foreach ($suggestionSeed as $suggestion) {
+    $suggestionExists->execute([$suggestion['title']]);
+    if ($suggestionExists->fetchColumn()) {
+        echo "Vorschlag übersprungen (vorhanden): {$suggestion['title']}\n";
+        continue;
+    }
+
+    $taskImage = import_photo($root, $suggestion['taskImage']);
+    $suggestionInsert->execute([
+        $suggestion['title'],
+        $suggestion['hint'],
+        $suggestion['lat'],
+        $suggestion['lon'],
+        $suggestion['question'],
+        json_encode($suggestion['options'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+        $suggestion['correctOptionIndex'],
+        $suggestion['info'],
+        $suggestion['suggestedByName'],
+        $suggestion['suggestedByEmail'],
+        $taskImage !== '' ? $taskImage : null,
+        'pending',
+        now(),
+    ]);
+    $suggestionsImported++;
+    echo "Beispielvorschlag angelegt: {$suggestion['title']}\n";
+}
+
 $total = (int) $pdo->query('SELECT COUNT(*) FROM stations')->fetchColumn();
+$pendingSuggestions = (int) $pdo->query("SELECT COUNT(*) FROM station_suggestions WHERE status = 'pending'")->fetchColumn();
 echo "Fertig: {$imported} importiert, {$total} Stationen in der Datenbank (erwartet: " . count($seed) . ").\n";
+echo "Vorschläge: {$suggestionsImported} neu angelegt, {$pendingSuggestions} offene Vorschläge insgesamt.\n";

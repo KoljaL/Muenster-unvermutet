@@ -1,0 +1,41 @@
+[
+  {
+    "title": "Rätsel am Prinzipalmarkt",
+    "hint": "Finde das besondere Detail an den Giebeln.",
+    "lat": 51.9625,
+    "lon": 7.6257,
+    "question": "Welche Farbe hat das auffällige Element?",
+    "options": ["Rot", "Blau", "Gold"],
+    "correctOptionIndex": 2,
+    "info": "Ein exemplarischer Vorschlag für eine Station am Prinzipalmarkt.",
+    "suggestedByName": "Mustername 1",
+    "suggestedByEmail": "beispiel1@example.invalid",
+    "taskImage": "Aufgabe 1.jpg"
+  },
+  {
+    "title": "Spuren an der Promenade",
+    "hint": "Welche Geschichte verbirgt sich hier?",
+    "lat": 51.9651,
+    "lon": 7.6288,
+    "question": "Was ist auf dem Bild zu sehen?",
+    "options": ["Ein Tor", "Eine Brücke", "Ein Turm"],
+    "correctOptionIndex": 1,
+    "info": "Ein exemplarischer Vorschlag mit einem vorhandenen Beispielbild.",
+    "suggestedByName": "Mustername 2",
+    "suggestedByEmail": "beispiel2@example.invalid",
+    "taskImage": "Aufgabe 2.jpg"
+  },
+  {
+    "title": "Kleines Detail am Dom",
+    "hint": "Ein genaues Hinsehen lohnt sich.",
+    "lat": 51.9621,
+    "lon": 7.6252,
+    "question": "Wie viele Symbole sind zu erkennen?",
+    "options": ["Zwei", "Drei", "Vier"],
+    "correctOptionIndex": 0,
+    "info": "Ein exemplarischer offener Vorschlag für die Moderation.",
+    "suggestedByName": "Mustername 3",
+    "suggestedByEmail": "beispiel3@example.invalid",
+    "taskImage": "Aufgabe 3.jpg"
+  }
+]

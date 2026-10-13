@@ -20,7 +20,7 @@ admin_header('Kategorien', $admin);
   <li class="station-item">
     <span class="ico" aria-hidden="true"><?= category_ico($c) ?></span>
     <a class="admin-main" href="category-edit.php?id=<?= h(urlencode($c['id'])) ?>"><?= h($c['name']) ?>
-      <small><?= h($c['description']) ?></small></span>
+      <small><?= h($c['description']) ?></small></a>
     <span class="badge"><?= (int) $c['stations'] ?> Stationen</span>
     <span class="admin-actions">
       <a class="btn secondary small" href="category-edit.php?id=<?= h(urlencode($c['id'])) ?>">Bearbeiten</a>

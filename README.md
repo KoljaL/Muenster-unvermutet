@@ -65,14 +65,15 @@ Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
 
 ```bash
 php setup/create_admins.php        # legt admin1–admin3 mit den Testpasswörtern an
-php setup/migrate_stations.php     # importiert die 14 Stationen (idempotent)
+php setup/migrate_stations.php     # importiert Stationen und Beispielvorschläge (idempotent)
 php -S 127.0.0.1:8080              # lokaler Server
 ```
 
 - Spiel: `http://127.0.0.1:8080/index-with-api.html`
 - Admin: `http://127.0.0.1:8080/admin/login.php`
 - Die Datenbank wird beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`).
-- Der Import übernimmt vorhandene Fotos `Aufgabe N.jpg` / `Loesung N.jpg` (im Projektordner, `OLD/` oder `setup/photos/`) in `uploads/`. Fehlende Fotos können im Admin-Bereich hochgeladen werden.
+- Der Import übernimmt vorhandene Fotos `Aufgabe N.jpg` / `Loesung N.jpg` (im Projektordner, `OLD/`, `setup/images/` oder `setup/photos/`) in `uploads/`. Fehlende Fotos können im Admin-Bereich hochgeladen werden.
+- Der Migrationslauf legt zusätzlich die drei offenen Beispielvorschläge aus `setup/suggestions_seed.json` an. Bereits vorhandene Vorschläge werden nicht dupliziert; die Beispielbilder werden aus den vorhandenen `Aufgabe N.jpg`-Dateien übernommen.
 - Eigenes Passwort setzen: `php setup/create_admins.php <benutzer> <passwort>` (mind. 12 Zeichen).
 - Abweichende Einstellungen (z. B. DB-Pfad außerhalb des Webroots) in `includes/config.local.php` als `return [...]` ablegen.
 
@@ -87,5 +88,3 @@ php -S 127.0.0.1:8080              # lokaler Server
 | `data/`, `uploads/` | SQLite-Datei bzw. Bilder, jeweils per `.htaccess` abgesichert                                                       |
 
 Stationen werden im Admin nur archiviert, nicht gelöscht. Beim Deployment auf Apache/All-Inkl müssen `data/` und `uploads/` für PHP beschreibbar sein; HTTPS wird für das Session-Cookie (`Secure`) vorausgesetzt. Testkonten vor dem Livegang ersetzen.
-
-
