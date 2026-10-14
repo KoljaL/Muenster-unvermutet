@@ -3,6 +3,12 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 require_method('POST');
+require_once __DIR__ . '/../includes/settings.php';
+
+$preview = is_string($_GET['preview'] ?? null) ? $_GET['preview'] : null;
+if (!ui_option_enabled('ui.suggest', $preview)) {
+    json_error(403, 'suggestions_disabled', 'Vorschläge sind derzeit nicht verfügbar.');
+}
 
 // Honeypot: Bots füllen das versteckte Feld aus. Stillschweigend "erfolgreich" antworten.
 if (trim((string) ($_POST['website'] ?? '')) !== '') {

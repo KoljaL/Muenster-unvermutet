@@ -175,6 +175,37 @@ h1.admin-title {
 .admin-toolbar .grow {
   flex: 1;
 }
+.setting-group,
+.setting-option {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  background: var(--surface);
+}
+.setting-group > legend,
+.setting-option > legend {
+  font-weight: 800;
+  padding: 0 6px;
+}
+.setting-option p {
+  margin: 4px 0 10px;
+  color: var(--muted);
+}
+.setting-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+.setting-choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.setting-choices input {
+  width: 20px;
+  height: 20px;
+}
 
 /* Buttons */
 button,

@@ -1499,15 +1499,15 @@
           <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
           <!-- Darstellung: Barrierefrei/Klassisch und Farbmodus -->
           <div class="hero-tools" role="group" aria-label="Darstellung">
-            <button type="button" class="tool-button tool-text" id="help-toggle" aria-expanded="true" aria-controls="how-to">Hilfe</button>
-            <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="false" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
-            <button type="button" class="tool-button tool-icon" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
+            <button type="button" class="tool-button tool-text" id="help-toggle" data-ui-option="help" hidden aria-expanded="true" aria-controls="how-to">Hilfe</button>
+            <button type="button" class="tool-button tool-text" id="layout-toggle" data-ui-option="accessibility_toggle" hidden aria-pressed="false" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
+            <button type="button" class="tool-button tool-icon" id="theme-toggle" data-ui-option="theme_toggle" hidden aria-pressed="false" aria-label="Dunkler Modus">
               <span id="theme-icon" aria-hidden="true">🌙</span>
             </button>
           </div>
         </div>
         <p class="page-subtitle">Eine Foto-Schnitzeljagd von Bettina Säger · Idee inspiriert durch ein Buch von Clemens Köyer</p>
-        <div class="how-to" id="how-to" role="region" aria-label="So funktioniert's">
+        <div class="how-to" id="how-to" data-ui-option="help" hidden role="region" aria-label="So funktioniert's">
           <ol>
             <li>
               <span class="step" aria-hidden="true">1</span><span><b>Pin antippen:</b> Wähle eine Station auf der Karte oder in der Liste.</span>
@@ -1522,16 +1522,16 @@
         </div>
       </header>
 
-      <section class="progress" aria-label="Fortschritt">
+      <section class="progress" data-ui-option="progress" hidden aria-label="Fortschritt">
         <div class="progress-main">
           <p class="progress-loading" id="progress-loading" role="status">Stationen werden geladen ...</p>
           <div class="progress-labels"><span id="progress-label">Fortschritt</span><span id="progress-count"></span></div>
           <div class="progress-track" id="progress-track" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
             <div class="progress-fill" id="progress-fill"></div>
           </div>
-          <div class="badges" id="mini-badges" aria-hidden="true"></div>
+          <div class="badges" id="mini-badges" data-ui-option="badges" hidden aria-hidden="true"></div>
         </div>
-        <button type="button" class="reset-button" id="reset-button" hidden>Zurücksetzen</button>
+        <button type="button" class="reset-button" id="reset-button" data-ui-option="reset" data-ui-hidden-default hidden>Zurücksetzen</button>
       </section>
 
       <!-- Startseite: Stadtplan als OpenStreetMap (Leaflet) -->
@@ -1543,16 +1543,16 @@
           <p id="load-error-text">Kategorien oder Stationen konnten nicht geladen werden.</p>
           <button type="button" id="load-retry">Erneut versuchen</button>
         </div>
-        <ul class="legend" id="legend" aria-label="Kategorien – zum Filtern auswählen"></ul>
-        <div class="plan-actions">
+        <ul class="legend" id="legend" data-ui-option="legend" hidden aria-label="Kategorien – zum Filtern auswählen"></ul>
+        <div class="plan-actions" data-ui-option="suggest" hidden>
           <button type="button" class="primary-button" id="suggest-open" aria-haspopup="dialog"><span aria-hidden="true">+</span> Station vorschlagen</button>
         </div>
-        <div class="pick-banner" id="pick-banner" role="group" aria-label="Standort auf der Karte wählen" hidden>
+        <div class="pick-banner" id="pick-banner" data-ui-option="suggest" data-ui-hidden-default hidden role="group" aria-label="Standort auf der Karte wählen">
           <span>Klicke auf die Karte, um den Standort zu übernehmen.</span>
           <button type="button" id="pick-cancel">Abbrechen</button>
         </div>
         <p class="filter-empty" id="filter-empty" hidden>Keine Stationen in den gewählten Kategorien.</p>
-        <ul class="station-list" id="station-list" aria-label="Alle Stationen"></ul>
+        <ul class="station-list" id="station-list" data-ui-option="station_list" hidden aria-label="Alle Stationen"></ul>
       </section>
 
       <!-- Aufgaben-Ansicht -->
@@ -1561,7 +1561,7 @@
         <div id="task-list"></div>
       </section>
 
-      <div class="completion" id="completion" hidden>
+      <div class="completion" id="completion" data-ui-option="completion" data-ui-hidden-default hidden>
         <div class="completion-trophy" aria-hidden="true">🏆</div>
         <p class="completion-title">Geschafft – Münster entdeckt!</p>
         <p class="completion-text">Du hast alle Stationen gelöst. Gut gesehen!</p>
@@ -1575,7 +1575,7 @@
     </main>
 
     <!-- Dialog: Station vorschlagen (Roadmap 6). Natives <dialog> mit showModal(): Fokus-Falle, inerter Hintergrund. -->
-    <dialog class="suggest-dialog" id="suggest-dialog" aria-labelledby="suggest-title" aria-describedby="suggest-intro">
+    <dialog class="suggest-dialog" id="suggest-dialog" data-ui-option="suggest" data-ui-hidden-default hidden aria-labelledby="suggest-title" aria-describedby="suggest-intro">
       <div class="suggest-header">
         <h2 id="suggest-title" tabindex="-1">Station vorschlagen</h2>
         <button type="button" class="secondary-button" id="suggest-close" aria-label="Dialog schließen">✕ Schließen</button>
@@ -1665,7 +1665,7 @@
       </div>
     </dialog>
 
-    <dialog class="suggest-dialog reset-dialog" id="reset-dialog" aria-labelledby="reset-dialog-title" aria-describedby="reset-dialog-description">
+    <dialog class="suggest-dialog reset-dialog" id="reset-dialog" data-ui-option="reset" data-ui-hidden-default hidden aria-labelledby="reset-dialog-title" aria-describedby="reset-dialog-description">
       <div class="suggest-header">
         <h2 id="reset-dialog-title" tabindex="-1">Fortschritt zurücksetzen?</h2>
       </div>
@@ -1711,6 +1711,7 @@
           details: 'api/get_details.php',
           categories: 'api/categories.php',
           submit: 'api/submit_station.php',
+          settings: 'api/settings.php',
         },
         async fetchApi(url) {
           const controller = new AbortController();
@@ -1741,10 +1742,59 @@
         loadPins() {
           return this.fetchApi(this.urls.pins);
         },
+        loadSettings() {
+          const preview = new URLSearchParams(window.location.search).get('preview');
+          const query = preview === null ? '' : '?preview=' + encodeURIComponent(preview);
+          return this.fetchApi(this.urls.settings + query).then((data) => data.ui);
+        },
         loadDetails(stationId) {
           return this.fetchApi(this.urls.details + '?id=' + encodeURIComponent(stationId));
         },
       };
+      const UI_DEFAULTS = Object.freeze({
+        help: true,
+        accessibility_toggle: true,
+        theme_toggle: true,
+        progress: true,
+        badges: true,
+        reset: true,
+        suggest: true,
+        legend: true,
+        station_list: true,
+        hint_button: true,
+        reveal_button: true,
+        completion: true,
+      });
+      let ui = UI_DEFAULTS;
+
+      function resolveUi(settings) {
+        const resolved = {};
+        Object.keys(UI_DEFAULTS).forEach((key) => {
+          resolved[key] = settings && typeof settings[key] === 'boolean' ? settings[key] : UI_DEFAULTS[key];
+        });
+        resolved.badges = resolved.badges && resolved.progress;
+        resolved.reset = resolved.reset && resolved.progress;
+        resolved.accessibility_toggle = resolved.accessibility_toggle && resolved.station_list;
+        return Object.freeze(resolved);
+      }
+
+      function isEnabled(key) {
+        return ui[key] === true;
+      }
+
+      function applyUiSettings() {
+        document.querySelectorAll('[data-ui-option]').forEach((element) => {
+          const enabled = isEnabled(element.dataset.uiOption);
+          if (!enabled) {
+            element.remove();
+          } else if (element.tagName === 'DIALOG' || !element.hasAttribute('data-ui-hidden-default')) {
+            element.hidden = false;
+          } else {
+            element.hidden = true;
+          }
+        });
+      }
+
       // Laufzeitdaten kommen aus den APIs; Stationsdetails werden beim Öffnen nachgeladen.
       let stations = [];
       const categoriesById = new Map();
@@ -2112,7 +2162,9 @@
           marker.getElement().focus({ preventScroll: true });
           return;
         }
-        const listItem = elements.stationList.querySelector('[data-station-id="' + stationId + '"]');
+        const listItem = elements.stationList && elements.stationList.isConnected
+          ? elements.stationList.querySelector('[data-station-id="' + stationId + '"]')
+          : null;
         if (listItem) listItem.focus({ preventScroll: true });
         else elements.pageTitle.focus({ preventScroll: true });
       }
@@ -2143,7 +2195,9 @@
         const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
         const hintVisible = progress.hintVisible;
         const wrongAnswerSelected = progress.selectedOptionIndex !== null && progress.selectedOptionIndex !== station.correctOptionIndex;
-        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box' + (hintVisible ? ' is-visible' : '') + '" id="hint-box" aria-hidden="' + String(!hintVisible) + '">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + '<div class="task-actions">' + renderOptions(station) + '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="' + String(hintVisible) + '" aria-controls="hint-box">💡 Hinweis anzeigen</button>' + '</div>' + '<p class="error-message' + (wrongAnswerSelected ? ' feedback-in' : '') + '" id="error-message"' + (wrongAnswerSelected ? '' : ' hidden') + '>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>' + '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>';
+        const hintButton = isEnabled('hint_button') ? '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="' + String(hintVisible) + '" aria-controls="hint-box">💡 Hinweis anzeigen</button>' : '';
+        const revealButton = isEnabled('reveal_button') ? '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>' : '';
+        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box' + (hintVisible ? ' is-visible' : '') + '" id="hint-box" aria-hidden="' + String(!hintVisible) + '">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + '<div class="task-actions">' + renderOptions(station) + hintButton + '</div>' + '<p class="error-message' + (wrongAnswerSelected ? ' feedback-in' : '') + '" id="error-message"' + (wrongAnswerSelected ? '' : ' hidden') + '>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>' + revealButton;
       }
 
       function renderSolvedBody(station) {
@@ -2189,28 +2243,37 @@
         const solvedCount = countSolved();
         const total = stations.length;
         const text = solvedCount + ' von ' + total + ' gelöst';
-        elements.progressLoading.hidden = !uiState.loading;
-        elements.progressCount.textContent = uiState.loading ? '' : text;
-        elements.progressTrack.hidden = uiState.loading;
-        elements.progressFill.style.width = (total ? Math.round((solvedCount / total) * 100) : 0) + '%';
-        elements.progressTrack.setAttribute('aria-valuemax', total);
-        elements.progressTrack.setAttribute('aria-valuenow', solvedCount);
-        elements.progressTrack.setAttribute('aria-valuetext', uiState.loading ? '' : text);
-        elements.resetButton.hidden = solvedCount === 0;
         const allSolved = !uiState.loading && total > 0 && solvedCount === total;
-        elements.completion.hidden = !allSolved;
-        if (allSolved) renderCompletion();
-        elements.miniBadges.innerHTML = uiState.loading
-          ? ''
-          : stations
-              .map((station) => {
-                const category = categoryOf(station);
-                return '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (isSolved(station.id) ? '✓' : categoryImageHtml(category)) + '</span>';
-              })
-              .join('');
+        if (isEnabled('progress') && elements.progressLoading && elements.progressLoading.isConnected) {
+          elements.progressLoading.hidden = !uiState.loading;
+          elements.progressCount.textContent = uiState.loading ? '' : text;
+          elements.progressTrack.hidden = uiState.loading;
+          elements.progressFill.style.width = (total ? Math.round((solvedCount / total) * 100) : 0) + '%';
+          elements.progressTrack.setAttribute('aria-valuemax', total);
+          elements.progressTrack.setAttribute('aria-valuenow', solvedCount);
+          elements.progressTrack.setAttribute('aria-valuetext', uiState.loading ? '' : text);
+        }
+        if (isEnabled('reset') && elements.resetButton && elements.resetButton.isConnected) {
+          elements.resetButton.hidden = solvedCount === 0;
+        }
+        if (isEnabled('completion') && elements.completion && elements.completion.isConnected) {
+          elements.completion.hidden = !allSolved;
+          if (allSolved) renderCompletion();
+        }
+        if (isEnabled('badges') && elements.miniBadges && elements.miniBadges.isConnected) {
+          elements.miniBadges.innerHTML = uiState.loading
+            ? ''
+            : stations
+                .map((station) => {
+                  const category = categoryOf(station);
+                  return '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (isSolved(station.id) ? '✓' : categoryImageHtml(category)) + '</span>';
+                })
+                .join('');
+        }
       }
 
       function renderStationList() {
+        if (!isEnabled('station_list') || !elements.stationList || !elements.stationList.isConnected) return;
         const visible = visibleStations();
         elements.stationList.innerHTML = visible
           .map((station) => {
@@ -2225,6 +2288,7 @@
       // Legende = Kategorie-Filter. Gerendert wird nur bei neuen Kategorien, der Zustand separat,
       // damit der Fokus auf dem gedrückten Button erhalten bleibt.
       function renderLegend() {
+        if (!isEnabled('legend') || !elements.legend || !elements.legend.isConnected) return;
         elements.legend.innerHTML = Array.from(categoriesById.values())
           .map((category) => '<li><button type="button" class="legend-button" data-category-id="' + escapeHtml(category.id) + '" aria-pressed="false"><span class="legend-icon" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '" aria-hidden="true">' + categoryImageHtml(category) + '</span>' + escapeHtml(category.name) + '</button></li>')
           .join('');
@@ -2232,12 +2296,14 @@
       }
 
       function renderLegendState() {
+        if (!isEnabled('legend') || !elements.legend || !elements.legend.isConnected) return;
         elements.legend.querySelectorAll('[data-category-id]').forEach((button) => {
           button.setAttribute('aria-pressed', String(uiState.activeCategories.has(button.dataset.categoryId)));
         });
       }
 
       function renderCompletion() {
+        if (!isEnabled('completion') || !elements.completionStats || !elements.completionRank) return;
         const stats = stations.map((station) => getStationProgress(station.id));
         const attempts = stats.reduce((sum, item) => sum + item.attempts, 0);
         const hints = stats.filter((item) => item.hintUsed).length;
@@ -2332,9 +2398,17 @@
       async function loadStations() {
         elements.loadError.hidden = true;
         uiState.loading = true;
-        notifyStateChanged('stations-loading');
         try {
-          const [categories, pins] = await Promise.all([StationApiService.loadCategories(), StationApiService.loadPins()]);
+          const settingsPromise = StationApiService.loadSettings().catch(() => null);
+          const stationsPromise = Promise.all([StationApiService.loadCategories(), StationApiService.loadPins()])
+            .then((data) => ({ data }), (error) => ({ error }));
+          const [settings, stationResult] = await Promise.all([settingsPromise, stationsPromise]);
+          ui = resolveUi(settings);
+          applyUiSettings();
+          initializeUi();
+          notifyStateChanged('settings-loaded');
+          if (stationResult.error) throw stationResult.error;
+          const [categories, pins] = stationResult.data;
           if (!Array.isArray(categories) || !categories.every(isValidCategory)) throw new Error('Ungültige Kategoriedaten');
           if (!Array.isArray(pins) || !pins.every(isValidPin)) throw new Error('Ungültige Stationsdaten');
           categoriesById.clear();
@@ -2394,8 +2468,10 @@
       }
 
       function setHowTo(isOpen, persist = true) {
+        if (!isEnabled('help') || !elements.howTo || !elements.howTo.isConnected) return;
         elements.howTo.classList.toggle('is-closed', !isOpen);
-        document.getElementById('help-toggle').setAttribute('aria-expanded', String(isOpen));
+        const helpToggle = document.getElementById('help-toggle');
+        if (helpToggle) helpToggle.setAttribute('aria-expanded', String(isOpen));
         if (persist) saveIntroState(isOpen);
       }
 
@@ -2551,9 +2627,29 @@
          ========================================================== */
       function initThemeControls() {
         const controller = window.ThemeController;
+        if (!elements.themeToggle || !elements.themeIcon) return;
+        if (!controller) {
+          elements.themeToggle.remove();
+          return;
+        }
+        let initialized = false;
+        controller.subscribe(({ mode }) => {
+          const dark = mode === 'dark';
+          uiState.colorMode = mode;
+          elements.themeToggle.setAttribute('aria-pressed', String(dark));
+          elements.themeIcon.textContent = dark ? '☀️' : '🌙';
+          elements.themeToggle.setAttribute('aria-label', dark ? 'Heller Modus' : 'Dunkler Modus');
+          if (initialized) announce(dark ? 'Dunkler Modus an.' : 'Dunkler Modus aus.');
+          initialized = true;
+        });
+        elements.themeToggle.addEventListener('click', () => controller.toggle());
+      }
+
+      function initAccessibilityControls(bindToggle) {
         const layoutKey = 'muenster-unvermutet:layout';
         const applyLayout = (accessible) => {
           document.body.classList.toggle('layout-classic', !accessible);
+          if (!elements.layoutToggle) return;
           elements.layoutToggle.setAttribute('aria-pressed', String(accessible));
           elements.layoutToggle.textContent = accessible ? 'Klassisch' : 'Barrierefrei';
           elements.layoutToggle.setAttribute('aria-label', accessible ? 'Klassisch: Liste und große Pins ausblenden' : 'Barrierefrei: Liste und große Pins anzeigen');
@@ -2564,7 +2660,9 @@
         } catch (error) {
           // Speicher blockiert: Standard verwenden.
         }
+        if (!bindToggle || !elements.layoutToggle) accessible = false;
         applyLayout(accessible);
+        if (!bindToggle || !elements.layoutToggle) return;
         elements.layoutToggle.addEventListener('click', () => {
           accessible = !accessible;
           applyLayout(accessible);
@@ -2575,21 +2673,6 @@
           }
           announce(accessible ? 'Barrierefrei: Liste und große Pins.' : 'Klassisch: ohne Liste, kleine Pins.');
         });
-        if (!controller) {
-          elements.themeToggle.hidden = true;
-          return;
-        }
-        let initialized = false;
-        controller.subscribe(({ mode, manual }) => {
-          const dark = mode === 'dark';
-          uiState.colorMode = mode;
-          elements.themeToggle.setAttribute('aria-pressed', String(dark));
-          elements.themeIcon.textContent = dark ? '☀️' : '🌙';
-          elements.themeToggle.setAttribute('aria-label', dark ? 'Heller Modus' : 'Dunkler Modus');
-          if (initialized) announce(dark ? 'Dunkler Modus an.' : 'Dunkler Modus aus.');
-          initialized = true;
-        });
-        elements.themeToggle.addEventListener('click', () => controller.toggle());
       }
 
       /* ==========================================================
@@ -2745,8 +2828,10 @@
       async function sendSuggestion(payload) {
         document.dispatchEvent(new CustomEvent('ms:stationSuggested', { detail: payload }));
         let response;
+        const preview = new URLSearchParams(window.location.search).get('preview');
+        const previewQuery = preview === null ? '' : '?preview=' + encodeURIComponent(preview);
         try {
-          response = await fetch(StationApiService.urls.submit, {
+          response = await fetch(StationApiService.urls.submit + previewQuery, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify(payload),
@@ -2767,6 +2852,9 @@
           }
           if (response.status === 429) {
             throw new Error('Du hast in kurzer Zeit zu viele Vorschläge gesendet. Bitte warte etwa eine Stunde und versuche es dann erneut.');
+          }
+          if (response.status === 403 && body.error && body.error.code === 'suggestions_disabled') {
+            throw new Error('Vorschläge sind derzeit nicht verfügbar.');
           }
           throw new Error('Der Server konnte den Vorschlag gerade nicht verarbeiten (Fehler ' + response.status + '). Deine Eingaben bleiben erhalten – bitte versuche es in ein paar Minuten erneut.');
         }
@@ -2926,39 +3014,47 @@
       /* ==========================================================
          9. Start
          ========================================================== */
-      document.addEventListener('ms:stateChanged', () => {
-        render();
-      });
-      initThemeControls();
-      initSuggestion();
-      initResetDialog();
-      elements.legend.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-category-id]');
-        if (button) setCategoryFilter(button.dataset.categoryId);
-      });
-      elements.taskList.addEventListener('click', handleTaskListClick);
-      elements.taskList.addEventListener('load', handleImageLoad, true);
-      elements.taskList.addEventListener('error', handleImageError, true);
-      elements.backButton.addEventListener('click', showPlan);
-      elements.stationList.addEventListener('click', (event) => {
-        const item = event.target.closest('[data-station-id]');
-        if (item) openStation(item.dataset.stationId);
-      });
-      document.getElementById('completion-map').addEventListener('click', () => {
-        showPlan();
-        document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
-      });
-      document.getElementById('completion-restart').addEventListener('click', () => {
-        resetProgress();
-      });
-      setHowTo(loadIntroState(), false);
-      document.getElementById('help-toggle').addEventListener('click', () => setHowTo(elements.howTo.classList.contains('is-closed')));
-      renderLegend();
-      elements.resetButton.addEventListener('click', resetProgress);
+      let initialized = false;
+      function initializeUi() {
+        if (initialized) return;
+        initialized = true;
+        document.addEventListener('ms:stateChanged', () => render());
+        if (isEnabled('theme_toggle')) initThemeControls();
+        if (isEnabled('station_list')) initAccessibilityControls(isEnabled('accessibility_toggle'));
+        if (isEnabled('suggest')) initSuggestion();
+        if (isEnabled('reset')) initResetDialog();
+        if (isEnabled('legend')) {
+          elements.legend.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-category-id]');
+            if (button) setCategoryFilter(button.dataset.categoryId);
+          });
+        }
+        elements.taskList.addEventListener('click', handleTaskListClick);
+        elements.taskList.addEventListener('load', handleImageLoad, true);
+        elements.taskList.addEventListener('error', handleImageError, true);
+        elements.backButton.addEventListener('click', showPlan);
+        if (isEnabled('station_list')) {
+          elements.stationList.addEventListener('click', (event) => {
+            const item = event.target.closest('[data-station-id]');
+            if (item) openStation(item.dataset.stationId);
+          });
+        }
+        if (isEnabled('completion')) {
+          document.getElementById('completion-map').addEventListener('click', () => {
+            showPlan();
+            document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
+          });
+          document.getElementById('completion-restart').addEventListener('click', () => resetProgress());
+        }
+        if (isEnabled('help')) {
+          setHowTo(loadIntroState(), false);
+          document.getElementById('help-toggle').addEventListener('click', () => setHowTo(elements.howTo.classList.contains('is-closed')));
+        }
+        if (isEnabled('reset')) elements.resetButton.addEventListener('click', resetProgress);
+        elements.loadRetry.addEventListener('click', loadStations);
+        initMap();
+      }
 
-      elements.loadRetry.addEventListener('click', loadStations);
-      initMap();
-      notifyStateChanged('init');
       loadStations();
     </script>
   </body>
