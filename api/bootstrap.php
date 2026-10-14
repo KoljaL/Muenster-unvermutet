@@ -11,5 +11,9 @@ ini_set('display_errors', '0');
 
 set_exception_handler(function (Throwable $e): void {
     error_log('[muenster-api] ' . $e);
-    json_error(500, 'server_error', 'Interner Serverfehler.');
+    $message = 'Interner Serverfehler.';
+    if (!empty(config()['debug'])) {
+        $message .= ' ' . get_class($e) . ': ' . $e->getMessage();
+    }
+    json_error(500, 'server_error', $message);
 });

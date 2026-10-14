@@ -55,17 +55,9 @@
 
         return {
           getMode: effective,
-          isManual: function () {
-            return preference !== null;
-          },
           toggle: function () {
             preference = effective() === 'dark' ? 'light' : 'dark';
             writeStored(preference);
-            apply();
-          },
-          reset: function () {
-            preference = null;
-            writeStored(null);
             apply();
           },
           subscribe: function (listener) {
@@ -75,10 +67,11 @@
         };
       })();
     </script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
     <style>
       /* ==========================================================
-         1. Basis
+         7. Optimierungen (k2): Basis, Layout und Komponenten
+         Alle Farben laufen ausschliesslich ueber Variablen (Abschnitt 8).
          ========================================================== */
       :root {
         font-family:
@@ -95,26 +88,31 @@
       }
       body {
         margin: 0;
-        background: #f5f5f4;
-        color: #292524;
+        background: linear-gradient(180deg, var(--color-background-top) 0, var(--color-background) 320px);
+        color: var(--color-text);
+        font-size: 1.0625rem;
       }
       a {
-        color: #047857;
+        color: var(--color-accent);
       }
       button {
         cursor: pointer;
-        font-size: 0.85rem;
-        border-radius: 10px;
-        padding: 10px 14px;
+        font-size: 1rem;
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: 12px;
         border: none;
         font-weight: 600;
       }
       :focus-visible {
-        outline: 3px solid #047857;
+        outline: 3px solid var(--color-focus);
         outline-offset: 2px;
       }
       [tabindex='-1']:focus {
         outline: none;
+      }
+      .hero :focus-visible {
+        outline-color: var(--color-on-brand);
       }
       .visually-hidden {
         position: absolute;
@@ -127,424 +125,61 @@
         white-space: nowrap;
         border: 0;
       }
+      .skip-link {
+        position: absolute;
+        left: 8px;
+        top: -100px;
+        z-index: 2000;
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+      .skip-link:focus {
+        top: 8px;
+      }
 
-      /* ==========================================================
-         2. Seitenrahmen & Fortschritt
-         ========================================================== */
+      /* Seitenrahmen und Kopfbereich */
       .page {
         max-width: 720px;
         margin: 0 auto;
-        padding: 32px 16px 48px;
+        padding: 20px 16px 48px;
       }
       h1 {
-        font-size: 1.7rem;
         letter-spacing: -0.02em;
         margin: 0;
-        color: #1c1917;
+        color: var(--color-text);
       }
-      .page-subtitle {
-        color: #57534e;
+      .hero {
+        background: var(--gradient-hero);
+        color: var(--color-on-brand);
+        border-radius: 20px;
+        padding: 22px 20px;
+        box-shadow: var(--shadow-hero);
+      }
+      .hero h1 {
+        color: var(--color-on-brand);
+        font-size: 1.9rem;
+      }
+      .hero-heading-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+      .hero-heading-row h1 {
+        min-width: 0;
+      }
+      .hero .page-subtitle {
+        color: var(--color-on-brand-muted);
         margin: 8px 0 0;
         line-height: 1.5;
         font-size: 0.95rem;
       }
-      .progress {
-        background: #fff;
-        border: 1px solid #e7e5e4;
-        border-radius: 14px;
-        padding: 14px 18px;
-        margin-top: 20px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      }
-      .progress-main {
-        flex: 1;
-      }
-      .progress-labels {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #78716c;
-        margin-bottom: 4px;
-      }
-      .progress-track {
-        height: 12px;
-        background: #d6d3d1;
-        border-radius: 999px;
-        overflow: hidden;
-      }
-      .progress-fill {
-        height: 100%;
-        width: 0%;
-        background: #047857;
-        border-radius: 999px;
-        transition: width 0.4s;
-      }
-      .reset-button {
-        font-size: 0.75rem;
-        color: #78716c;
-        background: none;
-        text-decoration: underline;
-        white-space: nowrap;
-        padding: 0;
-      }
-
-      /* ==========================================================
-         3. Stadtplan (Leaflet / OpenStreetMap)
-         ========================================================== */
-      #map {
-        height: 520px;
-        border-radius: 16px;
-        border: 1px solid #e7e5e4;
-        overflow: hidden;
-        margin-top: 22px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-      }
-      .map-fallback {
-        height: 420px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #78716c;
-        font-size: 0.85rem;
-        text-align: center;
-        padding: 12px;
-      }
-      .map-pin {
-        width: 28px;
-        height: 28px;
-        border-radius: 999px;
-        background: #047857;
-        color: #fff;
-        font-weight: 800;
-        font-size: 0.82rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        border: 2px solid #fff;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-        transition: transform 0.15s;
-      }
-      .map-pin:hover {
-        transform: scale(1.15);
-        background: #065f46;
-      }
-      .map-pin--solved {
-        background: #fff;
-        color: #047857;
-      }
-
-      /* ==========================================================
-         4. Aufgaben-Ansicht
-         ========================================================== */
-      .back-button {
-        font-size: 0.85rem;
-        padding: 9px 14px;
-        border: 1px solid #d6d3d1;
-        background: #fff;
-        color: #57534e;
-        margin-bottom: 14px;
-        margin: 10px;
-      }
-      .back-button:hover {
-        background: #fafaf9;
-      }
-      .task-card {
-        background: #fff;
-        border: 1px solid #e7e5e4;
-        border-radius: 16px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-        margin-top: 22px;
-      }
-      .task-photo {
-        position: relative;
-        background: #e7e5e4;
-        height: clamp(230px, 58vw, 320px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-      }
-      .task-photo img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        display: block;
-        opacity: 0;
-        transition: opacity 0.45s ease;
-      }
-      .task-photo img.is-loaded {
-        opacity: 1;
-      }
-      .photo-fallback {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #78716c;
-        font-size: 0.85rem;
-        text-align: center;
-        padding: 16px;
-      }
-      .badge {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        background: #047857;
-        color: #fff;
-        font-size: 0.72rem;
-        font-weight: 700;
-        padding: 4px 12px;
-        border-radius: 999px;
-      }
-      .badge--solved {
-        right: 12px;
-        left: auto;
-        background: rgba(255, 255, 255, 0.92);
-        color: #065f46;
-      }
-      .task-body {
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        flex: 1;
-      }
-      .task-title {
-        margin: 0;
-        font-size: 1.15rem;
-        color: #292524;
-      }
-      .task-intro {
-        margin: 0;
-        font-size: 0.88rem;
-        color: #78716c;
-      }
-      .hint-box {
-        font-size: 0.88rem;
-        background: #fffbeb;
-        border: 1px solid #fde68a;
-        color: #78350f;
-        border-radius: 10px;
-        padding: 10px 12px;
-      }
-      .coordinates {
-        font-family: ui-monospace, monospace;
-        background: #f5f5f4;
-        border-radius: 8px;
-        padding: 4px 10px;
-        color: #292524;
-        font-size: 0.82rem;
-      }
-      .coordinates-link {
-        text-decoration: none;
-      }
-      .task-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .options {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        width: 100%;
-      }
-      .option {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        width: 100%;
-        text-align: left;
-        border: 1px solid #d6d3d1;
-        border-radius: 10px;
-        background: #fff;
-        color: inherit;
-        padding: 10px 14px;
-        font-size: 0.95rem;
-        font-weight: normal;
-      }
-      .option:hover {
-        border-color: #059669;
-        background: #f0fdf4;
-      }
-      .option-letter {
-        flex: 0 0 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: #1c1917;
-        color: #fff;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-      }
-      .hint-button {
-        background: #fff;
-        border: 1px solid #d6d3d1;
-        color: #57534e;
-      }
-      .hint-button:hover {
-        background: #fafaf9;
-      }
-      .error-message {
-        color: #dc2626;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin: 0;
-      }
-      .reveal-button {
-        margin-top: auto;
-        align-self: flex-start;
-        font-size: 0.8rem;
-        color: #78716c;
-        background: none;
-        text-decoration: underline;
-        padding: 0;
-      }
-
-      /* ==========================================================
-         5. Lösungs-Ansicht
-         ========================================================== */
-      .solution {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        font-size: 0.9rem;
-        line-height: 1.55;
-        color: #44403c;
-      }
-      .solution p {
-        margin: 0;
-      }
-      .solution-photo {
-        margin: 0;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #e7e5e4;
-      }
-      .solution-photo img {
-        width: 100%;
-        max-height: 320px;
-        object-fit: contain;
-        display: block;
-      }
-      .solution-photo figcaption {
-        font-size: 0.75rem;
-        color: #78716c;
-        padding: 8px 12px;
-        background: #fafaf9;
-      }
-      .solution-photo-fallback {
-        padding: 20px;
-        text-align: center;
-        color: #78716c;
-        font-size: 0.85rem;
-      }
-      .coordinates-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 10px;
-      }
-      .sources {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px 16px;
-        font-size: 0.75rem;
-        color: #78716c;
-      }
-
-      /* ==========================================================
-         6. Abschluss
-         ========================================================== */
-      .completion {
-        margin-top: 26px;
-        text-align: center;
-        background: #047857;
-        color: #fff;
-        border-radius: 16px;
-        padding: 24px;
-      }
-      .completion p {
-        margin: 0;
-      }
-      .completion-title {
-        font-size: 1.3rem;
-        font-weight: 900;
-      }
-      .completion .completion-text {
-        color: #d1fae5;
-        margin-top: 8px;
-      }
-
-      /* ==========================================================
-         7. Optimierungen (k2): Kontrast, Touch-Ziele, Einführung, Kategorien, Abschluss
-         ========================================================== */
-      :root {
-        /* Markenfarben bleiben in beiden Modi gleich (weißer Text darauf) */
-        --brand: #065f46;
-        --brand-dark: #064e3b;
-        /* Theme-abhängige Aliase (siehe Abschnitt 8: Farbmodi) */
-        --green: #065f46;
-        --green-dark: #064e3b;
-        --green-soft: #ecfdf5;
-        --ink: #1c1917;
-        --muted: #44403c;
-      }
-      body {
-        background: linear-gradient(180deg, var(--color-background-top) 0, var(--color-background) 320px);
-        color: var(--ink);
-        font-size: 1.0625rem;
-      }
-      a {
-        color: var(--green);
-      }
-      button {
-        font-size: 1rem;
-        min-height: 48px;
-        padding: 12px 18px;
-        border-radius: 12px;
-      }
-      :focus-visible {
-        outline: 3px solid var(--color-focus);
-        outline-offset: 2px;
-      }
-      .hero :focus-visible {
-        outline-color: #fff;
-      }
-      .page {
-        padding-top: 20px;
-      }
-
-      /* Kopfbereich */
-      .hero {
-        background: linear-gradient(135deg, #064e3b, #047857);
-        color: #fff;
-        border-radius: 20px;
-        padding: 22px 20px;
-        box-shadow: 0 6px 18px rgba(6, 78, 59, 0.25);
-      }
-      .hero h1 {
-        color: #fff;
-        font-size: 1.9rem;
-      }
-      .hero .page-subtitle {
-        color: #d1fae5;
-        font-size: 0.95rem;
-      }
       .how-to {
         margin-top: 16px;
-        background: rgba(255, 255, 255, 0.12);
+        background: var(--color-glass-weak);
         border-radius: 14px;
       }
       .how-to summary {
@@ -561,7 +196,7 @@
         display: none;
       }
       .how-to summary::after {
-        content: '▾';
+        content: '\25BE';
         transition: transform 0.2s;
       }
       .how-to[open] summary::after {
@@ -584,36 +219,109 @@
         flex: 0 0 34px;
         height: 34px;
         border-radius: 50%;
-        background: #fff;
-        color: var(--brand);
+        background: var(--color-on-brand);
+        color: var(--color-brand);
         font-weight: 800;
         display: flex;
         align-items: center;
         justify-content: center;
       }
 
+      /* Werkzeugleiste im Kopfbereich (Reihenfolge der Regeln ist fuer die Kaskade relevant) */
+      .hero-tools {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+      }
+      .tool-button.tool-text {
+        background: none;
+        border-color: transparent;
+        text-decoration: none;
+        padding: 0 10px;
+      }
+      .tool-button.tool-text[aria-pressed='true'] {
+        background: none;
+        color: var(--color-on-brand);
+      }
+      .tool-button.tool-icon {
+        padding: 0;
+        width: 44px;
+        justify-content: center;
+        border-color: transparent;
+        background: none;
+        font-size: 1.3rem;
+      }
+      .tool-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--color-glass);
+        color: var(--color-on-brand);
+        border: 2px solid var(--color-glass-border);
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+      .tool-button:hover {
+        background: none;
+        /* background: var(--color-glass-strong); */
+      }
+      .tool-button[aria-pressed='true'] {
+        background: none;
+        color: var(--color-brand-dark);
+      }
+
       /* Fortschritt */
       .progress {
-        border: 2px solid #d6d3d1;
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: 2px solid var(--color-border);
+        border-radius: 14px;
+        padding: 14px 18px;
         margin-top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: var(--shadow-progress);
+      }
+      .progress-main {
+        flex: 1;
       }
       .progress-labels {
+        display: flex;
+        justify-content: space-between;
         font-size: 0.9rem;
-        color: var(--muted);
+        font-weight: 600;
+        color: var(--color-muted-text);
+        margin-bottom: 4px;
+      }
+      .progress-loading {
+        margin: 0 0 8px;
+        color: var(--color-muted-text);
       }
       .progress-track {
         height: 16px;
-        background: #d6d3d1;
+        background: var(--color-border);
+        border-radius: 999px;
+        overflow: hidden;
       }
       .progress-fill {
-        background: linear-gradient(90deg, #059669, #065f46);
+        height: 100%;
+        width: 0%;
+        background: var(--gradient-progress);
+        border-radius: 999px;
+        transition: width 0.4s;
       }
       .reset-button {
-        color: var(--muted);
+        font-size: 0.9rem;
+        color: var(--color-muted-text);
+        background: none;
+        text-decoration: underline;
+        white-space: nowrap;
         min-height: 44px;
         padding: 0 8px;
-        font-size: 0.9rem;
-        text-decoration: underline;
       }
       .badges {
         display: flex;
@@ -625,8 +333,9 @@
         width: 26px;
         height: 26px;
         border-radius: 50%;
-        background: var(--category-color, #e7e5e4);
-        border: 2px solid #d6d3d1;
+        background: var(--category-color, var(--color-surface-sunken));
+        color: var(--category-text, var(--color-text));
+        border: 2px solid var(--color-border);
         font-size: 0.8rem;
         display: flex;
         align-items: center;
@@ -634,8 +343,9 @@
         opacity: 0.7;
       }
       .mini--solved {
-        background: var(--green-soft);
-        border-color: var(--green);
+        background: var(--color-accent-soft);
+        color: var(--color-accent);
+        border-color: var(--color-accent);
         filter: none;
         opacity: 1;
       }
@@ -645,54 +355,52 @@
         object-fit: contain;
       }
 
-      /* Karte: kompakter und an Bildschirmhöhe angepasst */
+      /* Karte (Leaflet / OpenStreetMap) */
       #map {
         height: clamp(300px, 52vh, 440px);
-        border: 2px solid #d6d3d1;
+        border: 2px solid var(--color-border);
+        border-radius: 16px;
+        overflow: hidden;
         margin-top: 16px;
+        box-shadow: var(--shadow-card);
       }
       .map-fallback {
         height: 100%;
-      }
-      .load-error,
-      .task-status {
-        margin: 16px 0;
-        padding: 16px;
-        border-radius: 12px;
-        background: #fef2f2;
-        border: 1px solid #fecaca;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-muted-text);
+        font-size: 0.85rem;
         text-align: center;
-      }
-      .task-status--loading {
-        background: #f3f4f6;
-        border-color: #e5e7eb;
-      }
-      .load-error[hidden] {
-        display: none;
-      }
-      .load-error button,
-      .task-status button {
-        min-height: 44px;
-        padding: 8px 18px;
-        border: 0;
-        border-radius: 8px;
-        background: #1f3a5f;
-        color: #fff;
-        font: inherit;
-        cursor: pointer;
+        padding: 12px;
       }
       .map-pin {
         position: relative;
         width: 44px;
         height: 44px;
+        border-radius: 999px;
+        background: var(--pin, var(--color-brand));
+        color: var(--color-on-brand);
+        font-weight: 800;
         font-size: 1.3rem;
-        background: var(--pin, #065f46);
-        border: 3px solid #fff;
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 3px solid var(--color-on-brand);
+        box-shadow: var(--shadow-pin);
+        transition: transform 0.15s;
       }
       .map-pin:hover {
-        background: var(--pin, #065f46);
+        transform: scale(1.15);
+        background: var(--pin, var(--color-brand));
         filter: brightness(0.85);
+      }
+      .map-pin--solved {
+        background: var(--color-on-brand);
+        color: var(--color-brand);
+        border-color: var(--color-brand);
+        font-weight: 900;
       }
       .map-pin .pin-number {
         position: absolute;
@@ -701,12 +409,16 @@
         min-width: 22px;
         height: 22px;
         border-radius: 999px;
-        background: #1c1917;
-        color: #fff;
+        background: var(--pin, var(--color-brand));
+        color: var(--pin-text, var(--color-category-text-light));
         font-size: 0.75rem;
         line-height: 22px;
         text-align: center;
-        border: 2px solid #fff;
+        border: 2px solid var(--color-on-brand);
+      }
+      .map-pin--solved .pin-number {
+        background: var(--color-brand);
+        color: var(--color-on-brand);
       }
       .pin-icon {
         display: flex;
@@ -720,15 +432,6 @@
         height: 24px;
         object-fit: contain;
       }
-      .map-pin--solved {
-        background: #fff;
-        color: var(--brand);
-        border-color: var(--brand);
-        font-weight: 900;
-      }
-      .map-pin--solved .pin-number {
-        background: var(--brand);
-      }
       .leaflet-container a.leaflet-control-zoom-in,
       .leaflet-container a.leaflet-control-zoom-out {
         width: 44px;
@@ -736,6 +439,73 @@
         line-height: 44px;
         font-size: 22px;
       }
+      /* Fokus: Pins der Karte (Leaflet-Marker sind fokussierbare Buttons) */
+      .leaflet-marker-icon:focus {
+        outline: none;
+      }
+      .leaflet-marker-icon:focus-visible .map-pin {
+        outline: 4px solid var(--color-focus);
+        outline-offset: 3px;
+      }
+      body.layout-classic .station-list {
+        display: none;
+      }
+      body.layout-classic .map-pin {
+        width: 28px;
+        height: 28px;
+        margin: 8px;
+        border-width: 2px;
+        font-size: 0.85rem;
+      }
+      body.layout-classic .map-pin .pin-icon img {
+        width: 16px;
+        height: 16px;
+      }
+      body.layout-classic .map-pin .pin-number {
+        top: -9px;
+        right: -9px;
+        min-width: 18px;
+        height: 18px;
+        line-height: 14px;
+        font-size: 0.65rem;
+      }
+      #map.is-picking {
+        cursor: crosshair;
+        outline: 4px dashed var(--color-focus);
+        outline-offset: 3px;
+      }
+      #map.is-picking .leaflet-grab {
+        cursor: crosshair;
+      }
+
+      /* Lade- und Statusmeldungen */
+      .load-error,
+      .task-status {
+        margin: 16px 0;
+        padding: 16px;
+        border-radius: 12px;
+        background: var(--color-danger-bg);
+        color: var(--color-text);
+        border: 1px solid var(--color-danger-border);
+        text-align: center;
+      }
+      .task-status--loading {
+        background: var(--color-surface-alt);
+        border-color: var(--color-border);
+      }
+      .load-error button,
+      .task-status button {
+        min-height: 44px;
+        padding: 8px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--color-action);
+        color: var(--color-on-brand);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      /* Legende, Filter und Aktionen */
       .legend {
         display: flex;
         flex-wrap: wrap;
@@ -744,7 +514,7 @@
         padding: 0;
         list-style: none;
         font-size: 0.88rem;
-        color: var(--muted);
+        color: var(--color-muted-text);
       }
       .legend li {
         display: flex;
@@ -760,682 +530,13 @@
         justify-content: center;
         overflow: hidden;
         background: var(--category-color);
+        color: var(--category-text, var(--color-text));
       }
       .legend-icon img {
         width: 100%;
         height: 100%;
         object-fit: contain;
       }
-
-      /* Stationsliste unter der Karte (große Touch-Ziele) */
-      .station-list {
-        list-style: none;
-        margin: 16px 0 0;
-        padding: 0;
-        display: grid;
-        gap: 8px;
-      }
-      .station-item {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        text-align: left;
-        background: #fff;
-        color: var(--ink);
-        border: 2px solid #d6d3d1;
-        padding: 10px 14px;
-        min-height: 60px;
-        font-weight: 600;
-      }
-      .station-item:hover {
-        border-color: var(--green);
-        background: var(--green-soft);
-      }
-      .station-item .ico {
-        flex: 0 0 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        overflow: hidden;
-        background: var(--category-color);
-      }
-      .station-item .ico img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-      }
-      .station-item small {
-        display: block;
-        font-weight: 500;
-        color: var(--muted);
-      }
-      .station-item .state {
-        margin-left: auto;
-        font-weight: 800;
-        color: var(--green);
-        white-space: nowrap;
-      }
-      .station-item--solved {
-        border-color: var(--green);
-        background: var(--green-soft);
-      }
-
-      /* Aufgabenkarte */
-      .back-button {
-        font-size: 1rem;
-        border: 2px solid #a8a29e;
-        color: var(--ink);
-        font-weight: 700;
-      }
-      .task-card {
-        border: 2px solid #d6d3d1;
-        border-top: 6px solid var(--cat, #065f46);
-        animation: card-in 0.34s ease-out both;
-      }
-      #task-list .task-card--stable {
-        animation: none;
-      }
-      #task-list {
-        position: relative;
-      }
-      #task-list.task-list-crossfade {
-        overflow: hidden;
-        transition: height 0.34s ease;
-        isolation: isolate;
-      }
-      #task-list .task-card--leaving {
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        width: 100%;
-        animation: none;
-        opacity: 1;
-        transform: translateY(0);
-        transition:
-          opacity 0.3s ease,
-          transform 0.3s ease;
-        will-change: opacity, transform;
-      }
-      #task-list .task-card--leaving.task-card--exit {
-        opacity: 0;
-        transform: translateY(-8px);
-      }
-      #task-list .task-card--entering {
-        position: relative;
-        z-index: 2;
-        opacity: 0;
-        transform: translateY(10px);
-        animation: none;
-        transition:
-          opacity 0.34s ease,
-          transform 0.34s ease;
-        will-change: opacity, transform;
-      }
-      #task-list .task-card--entering.task-card--active {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .badge {
-        font-size: 0.9rem;
-        padding: 6px 14px;
-        background: var(--brand-dark);
-      }
-      .badge--solved {
-        background: #fff;
-        color: var(--brand-dark);
-        border: 2px solid var(--brand);
-      }
-      .task-title {
-        font-size: 1.3rem;
-        line-height: 1.25;
-      }
-      .category-chip {
-        align-self: flex-start;
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        padding: 4px 12px;
-        border-radius: 999px;
-        background: #f5f5f4;
-        color: var(--ink);
-        border: 1px solid var(--cat);
-      }
-      .category-chip img {
-        width: 20px;
-        height: 20px;
-        object-fit: contain;
-      }
-      .task-intro,
-      .reveal-button,
-      .photo-fallback,
-      .solution-photo figcaption,
-      .sources {
-        color: var(--muted);
-      }
-      .task-intro {
-        font-size: 1rem;
-      }
-      .hint-box {
-        font-size: 1rem;
-        color: #451a03;
-        border: 2px solid #f59e0b;
-        max-height: 0;
-        margin: 0;
-        padding: 0 14px;
-        overflow: hidden;
-        opacity: 0;
-        transform: translateY(-6px);
-        transition:
-          max-height 0.28s ease,
-          margin 0.28s ease,
-          padding 0.28s ease,
-          opacity 0.22s ease,
-          transform 0.28s ease;
-      }
-      .hint-box.is-visible {
-        max-height: 160px;
-        margin: 0;
-        padding: 12px 14px;
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .coordinates {
-        font-size: 0.95rem;
-        padding: 10px 14px;
-        display: inline-block;
-        border: 1px solid #a8a29e;
-      }
-      .option {
-        min-height: 56px;
-        font-size: 1rem;
-        border: 2px solid #a8a29e;
-        padding: 12px 14px;
-        transition:
-          border-color 0.18s ease,
-          background-color 0.18s ease,
-          transform 0.18s ease;
-      }
-      .option:hover {
-        border-color: var(--green);
-      }
-      .option-letter {
-        flex: 0 0 34px;
-        height: 34px;
-        font-size: 1rem;
-      }
-      .option--wrong {
-        border-color: #b91c1c;
-        background: #fef2f2;
-        text-decoration: line-through;
-        color: #7f1d1d;
-        animation: wrong-answer 0.34s ease-out;
-      }
-      .hint-button {
-        border: 2px solid #a8a29e;
-        color: var(--ink);
-        width: 100%;
-      }
-      .error-message {
-        color: #b91c1c;
-        font-size: 1rem;
-        background: #fef2f2;
-        border: 2px solid #b91c1c;
-        border-radius: 10px;
-        padding: 10px 12px;
-      }
-      .feedback-in {
-        animation: feedback-in 0.28s ease-out both;
-      }
-      .reveal-button {
-        font-size: 0.95rem;
-        min-height: 48px;
-        padding: 0 4px;
-      }
-      .solution {
-        font-size: 1rem;
-        color: var(--ink);
-      }
-      .solution-photo {
-        border: 2px solid #d6d3d1;
-      }
-      .coordinates-row a,
-      .sources a {
-        display: inline-flex;
-        align-items: center;
-        min-height: 44px;
-        font-weight: 600;
-      }
-      .sources {
-        font-size: 0.9rem;
-      }
-      .next-button {
-        background: var(--brand);
-        color: #fff;
-        width: 100%;
-        font-size: 1.05rem;
-      }
-      .next-button:hover {
-        background: var(--brand-dark);
-      }
-      .next-button {
-        transition:
-          transform 0.18s ease,
-          background-color 0.18s ease;
-      }
-      .next-button:hover {
-        transform: translateY(-2px);
-      }
-
-      /* Abschluss: Siegesansicht */
-      .completion {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(135deg, #064e3b, #047857 60%, #b45309);
-        padding: 32px 20px;
-        border-radius: 20px;
-        box-shadow: 0 8px 24px rgba(6, 78, 59, 0.35);
-      }
-      .completion-trophy {
-        font-size: 4rem;
-        line-height: 1;
-        animation: pop 0.8s ease-out both;
-      }
-      .completion-title {
-        font-size: 1.7rem;
-        margin-top: 10px;
-      }
-      .completion .completion-text {
-        color: #ecfdf5;
-        font-size: 1.05rem;
-      }
-      .completion-stats {
-        display: flex;
-        justify-content: center;
-        gap: 12px;
-        margin: 18px 0;
-        flex-wrap: wrap;
-      }
-      .stat {
-        background: rgba(255, 255, 255, 0.16);
-        border-radius: 14px;
-        padding: 10px 16px;
-        min-width: 96px;
-      }
-      .stat b {
-        display: block;
-        font-size: 1.6rem;
-      }
-      .stat span {
-        font-size: 0.85rem;
-      }
-      .completion-rank {
-        font-weight: 800;
-        font-size: 1.15rem;
-        background: #fff;
-        color: var(--brand-dark);
-        display: inline-block;
-        border-radius: 999px;
-        padding: 8px 18px;
-      }
-      .completion-actions {
-        margin-top: 18px;
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-      .completion-actions button {
-        background: #fff;
-        color: var(--brand-dark);
-        font-weight: 800;
-      }
-      .confetti {
-        position: absolute;
-        top: -12px;
-        width: 10px;
-        height: 14px;
-        border-radius: 2px;
-        animation: fall 3.2s linear infinite;
-        opacity: 0.9;
-        pointer-events: none;
-      }
-      @keyframes fall {
-        to {
-          transform: translateY(380px) rotate(540deg);
-          opacity: 0;
-        }
-      }
-      @keyframes pop {
-        0% {
-          transform: scale(0.3);
-        }
-        70% {
-          transform: scale(1.2);
-        }
-        100% {
-          transform: scale(1);
-        }
-      }
-      @keyframes card-in {
-        from {
-          opacity: 0;
-          transform: translateY(12px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes wrong-answer {
-        0%,
-        100% {
-          transform: translateX(0);
-        }
-        30%,
-        70% {
-          transform: translateX(-5px);
-        }
-        50% {
-          transform: translateX(5px);
-        }
-      }
-      @keyframes feedback-in {
-        from {
-          opacity: 0;
-          transform: translateY(-6px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      /* ==========================================================
-         8. Farbmodi (Roadmap 2): Light = Standard, Dark über Klasse .dark auf <html>
-         Alle Flächenfarben laufen über Variablen; Overrides folgen unten.
-         ========================================================== */
-      :root {
-        color-scheme: light;
-        --color-background: #f5f5f4;
-        --color-background-top: #ecfdf5;
-        --color-surface: #ffffff;
-        --color-surface-alt: #fafaf9;
-        --color-surface-sunken: #e7e5e4;
-        --color-text: #1c1917;
-        --color-muted-text: #44403c;
-        --color-accent: #065f46;
-        --color-border: #d6d3d1;
-        --color-border-strong: #a8a29e;
-        --color-focus: #b45309;
-        --color-danger: #b91c1c;
-        --color-danger-bg: #fef2f2;
-        --color-danger-border: #fecaca;
-        --color-hint-bg: #fffbeb;
-        --color-hint-text: #451a03;
-        --color-hint-border: #f59e0b;
-        --color-chip-bg: #f5f5f4;
-        --color-option-hover-bg: #f0fdf4;
-        --color-letter-bg: #1c1917;
-        --color-overlay: rgba(28, 25, 23, 0.6);
-        --map-tile-filter: none;
-      }
-      :root.dark {
-        color-scheme: dark;
-        --color-background: #121614;
-        --color-background-top: #0f2a22;
-        --color-surface: #1c201e;
-        --color-surface-alt: #262b28;
-        --color-surface-sunken: #2d3330;
-        --color-text: #f5f5f4;
-        --color-muted-text: #d6d3d1;
-        --color-accent: #34d399;
-        --color-border: #57605b;
-        --color-border-strong: #8b948f;
-        --color-focus: #fbbf24;
-        --color-danger: #fca5a5;
-        --color-danger-bg: #3b1515;
-        --color-danger-border: #7f1d1d;
-        --color-hint-bg: #3a2a08;
-        --color-hint-text: #fde68a;
-        --color-hint-border: #d97706;
-        --color-chip-bg: #262b28;
-        --color-option-hover-bg: #12332a;
-        --color-letter-bg: #57534e;
-        --color-overlay: rgba(0, 0, 0, 0.75);
-        --map-tile-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
-        --green: #34d399;
-        --green-dark: #a7f3d0;
-        --green-soft: #12332a;
-        --ink: #f5f5f4;
-        --muted: #d6d3d1;
-      }
-      body {
-        color: var(--color-text);
-      }
-      .leaflet-tile-pane {
-        filter: var(--map-tile-filter);
-      }
-      .progress,
-      .station-item,
-      .back-button,
-      .task-card,
-      .hint-button,
-      .option {
-        background: var(--color-surface);
-        color: var(--color-text);
-      }
-      .progress,
-      .task-card,
-      #map,
-      .solution-photo {
-        border-color: var(--color-border);
-      }
-      .progress-track {
-        background: var(--color-border);
-      }
-      .station-item,
-      .back-button,
-      .hint-button,
-      .option {
-        border-color: var(--color-border-strong);
-      }
-      .station-item {
-        border-color: var(--color-border);
-      }
-      .station-item:hover {
-        background: var(--green-soft);
-        border-color: var(--green);
-      }
-      .station-item--solved {
-        background: var(--green-soft);
-        border-color: var(--green);
-      }
-      .back-button:hover,
-      .hint-button:hover {
-        background: var(--color-surface-alt);
-      }
-      .option:hover {
-        background: var(--color-option-hover-bg);
-        border-color: var(--green);
-      }
-      .option--wrong {
-        background: var(--color-danger-bg);
-        border-color: var(--color-danger);
-        color: var(--color-danger);
-      }
-      .option-letter {
-        background: var(--color-letter-bg);
-      }
-      .mini {
-        background: var(--category-color, var(--color-surface-sunken));
-        border-color: var(--color-border);
-      }
-      .mini--solved {
-        background: var(--green-soft);
-        border-color: var(--green);
-      }
-      .task-photo {
-        background: var(--color-surface-sunken);
-      }
-      .task-title {
-        color: var(--color-text);
-      }
-      .map-fallback,
-      .photo-fallback,
-      .solution-photo-fallback {
-        color: var(--color-muted-text);
-      }
-      .solution-photo figcaption {
-        background: var(--color-surface-alt);
-      }
-      .category-chip {
-        background: var(--color-chip-bg);
-        color: var(--color-text);
-      }
-      .coordinates {
-        background: var(--color-chip-bg);
-        color: var(--color-text);
-        border-color: var(--color-border-strong);
-      }
-      .hint-box {
-        background: var(--color-hint-bg);
-        color: var(--color-hint-text);
-        border-color: var(--color-hint-border);
-      }
-      .error-message,
-      .load-error,
-      .task-status {
-        background: var(--color-danger-bg);
-        color: var(--color-danger);
-        border-color: var(--color-danger);
-      }
-      .load-error,
-      .task-status {
-        color: var(--color-text);
-        border-color: var(--color-danger-border);
-      }
-      .task-status--loading {
-        background: var(--color-surface-alt);
-        border-color: var(--color-border);
-      }
-      .reset-button {
-        background: none;
-        color: var(--color-muted-text);
-      }
-      .reveal-button {
-        background: none;
-      }
-
-      /* Fokus: Pins der Karte (Leaflet-Marker sind fokussierbare Buttons) */
-      .leaflet-marker-icon:focus {
-        outline: none;
-      }
-      .leaflet-marker-icon:focus-visible .map-pin {
-        outline: 4px solid var(--color-focus);
-        outline-offset: 3px;
-      }
-      .map-pin {
-        transition: transform 0.15s;
-      }
-
-      /* Werkzeugleiste im Kopfbereich */
-      .skip-link {
-        position: absolute;
-        left: 8px;
-        top: -100px;
-        z-index: 2000;
-        background: #fff;
-        color: var(--brand-dark);
-        padding: 10px 16px;
-        border-radius: 10px;
-        font-weight: 700;
-      }
-      .skip-link:focus {
-        top: 8px;
-      }
-      .hero-tools {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 8px;
-        margin: -6px 0 8px;
-      }
-      .tool-button.tool-text {
-        background: none;
-        border-color: transparent;
-        text-decoration: none;
-        padding: 0 10px;
-      }
-      .tool-button.tool-text[aria-pressed='true'] {
-        background: none;
-        color: #fff;
-      }
-      .tool-button.tool-icon {
-        padding: 0;
-        width: 44px;
-        justify-content: center;
-        border-color: transparent;
-        background: none;
-        font-size: 1.3rem;
-      }
-      body.layout-classic .station-list {
-        display: none;
-      }
-      body.layout-classic .map-pin {
-        width: 28px;
-        height: 28px;
-        margin: 8px;
-        background: transparent;
-        border: none;
-        box-shadow: none;
-        font-size: 0.85rem;
-      }
-      body.layout-classic .map-pin .pin-icon {
-        display: none;
-      }
-      body.layout-classic .legend-icon {
-        display: none;
-      }
-      body.layout-classic .map-pin .pin-icon img {
-        width: 16px;
-        height: 16px;
-      }
-      body.layout-classic .map-pin .pin-number {
-        top: -9px;
-        right: -9px;
-        min-width: 18px;
-        height: 18px;
-        line-height: 14px;
-        font-size: 0.65rem;
-      }
-      .tool-button {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: rgba(255, 255, 255, 0.16);
-        color: #fff;
-        border: 2px solid rgba(255, 255, 255, 0.7);
-        font-weight: 700;
-        font-size: 0.95rem;
-      }
-      .tool-button:hover {
-        background: rgba(255, 255, 255, 0.28);
-      }
-      .tool-button[aria-pressed='true'] {
-        color: var(--brand-dark);
-      }
-      .tool-button .tool-state {
-        font-weight: 600;
-        font-size: 0.85rem;
-      }
-
-      /* Kategorie-Filter (Legende) */
       .legend-button {
         display: inline-flex;
         align-items: center;
@@ -1450,13 +551,13 @@
         font-weight: 600;
       }
       .legend-button[aria-pressed='true'] {
-        border-color: var(--green);
-        background: var(--green-soft);
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
       }
       .legend-button[aria-pressed='true']::after {
-        content: '✓';
+        content: '\2713';
         font-weight: 800;
-        color: var(--green);
+        color: var(--color-accent);
       }
       .plan-actions {
         display: flex;
@@ -1466,12 +567,12 @@
         margin-top: 14px;
       }
       .primary-button {
-        background: var(--brand);
-        color: #fff;
+        background: var(--color-brand);
+        color: var(--color-on-brand);
         font-weight: 700;
       }
       .primary-button:hover {
-        background: var(--brand-dark);
+        background: var(--color-brand-dark);
       }
       .secondary-button {
         background: var(--color-surface);
@@ -1500,22 +601,491 @@
         margin-top: 14px;
         padding: 12px 14px;
         border-radius: 12px;
-        background: var(--brand-dark);
-        color: #fff;
+        background: var(--color-brand-dark);
+        color: var(--color-on-brand);
         font-weight: 600;
       }
       .pick-banner button {
-        background: #fff;
-        color: var(--brand-dark);
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
         min-height: 44px;
       }
-      #map.is-picking {
-        cursor: crosshair;
-        outline: 4px dashed var(--color-focus);
-        outline-offset: 3px;
+
+      /* Stationsliste unter der Karte (grosse Touch-Ziele) */
+      .station-list {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
       }
-      #map.is-picking .leaflet-grab {
-        cursor: crosshair;
+      .station-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: 2px solid var(--color-border);
+        padding: 10px 14px;
+        min-height: 60px;
+        font-weight: 600;
+      }
+      .station-item:hover {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+      }
+      .station-item--solved {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+      }
+      .station-item .ico {
+        flex: 0 0 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        overflow: hidden;
+        background: var(--category-color);
+        color: var(--category-text, var(--color-text));
+      }
+      .station-item .ico img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .station-sub {
+        display: block;
+        font-weight: 500;
+        color: var(--color-muted-text);
+      }
+      .station-item .state {
+        margin-left: auto;
+        font-weight: 800;
+        color: var(--color-accent);
+        white-space: nowrap;
+      }
+
+      /* Aufgabenkarte */
+      .back-button {
+        font-size: 1rem;
+        padding: 9px 14px;
+        border: 2px solid var(--color-border-strong);
+        background: var(--color-surface);
+        color: var(--color-text);
+        font-weight: 700;
+        margin: 10px;
+      }
+      .back-button:hover {
+        background: var(--color-surface-alt);
+      }
+      .task-card {
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: 2px solid var(--color-border);
+        border-top-width: 6px;
+        border-top-color: var(--cat);
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--shadow-card);
+        margin-top: 22px;
+      }
+      #task-list {
+        view-transition-name: task-list;
+      }
+      ::view-transition-group(root),
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation: none;
+      }
+      .task-photo {
+        position: relative;
+        background: var(--color-surface-sunken);
+        height: clamp(230px, 58vw, 320px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .task-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        opacity: 0;
+        transition: opacity 0.45s ease;
+      }
+      .task-photo img.is-loaded {
+        opacity: 1;
+      }
+      .photo-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-muted-text);
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 16px;
+      }
+      .badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: var(--color-brand-dark);
+        color: var(--color-on-brand);
+        font-size: 0.9rem;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 999px;
+      }
+      .badge--solved {
+        right: 12px;
+        left: auto;
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        border: 2px solid var(--color-brand);
+      }
+      .task-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        flex: 1;
+      }
+      .task-title {
+        margin: 0;
+        font-size: 1.3rem;
+        line-height: 1.25;
+        color: var(--color-text);
+      }
+      .category-chip {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--color-chip-bg);
+        color: var(--color-text);
+        border: 1px solid var(--cat);
+      }
+      .category-chip img {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+      }
+      .task-intro {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--color-muted-text);
+      }
+      .hint-box {
+        font-size: 1rem;
+        background: var(--color-hint-bg);
+        color: var(--color-hint-text);
+        border: 2px solid var(--color-hint-border);
+        border-radius: 10px;
+        max-height: 0;
+        margin: 0;
+        padding: 0 14px;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-6px);
+        transition:
+          max-height 0.28s ease,
+          margin 0.28s ease,
+          padding 0.28s ease,
+          opacity 0.22s ease,
+          transform 0.28s ease;
+      }
+      .hint-box.is-visible {
+        max-height: 160px;
+        margin: 0;
+        padding: 12px 14px;
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .coordinates {
+        font-family: ui-monospace, monospace;
+        background: var(--color-chip-bg);
+        color: var(--color-text);
+        border: 1px solid var(--color-border-strong);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        padding: 10px 14px;
+        display: inline-block;
+      }
+      .coordinates-link {
+        text-decoration: none;
+      }
+      .task-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+      .option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        text-align: left;
+        min-height: 56px;
+        border: 2px solid var(--color-border-strong);
+        border-radius: 10px;
+        background: var(--color-surface);
+        color: var(--color-text);
+        padding: 12px 14px;
+        font-size: 1rem;
+        font-weight: normal;
+        transition:
+          border-color 0.18s ease,
+          background-color 0.18s ease,
+          transform 0.18s ease;
+      }
+      .option:hover {
+        background: var(--color-option-hover-bg);
+        border-color: var(--color-accent);
+      }
+      .option--wrong {
+        border-color: var(--color-danger);
+        background: var(--color-danger-bg);
+        text-decoration: line-through;
+        color: var(--color-danger);
+        animation: wrong-answer 0.34s ease-out;
+      }
+      .option-letter {
+        flex: 0 0 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--color-letter-bg);
+        color: var(--color-on-brand);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+      }
+      .hint-button {
+        background: var(--color-surface);
+        border: 2px solid var(--color-border-strong);
+        color: var(--color-text);
+        width: 100%;
+      }
+      .hint-button:hover {
+        background: var(--color-surface-alt);
+      }
+      .error-message {
+        color: var(--color-danger);
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        background: var(--color-danger-bg);
+        border: 2px solid var(--color-danger);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .feedback-in {
+        animation: feedback-in 0.28s ease-out both;
+      }
+      .reveal-button {
+        margin-top: auto;
+        align-self: flex-start;
+        font-size: 0.95rem;
+        color: var(--color-muted-text);
+        background: none;
+        text-decoration: underline;
+        min-height: 48px;
+        padding: 0 4px;
+      }
+
+      /* Loesungsansicht */
+      .solution {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 1rem;
+        line-height: 1.55;
+        color: var(--color-text);
+      }
+      .solution p {
+        margin: 0;
+      }
+      .solution-photo {
+        margin: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid var(--color-border);
+      }
+      .solution-photo img {
+        width: 100%;
+        max-height: 320px;
+        object-fit: contain;
+        display: block;
+      }
+      .solution-photo figcaption {
+        font-size: 0.75rem;
+        color: var(--color-muted-text);
+        padding: 8px 12px;
+        background: var(--color-surface-alt);
+      }
+      .solution-photo-fallback {
+        padding: 20px;
+        text-align: center;
+        color: var(--color-muted-text);
+        font-size: 0.85rem;
+      }
+      .coordinates-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .sources {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        font-size: 0.9rem;
+        color: var(--color-muted-text);
+      }
+      .coordinates-row a,
+      .sources a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        font-weight: 600;
+      }
+      .next-button {
+        background: var(--color-brand);
+        color: var(--color-on-brand);
+        width: 100%;
+        font-size: 1.05rem;
+        transition:
+          transform 0.18s ease,
+          background-color 0.18s ease;
+      }
+      .next-button:hover {
+        background: var(--color-brand-dark);
+        transform: translateY(-2px);
+      }
+
+      /* Abschluss: Siegesansicht */
+      .completion {
+        position: relative;
+        overflow: hidden;
+        margin-top: 26px;
+        text-align: center;
+        background: var(--gradient-completion);
+        color: var(--color-on-brand);
+        padding: 32px 20px;
+        border-radius: 20px;
+        box-shadow: var(--shadow-completion);
+      }
+      .completion p {
+        margin: 0;
+      }
+      .completion-trophy {
+        font-size: 4rem;
+        line-height: 1;
+        animation: pop 0.8s ease-out both;
+      }
+      .completion-title {
+        font-size: 1.7rem;
+        font-weight: 900;
+      }
+      .completion .completion-text {
+        color: var(--color-on-brand-soft);
+        margin-top: 8px;
+        font-size: 1.05rem;
+      }
+      .completion-stats {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 18px 0;
+        flex-wrap: wrap;
+      }
+      .stat {
+        background: var(--color-glass);
+        border-radius: 14px;
+        padding: 10px 16px;
+        min-width: 96px;
+      }
+      .stat b {
+        display: block;
+        font-size: 1.6rem;
+      }
+      .stat span {
+        font-size: 0.85rem;
+      }
+      .completion-rank {
+        font-weight: 800;
+        font-size: 1.15rem;
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        display: inline-block;
+        border-radius: 999px;
+        padding: 8px 18px;
+      }
+      .completion-actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .completion-actions button {
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        font-weight: 800;
+      }
+      @keyframes pop {
+        0% {
+          transform: scale(0.3);
+        }
+        70% {
+          transform: scale(1.2);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes wrong-answer {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        30%,
+        70% {
+          transform: translateX(-5px);
+        }
+        50% {
+          transform: translateX(5px);
+        }
+      }
+      @keyframes feedback-in {
+        from {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       /* Animations-Hooks (Roadmap 5): wiederverwendbare Klassen, standardmäßig ohne Wirkung */
@@ -1616,7 +1186,7 @@
       .answer-row input[type='radio'] {
         width: 1.25rem;
         height: 1.25rem;
-        accent-color: var(--green);
+        accent-color: var(--color-accent);
       }
       .field {
         display: grid;
@@ -1689,9 +1259,9 @@
         border: 2px solid var(--color-danger);
       }
       .form-status[data-kind='success'] {
-        background: var(--green-soft);
+        background: var(--color-accent-soft);
         color: var(--color-text);
-        border: 2px solid var(--green);
+        border: 2px solid var(--color-accent);
       }
       .form-actions {
         display: flex;
@@ -1704,6 +1274,9 @@
         transition:
           transform 0.25s ease,
           opacity 0.25s ease;
+      }
+      .reset-dialog .suggest-intro {
+        margin-bottom: 0.25rem;
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1719,18 +1292,11 @@
         .slide-exit.is-exiting {
           transform: none;
         }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .confetti,
         .completion-trophy,
         .progress-fill,
-        .task-card,
         .option--wrong,
         .feedback-in {
           animation: none;
-          transition: none;
-        }
-        #task-list.task-list-crossfade {
           transition: none;
         }
         .hint-box {
@@ -1739,9 +1305,144 @@
         .task-photo img {
           transition: none;
         }
-        .confetti {
-          display: none;
+        ::view-transition-group(*),
+        ::view-transition-old(*),
+        ::view-transition-new(*) {
+          animation: none !important;
         }
+      }
+      @media (forced-colors: active) {
+        .map-pin {
+          background: ButtonFace;
+          color: ButtonText;
+          border-color: ButtonText;
+          filter: none;
+        }
+        .leaflet-marker-icon:focus-visible .map-pin {
+          outline: 3px solid Highlight;
+          outline-offset: 3px;
+        }
+        .map-pin--solved {
+          background: Highlight;
+          color: HighlightText;
+          border-color: Highlight;
+        }
+        .map-pin .pin-number {
+          background: Canvas;
+          color: CanvasText;
+          border-color: Canvas;
+        }
+        .map-pin--solved .pin-number {
+          background: Highlight;
+          color: HighlightText;
+          border-color: HighlightText;
+        }
+        .mini {
+          border-color: ButtonText;
+        }
+        .mini--solved {
+          background: Highlight;
+          color: HighlightText;
+          border-color: Highlight;
+        }
+        .legend-button[aria-pressed='true'] {
+          border: 3px double ButtonText;
+        }
+        .legend-button[aria-pressed='true']::after {
+          color: CanvasText;
+        }
+        .option--wrong {
+          border: 3px dashed ButtonText;
+          background: Canvas;
+          color: CanvasText;
+        }
+        .error-message {
+          border: 3px double CanvasText;
+        }
+      }
+
+      /* ==========================================================
+         8. Farbmodi: Light = Standard, Dark ueber Klasse .dark auf <html>
+         Einzige Stelle fuer Farbwerte. Alles andere nutzt var(--...).
+         ========================================================== */
+      :root {
+        color-scheme: light;
+        --color-background: #f5f5f4;
+        --color-background-top: #ecfdf5;
+        --color-surface: #ffffff;
+        --color-surface-alt: #fafaf9;
+        --color-surface-sunken: #e7e5e4;
+        --color-text: #1c1917;
+        --color-muted-text: #44403c;
+        --color-accent: #065f46;
+        --color-accent-soft: #ecfdf5;
+        --color-border: #d6d3d1;
+        --color-border-strong: #a8a29e;
+        --color-focus: #b45309;
+        --color-danger: #b91c1c;
+        --color-danger-bg: #fef2f2;
+        --color-danger-border: #fecaca;
+        --color-hint-bg: #fffbeb;
+        --color-hint-text: #451a03;
+        --color-hint-border: #f59e0b;
+        --color-chip-bg: #f5f5f4;
+        --color-option-hover-bg: #f0fdf4;
+        --color-letter-bg: #1c1917;
+        --color-overlay: rgba(28, 25, 23, 0.6);
+        --map-tile-filter: none;
+
+        /* Markenfarben: in beiden Modi gleich (weisser Text darauf) */
+        --color-brand: #065f46;
+        --color-brand-dark: #064e3b;
+        --color-on-brand: #ffffff;
+        --color-on-brand-muted: #d1fae5;
+        --color-on-brand-soft: #ecfdf5;
+        --color-glass-weak: rgba(255, 255, 255, 0.12);
+        --color-glass: rgba(255, 255, 255, 0.16);
+        --color-glass-strong: rgba(255, 255, 255, 0.28);
+        --color-glass-border: rgba(255, 255, 255, 0.7);
+        --color-category-text-dark: #1c1917;
+        --color-category-text-light: #ffffff;
+        --color-action: #1f3a5f;
+        --gradient-hero: linear-gradient(135deg, #064e3b, #047857);
+        --gradient-completion: linear-gradient(135deg, #064e3b, #047857 60%, #b45309);
+        --gradient-progress: linear-gradient(90deg, #059669, #065f46);
+        --shadow-progress: 0 1px 3px rgba(0, 0, 0, 0.05);
+        --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.06);
+        --shadow-hero: 0 6px 18px rgba(6, 78, 59, 0.25);
+        --shadow-completion: 0 8px 24px rgba(6, 78, 59, 0.35);
+        --shadow-pin: 0 3px 8px rgba(0, 0, 0, 0.45);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --color-background: #121614;
+        --color-background-top: #0f2a22;
+        --color-surface: #1c201e;
+        --color-surface-alt: #262b28;
+        --color-surface-sunken: #2d3330;
+        --color-text: #f5f5f4;
+        --color-muted-text: #d6d3d1;
+        --color-accent: #34d399;
+        --color-accent-soft: #12332a;
+        --color-border: #57605b;
+        --color-border-strong: #8b948f;
+        --color-focus: #fbbf24;
+        --color-danger: #fca5a5;
+        --color-danger-bg: #3b1515;
+        --color-danger-border: #7f1d1d;
+        --color-hint-bg: #3a2a08;
+        --color-hint-text: #fde68a;
+        --color-hint-border: #d97706;
+        --color-chip-bg: #262b28;
+        --color-option-hover-bg: #12332a;
+        --color-letter-bg: #57534e;
+        --color-overlay: rgba(0, 0, 0, 0.75);
+        --color-category-text-dark: #1c1917;
+        --color-category-text-light: #ffffff;
+        --map-tile-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+      }
+      .leaflet-tile-pane {
+        filter: var(--map-tile-filter);
       }
     </style>
   </head>
@@ -1749,14 +1450,16 @@
     <a class="skip-link" href="#main">Zum Hauptinhalt springen</a>
     <main class="page" id="main">
       <header class="hero">
-        <!-- Darstellung: Barrierefrei/Klassisch und Farbmodus -->
-        <div class="hero-tools" role="group" aria-label="Darstellung">
-          <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="false" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
-          <button type="button" class="tool-button tool-icon" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
-            <span id="theme-icon" aria-hidden="true">🌙</span>
-          </button>
+        <div class="hero-heading-row">
+          <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
+          <!-- Darstellung: Barrierefrei/Klassisch und Farbmodus -->
+          <div class="hero-tools" role="group" aria-label="Darstellung">
+            <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="false" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
+            <button type="button" class="tool-button tool-icon" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
+              <span id="theme-icon" aria-hidden="true">🌙</span>
+            </button>
+          </div>
         </div>
-        <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
         <p class="page-subtitle">Eine Foto-Schnitzeljagd von Bettina Säger · Idee inspiriert durch ein Buch von Clemens Köyer</p>
         <details class="how-to" id="how-to" open>
           <summary>So funktioniert's</summary>
@@ -1776,8 +1479,9 @@
 
       <section class="progress" aria-label="Fortschritt">
         <div class="progress-main">
-          <div class="progress-labels"><span id="progress-label">Fortschritt</span><span id="progress-count">0 von 14 gelöst</span></div>
-          <div class="progress-track" id="progress-track" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="14" aria-valuenow="0" aria-valuetext="0 von 14 gelöst">
+          <p class="progress-loading" id="progress-loading" role="status">Stationen werden geladen ...</p>
+          <div class="progress-labels"><span id="progress-label">Fortschritt</span><span id="progress-count"></span></div>
+          <div class="progress-track" id="progress-track" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
             <div class="progress-fill" id="progress-fill"></div>
           </div>
           <div class="badges" id="mini-badges" aria-hidden="true"></div>
@@ -1813,7 +1517,6 @@
       </section>
 
       <div class="completion" id="completion" hidden>
-        <div id="confetti" aria-hidden="true"></div>
         <div class="completion-trophy" aria-hidden="true">🏆</div>
         <p class="completion-title">Geschafft – Münster entdeckt!</p>
         <p class="completion-text">Du hast alle Stationen gelöst. Gut gesehen!</p>
@@ -1837,19 +1540,19 @@
         <form class="suggest-form" id="suggest-form" novalidate>
           <div class="field">
             <label for="suggest-name">Stationsname <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
-            <input type="text" id="suggest-name" name="name" maxlength="100" required autocomplete="off" aria-describedby="suggest-name-error" />
+            <input type="text" id="suggest-name" name="name" maxlength="100" required aria-required="true" autocomplete="off" aria-describedby="suggest-name-error" />
             <p class="field-error" id="suggest-name-error" hidden></p>
           </div>
           <div class="field">
             <label for="suggest-category">Kategorie <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
-            <select id="suggest-category" name="category" required aria-describedby="suggest-category-error">
+            <select id="suggest-category" name="category" required aria-required="true" aria-describedby="suggest-category-error">
               <option value="">Bitte wählen …</option>
             </select>
             <p class="field-error" id="suggest-category-error" hidden></p>
           </div>
           <div class="field">
             <label for="suggest-description">Beschreibung / Besonderheiten <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
-            <textarea id="suggest-description" name="description" maxlength="1000" required aria-describedby="suggest-description-hint suggest-description-error"></textarea>
+            <textarea id="suggest-description" name="description" maxlength="1000" required aria-required="true" aria-describedby="suggest-description-hint suggest-description-error"></textarea>
             <p class="field-hint" id="suggest-description-hint">Was ist dort zu entdecken? Maximal 1000 Zeichen.</p>
             <p class="field-error" id="suggest-description-error" hidden></p>
           </div>
@@ -1870,10 +1573,10 @@
                 <legend>Antwortoptionen</legend>
                 <p class="field-hint" id="suggest-editorial-hint">Wenn du eine Frage einträgst, ergänze bitte zwei bis vier Antworten und markiere die richtige.</p>
                 <div class="answer-grid">
-                  <div class="answer-row"><input type="radio" name="correct-option" value="0" aria-label="Erste Antwort ist richtig" /><input type="text" id="suggest-option-0" maxlength="500" placeholder="Antwort 1" /></div>
-                  <div class="answer-row"><input type="radio" name="correct-option" value="1" aria-label="Zweite Antwort ist richtig" /><input type="text" id="suggest-option-1" maxlength="500" placeholder="Antwort 2" /></div>
-                  <div class="answer-row"><input type="radio" name="correct-option" value="2" aria-label="Dritte Antwort ist richtig" /><input type="text" id="suggest-option-2" maxlength="500" placeholder="Antwort 3 (optional)" /></div>
-                  <div class="answer-row"><input type="radio" name="correct-option" value="3" aria-label="Vierte Antwort ist richtig" /><input type="text" id="suggest-option-3" maxlength="500" placeholder="Antwort 4 (optional)" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="0" aria-label="Erste Antwort ist richtig" /><input type="text" id="suggest-option-0" name="option-0" maxlength="500" placeholder="Antwort 1" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="1" aria-label="Zweite Antwort ist richtig" /><input type="text" id="suggest-option-1" name="option-1" maxlength="500" placeholder="Antwort 2" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="2" aria-label="Dritte Antwort ist richtig" /><input type="text" id="suggest-option-2" name="option-2" maxlength="500" placeholder="Antwort 3 (optional)" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="3" aria-label="Vierte Antwort ist richtig" /><input type="text" id="suggest-option-3" name="option-3" maxlength="500" placeholder="Antwort 4 (optional)" /></div>
                 </div>
                 <p class="field-error" id="suggest-editorial-error" hidden></p>
               </fieldset>
@@ -1917,10 +1620,23 @@
       </div>
     </dialog>
 
+    <dialog class="suggest-dialog reset-dialog" id="reset-dialog" aria-labelledby="reset-dialog-title" aria-describedby="reset-dialog-description">
+      <div class="suggest-header">
+        <h2 id="reset-dialog-title" tabindex="-1">Fortschritt zurücksetzen?</h2>
+      </div>
+      <div class="suggest-body">
+        <p class="suggest-intro" id="reset-dialog-description">Alle gespeicherten Lösungen, Fehlversuche und Hinweise werden gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden.</p>
+        <div class="form-actions">
+          <button type="button" class="primary-button" id="reset-confirm">Fortschritt löschen</button>
+          <button type="button" class="secondary-button" id="reset-cancel">Abbrechen</button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- Unsichtbare Statusmeldungen für Screenreader -->
     <div class="visually-hidden" id="status-message" role="status" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
     <script>
       /* ==========================================================
          1. Konfiguration
@@ -1942,24 +1658,63 @@
            solutionCaption, info, taskImage, solutionImage, links (beim Öffnen einer Station)
          Die stabile id ist der Schlüssel im LocalStorage.
          ========================================================== */
-      const API_PINS_URL = 'api/map_pins.php';
-      const API_DETAILS_URL = 'api/get_details.php';
-      const API_CATEGORIES_URL = 'api/categories.php';
+      // Kapselt alle Server-Zugriffe: URLs, Fetch-Logik und den Fehlerzustand der Detailabfragen.
+      const REQUEST_TIMEOUT_MS = 15000;
+      const StationApiService = {
+        urls: {
+          pins: 'api/map_pins.php',
+          details: 'api/get_details.php',
+          categories: 'api/categories.php',
+          submit: 'api/submit_station.php',
+        },
+        async fetchApi(url) {
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+          try {
+            const response = await fetch(url, {
+              headers: { Accept: 'application/json' },
+              cache: 'no-cache',
+              signal: controller.signal,
+            });
+            let payload = null;
+            try {
+              payload = await response.json();
+            } catch (error) {
+              // Keine gültige JSON-Antwort: unten als Fehler behandelt.
+            }
+            if (!response.ok || !payload || payload.error || payload.data === null || payload.data === undefined) {
+              throw new Error((payload && payload.error && payload.error.message) || 'HTTP ' + response.status);
+            }
+            return payload.data;
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+        },
+        loadCategories() {
+          return this.fetchApi(this.urls.categories);
+        },
+        loadPins() {
+          return this.fetchApi(this.urls.pins);
+        },
+        loadDetails(stationId) {
+          return this.fetchApi(this.urls.details + '?id=' + encodeURIComponent(stationId));
+        },
+      };
       // Laufzeitdaten kommen aus den APIs; Stationsdetails werden beim Öffnen nachgeladen.
       let stations = [];
       const categoriesById = new Map();
       const stationsById = new Map();
-      const stationDetailsCache = new Map();
-      const detailsErrors = new Set();
       const detailsRequests = new Map();
 
       function categoryOf(station) {
-        return categoriesById.get(station.category) || {
-          id: station.category,
-          name: 'Unbekannte Kategorie',
-          icon: null,
-          color: '#57534e',
-        };
+        return (
+          categoriesById.get(station.category) || {
+            id: station.category,
+            name: 'Unbekannte Kategorie',
+            icon: null,
+            color: '#57534e',
+          }
+        );
       }
 
       /* ==========================================================
@@ -1974,7 +1729,7 @@
          Neue Felder (z. B. gespeicherte Antworten) hier in createStationProgress() ergänzen.
          ========================================================== */
       function createStationProgress() {
-        return { solved: false, attempts: 0, selectedOptionIndex: null, hintUsed: false, revealed: false };
+        return { solved: false, attempts: 0, selectedOptionIndex: null, hintUsed: false, hintVisible: false, revealed: false };
       }
 
       function createEmptyProgress() {
@@ -2001,21 +1756,56 @@
         return createEmptyProgress();
       }
 
-      function saveProgress() {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-        } catch (error) {
-          // Speicher nicht verfügbar: Fortschritt gilt nur für diese Sitzung.
-        }
-      }
+      const AppStore = {
+        state: {
+          progress: loadProgress(),
+          detailsErrors: new Set(),
+          gameStarted: false,
+        },
+        saveProgress() {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state.progress));
+          } catch (error) {
+            // Speicher nicht verfügbar: Fortschritt gilt nur für diese Sitzung.
+          }
+        },
+        getStationProgress(stationId) {
+          const stored = this.state.progress.stations[stationId];
+          const stationProgress = { ...createStationProgress(), ...(stored || {}) };
+          if (stored && typeof stored.hintVisible !== 'boolean') stationProgress.hintVisible = Boolean(stored.hintUsed);
+          return stationProgress;
+        },
+        updateStationProgress(stationId, changes, reason) {
+          this.state.progress.stations[stationId] = { ...this.getStationProgress(stationId), ...changes };
+          this.saveProgress();
+          notifyStateChanged(reason || 'progress-updated');
+        },
+        resetProgress() {
+          this.state.progress = createEmptyProgress();
+          this.saveProgress();
+          notifyStateChanged('reset');
+        },
+        setDetailsError(stationId, hasError) {
+          const hadError = this.state.detailsErrors.has(stationId);
+          if (hasError === hadError) return;
+          if (hasError) this.state.detailsErrors.add(stationId);
+          else this.state.detailsErrors.delete(stationId);
+          notifyStateChanged(hasError ? 'details-failed' : 'details-retry');
+        },
+        startGame() {
+          if (this.state.gameStarted) return false;
+          this.state.gameStarted = true;
+          notifyStateChanged('game-started');
+          return true;
+        },
+      };
 
       function getStationProgress(stationId) {
-        return progress.stations[stationId] || createStationProgress();
+        return AppStore.getStationProgress(stationId);
       }
 
-      function updateStationProgress(stationId, changes) {
-        progress.stations[stationId] = { ...getStationProgress(stationId), ...changes };
-        saveProgress();
+      function updateStationProgress(stationId, changes, reason) {
+        AppStore.updateStationProgress(stationId, changes, reason);
       }
 
       function isSolved(stationId) {
@@ -2026,8 +1816,6 @@
         return stations.filter((station) => isSolved(station.id)).length;
       }
 
-      let progress = loadProgress();
-
       /* ==========================================================
          3b. UI-Zustand & Lifecycle-Hooks (Roadmap 4)
          Zustand wird ausschließlich über die set…-Funktionen geändert,
@@ -2036,11 +1824,13 @@
            document.addEventListener('ms:afterDetailsOpen', (e) => e.detail.stationId …)
          Verfügbare Hooks: beforeRender, afterRender, beforeDetailsOpen, afterDetailsOpen,
          beforeDetailsClose, afterDetailsClose, beforeFilterChange, afterFilterChange,
-         beforeDialogOpen, afterDialogOpen, beforeDialogClose, afterDialogClose.
+         beforeDialogOpen, afterDialogOpen, beforeDialogClose, afterDialogClose,
+         stateChanged (Zustand geaendert: der zentrale Listener ruft render() auf).
          ========================================================== */
       const uiState = {
         selectedStationId: null, // ausgewählte Station
         detailsOpen: false, // Detailansicht geöffnet
+        loading: true,
         activeCategories: new Set(), // aktive Filter (leer = alle Kategorien)
         colorMode: window.ThemeController ? window.ThemeController.getMode() : 'light',
         suggestion: { open: false, picking: false, submitted: false }, // Vorschlagsformular
@@ -2048,6 +1838,11 @@
 
       function emitHook(name, detail) {
         document.dispatchEvent(new CustomEvent('ms:' + name, { detail: detail || {} }));
+      }
+
+      // Zustandsaenderung melden. Der zentrale Listener (Abschnitt 9) zeichnet daraufhin neu.
+      function notifyStateChanged(reason) {
+        emitHook('stateChanged', { reason: reason });
       }
 
       function reducedMotion() {
@@ -2090,7 +1885,7 @@
         if (categoryId === null) uiState.activeCategories.clear();
         else if (uiState.activeCategories.has(categoryId)) uiState.activeCategories.delete(categoryId);
         else uiState.activeCategories.add(categoryId);
-        render();
+        notifyStateChanged('filter');
         const count = visibleStations().length;
         announce(count === 1 ? '1 Station sichtbar.' : count + ' Stationen sichtbar.');
         emitHook('afterFilterChange', { categoryId, active: new Set(uiState.activeCategories), count });
@@ -2110,6 +1905,7 @@
         taskList: document.getElementById('task-list'),
         pageTitle: document.getElementById('page-title'),
         progressCount: document.getElementById('progress-count'),
+        progressLoading: document.getElementById('progress-loading'),
         progressTrack: document.getElementById('progress-track'),
         progressFill: document.getElementById('progress-fill'),
         resetButton: document.getElementById('reset-button'),
@@ -2123,7 +1919,6 @@
         miniBadges: document.getElementById('mini-badges'),
         completionStats: document.getElementById('completion-stats'),
         completionRank: document.getElementById('completion-rank'),
-        confetti: document.getElementById('confetti'),
         loadError: document.getElementById('load-error'),
         loadErrorText: document.getElementById('load-error-text'),
         loadRetry: document.getElementById('load-retry'),
@@ -2143,7 +1938,7 @@
       }
 
       function hasDetails(station) {
-        return stationDetailsCache.has(station.id);
+        return Array.isArray(station.options);
       }
 
       function formatCoordinates(station) {
@@ -2162,31 +1957,42 @@
         return '<a' + classAttribute + ' href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + text + '<span class="visually-hidden"> (öffnet in neuem Tab)</span></a>';
       }
 
+      function isValidExternalUrl(value) {
+        if (typeof value !== 'string') return false;
+        try {
+          const url = new URL(value);
+          return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch (error) {
+          return false;
+        }
+      }
+
       /* ==========================================================
          5. Stadtplan (Leaflet / OpenStreetMap)
          Die Nummern-Pins sitzen automatisch an den GPS-Koordinaten der Stationen.
          ========================================================== */
       let map = null;
       const mapMarkers = new Map();
-      let taskRenderToken = 0;
-      let gameStarted = false;
+      let renderedTaskMarkup = '';
+      let taskViewUpdate = Promise.resolve();
+
+      function categoryTextColor(color) {
+        const channels = color.slice(1).match(/.{2}/g).map((channel) => parseInt(channel, 16) / 255);
+        const luminance = channels
+          .map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
+          .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+        const whiteContrast = 1.05 / (luminance + 0.05);
+        const darkContrast = (luminance + 0.05) / 0.05;
+        return whiteContrast >= darkContrast ? 'var(--color-category-text-light)' : 'var(--color-category-text-dark)';
+      }
 
       function pinHtml(station) {
         const category = categoryOf(station);
-        return '<div class="map-pin" style="--pin:' + escapeHtml(category.color) + '" aria-hidden="true"><span class="pin-icon">' + categoryImageHtml(category) + '</span><span class="pin-number">' + station.number + '</span></div>';
+        return '<div class="map-pin" style="--pin:' + escapeHtml(category.color) + ';--pin-text:' + categoryTextColor(category.color) + '" aria-hidden="true"><span class="pin-icon">' + categoryImageHtml(category) + '</span><span class="pin-number">' + station.number + '</span></div>';
       }
 
       function categoryImageHtml(category) {
-        if (category.icon) return '<img src="' + escapeHtml(photoUrl(category.icon)) + '" alt="">';
-        const fallbackIcons = {
-          history: '🏛️',
-          art: '🎨',
-          legend: '👻',
-          faith: '⛪',
-          detail: '🔎',
-          culture: '🎭',
-        };
-        return fallbackIcons[category.id] || '📍';
+        return category.icon ? '<img src="' + escapeHtml(photoUrl(category.icon)) + '" alt="">' : '';
       }
 
       function initMap() {
@@ -2275,14 +2081,23 @@
       }
 
       function renderOptions(station) {
-        const buttons = station.options.map((option, index) => '<button type="button" class="option" data-action="select-option" data-option-index="' + index + '">' + '<span class="option-letter" aria-hidden="true">' + OPTION_LETTERS[index] + '</span>' + '<span>' + escapeHtml(option) + '</span></button>').join('');
+        const progress = getStationProgress(station.id);
+        const buttons = station.options
+          .map((option, index) => {
+            const wrong = !progress.solved && progress.selectedOptionIndex === index && index !== station.correctOptionIndex;
+            return '<button type="button" class="option' + (wrong ? ' option--wrong' : '') + '" data-action="select-option" data-option-index="' + index + '">' + '<span class="option-letter" aria-hidden="true">' + OPTION_LETTERS[index] + '</span>' + '<span>' + escapeHtml(option) + '</span></button>';
+          })
+          .join('');
         return '<div class="options" role="group" aria-labelledby="task-intro">' + buttons + '</div>';
       }
 
       function renderUnsolvedBody(station) {
+        const progress = getStationProgress(station.id);
         const coordinates = formatCoordinates(station);
         const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
-        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box" id="hint-box" aria-hidden="true">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + '<div class="task-actions">' + renderOptions(station) + '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="false" aria-controls="hint-box">💡 Hint anzeigen</button>' + '</div>' + '<p class="error-message" id="error-message" hidden>Noch nicht – probier es nochmal oder nutze den Hint.</p>' + '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>';
+        const hintVisible = progress.hintVisible;
+        const wrongAnswerSelected = progress.selectedOptionIndex !== null && progress.selectedOptionIndex !== station.correctOptionIndex;
+        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box' + (hintVisible ? ' is-visible' : '') + '" id="hint-box" aria-hidden="' + String(!hintVisible) + '">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + '<div class="task-actions">' + renderOptions(station) + '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="' + String(hintVisible) + '" aria-controls="hint-box">💡 Hinweis anzeigen</button>' + '</div>' + '<p class="error-message' + (wrongAnswerSelected ? ' feedback-in' : '') + '" id="error-message"' + (wrongAnswerSelected ? '' : ' hidden') + '>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>' + '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>';
       }
 
       function renderSolvedBody(station) {
@@ -2311,10 +2126,8 @@
       }
 
       function renderTaskPlaceholder(station) {
-        const failed = detailsErrors.has(station.id);
-        const status = failed
-          ? '<div class="task-status" role="alert"><p>Die Station konnte nicht geladen werden.</p><button type="button" data-action="retry">Erneut versuchen</button></div>'
-          : '<div class="task-status task-status--loading" role="status" aria-live="polite"><p>Station wird geladen …</p></div>';
+        const failed = AppStore.state.detailsErrors.has(station.id);
+        const status = failed ? '<div class="task-status" role="alert"><p>Die Station konnte nicht geladen werden.</p><button type="button" data-action="retry">Erneut versuchen</button></div>' : '<div class="task-status task-status--loading" role="status" aria-live="polite"><p>Station wird geladen …</p></div>';
         const category = categoryOf(station);
         return '<article class="task-card" aria-labelledby="task-title" data-station-id="' + station.id + '" style="--cat:' + escapeHtml(category.color) + '"><div class="task-body"><span class="category-chip">' + categoryImageHtml(category) + escapeHtml(category.name) + '</span><h2 class="task-title" id="task-title" tabindex="-1">Station ' + station.number + '</h2>' + status + '</div></article>';
       }
@@ -2330,28 +2143,34 @@
         const solvedCount = countSolved();
         const total = stations.length;
         const text = solvedCount + ' von ' + total + ' gelöst';
-        elements.progressCount.textContent = text;
+        elements.progressLoading.hidden = !uiState.loading;
+        elements.progressCount.textContent = uiState.loading ? '' : text;
+        elements.progressTrack.hidden = uiState.loading;
         elements.progressFill.style.width = (total ? Math.round((solvedCount / total) * 100) : 0) + '%';
         elements.progressTrack.setAttribute('aria-valuemax', total);
         elements.progressTrack.setAttribute('aria-valuenow', solvedCount);
-        elements.progressTrack.setAttribute('aria-valuetext', text);
+        elements.progressTrack.setAttribute('aria-valuetext', uiState.loading ? '' : text);
         elements.resetButton.hidden = solvedCount === 0;
-        const allSolved = total > 0 && solvedCount === total;
+        const allSolved = !uiState.loading && total > 0 && solvedCount === total;
         elements.completion.hidden = !allSolved;
         if (allSolved) renderCompletion();
-        elements.miniBadges.innerHTML = stations.map((station) => {
-          const category = categoryOf(station);
-          return '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '" style="--category-color:' + escapeHtml(category.color) + '">' + (isSolved(station.id) ? '✓' : categoryImageHtml(category)) + '</span>';
-        }).join('');
+        elements.miniBadges.innerHTML = uiState.loading ? '' : stations
+          .map((station) => {
+            const category = categoryOf(station);
+            return '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (isSolved(station.id) ? '✓' : categoryImageHtml(category)) + '</span>';
+          })
+          .join('');
       }
 
       function renderStationList() {
         const visible = visibleStations();
-        elements.stationList.innerHTML = visible.map((station) => {
-          const category = categoryOf(station);
-          const solved = isSolved(station.id);
-          return '<li><button type="button" class="station-item' + (solved ? ' station-item--solved' : '') + '" data-station-id="' + station.id + '">' + '<span class="ico" aria-hidden="true" style="--category-color:' + escapeHtml(category.color) + '">' + (solved ? '✓' : categoryImageHtml(category)) + '</span>' + '<span>Station ' + station.number + '<small>' + escapeHtml(solved ? station.solutionTitle : category.name) + '</small></span>' + '<span class="state">' + (solved ? '✓ gelöst' : 'Los →') + '</span></button></li>';
-        }).join('');
+        elements.stationList.innerHTML = visible
+          .map((station) => {
+            const category = categoryOf(station);
+            const solved = isSolved(station.id);
+            return '<li><button type="button" class="station-item' + (solved ? ' station-item--solved' : '') + '" data-station-id="' + station.id + '">' + '<span class="ico" aria-hidden="true" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (solved ? '✓' : categoryImageHtml(category)) + '</span>' + '<span>Station ' + station.number + '<span class="station-sub">' + escapeHtml(solved ? station.solutionTitle : category.name) + '</span></span>' + '<span class="state">' + (solved ? '✓ gelöst' : 'Los →') + '</span></button></li>';
+          })
+          .join('');
         elements.filterEmpty.hidden = visible.length > 0 || !stations.length;
       }
 
@@ -2359,7 +2178,7 @@
       // damit der Fokus auf dem gedrückten Button erhalten bleibt.
       function renderLegend() {
         elements.legend.innerHTML = Array.from(categoriesById.values())
-          .map((category) => '<li><button type="button" class="legend-button" data-category-id="' + escapeHtml(category.id) + '" aria-pressed="false"><span class="legend-icon" style="--category-color:' + escapeHtml(category.color) + '" aria-hidden="true">' + categoryImageHtml(category) + '</span>' + escapeHtml(category.name) + '</button></li>')
+          .map((category) => '<li><button type="button" class="legend-button" data-category-id="' + escapeHtml(category.id) + '" aria-pressed="false"><span class="legend-icon" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '" aria-hidden="true">' + categoryImageHtml(category) + '</span>' + escapeHtml(category.name) + '</button></li>')
           .join('');
         renderLegendState();
       }
@@ -2376,58 +2195,29 @@
         const hints = stats.filter((item) => item.hintUsed).length;
         const revealed = stats.filter((item) => item.revealed).length;
         const own = stations.length - revealed;
-        elements.completionStats.innerHTML = '<div class="stat"><b>' + own + '/' + stations.length + '</b><span>selbst gelöst</span></div>' + '<div class="stat"><b>' + hints + '</b><span>Hints genutzt</span></div>' + '<div class="stat"><b>' + attempts + '</b><span>Fehlversuche</span></div>';
+        elements.completionStats.innerHTML = '<div class="stat"><b>' + own + '/' + stations.length + '</b><span>selbst gelöst</span></div>' + '<div class="stat"><b>' + hints + '</b><span>Hinweise genutzt</span></div>' + '<div class="stat"><b>' + attempts + '</b><span>Fehlversuche</span></div>';
         let rank = '🧭 Stadtentdecker:in';
         if (revealed === 0 && attempts === 0) rank = '🏅 Münster-Meister:in';
         else if (revealed === 0) rank = '🥈 Spürnase';
         elements.completionRank.textContent = rank;
-        if (!elements.confetti.childElementCount) {
-          const colors = ['#fbbf24', '#fff', '#34d399', '#f472b6', '#60a5fa'];
-          elements.confetti.innerHTML = Array.from({ length: 24 }, (_, i) => '<span class="confetti" style="left:' + (i * 4.2 + 1) + '%;background:' + colors[i % colors.length] + ';animation-delay:' + (i % 8) * 0.35 + 's"></span>').join('');
-        }
       }
 
       function renderTaskView(station) {
         const nextMarkup = station ? renderTaskCard(station) : '';
-        const currentCard = elements.taskList.querySelector('.task-card');
-        const scrollY = window.scrollY;
-
-        if (!currentCard || !nextMarkup) {
+        if (nextMarkup === renderedTaskMarkup) return; // unveraenderte Ansicht: keine Transition
+        renderedTaskMarkup = nextMarkup;
+        if (!document.startViewTransition) {
           elements.taskList.innerHTML = nextMarkup;
           markLoadedImages(elements.taskList);
-          return;
+          taskViewUpdate = Promise.resolve();
+        } else {
+          taskViewUpdate = document
+            .startViewTransition(() => {
+              elements.taskList.innerHTML = nextMarkup;
+              markLoadedImages(elements.taskList);
+            })
+            .updateCallbackDone.catch(() => {});
         }
-
-        const nextWrapper = document.createElement('div');
-        nextWrapper.innerHTML = nextMarkup;
-        const nextCard = nextWrapper.firstElementChild;
-        const previousHeight = currentCard.getBoundingClientRect().height;
-        const renderToken = ++taskRenderToken;
-
-        elements.taskList.classList.add('task-list-crossfade');
-        elements.taskList.style.height = previousHeight + 'px';
-        currentCard.classList.add('task-card--leaving');
-        currentCard.setAttribute('aria-hidden', 'true');
-        nextCard.classList.add('task-card--entering', 'task-card--stable');
-        elements.taskList.append(nextCard);
-        markLoadedImages(nextCard);
-
-        requestAnimationFrame(() => {
-          if (renderToken !== taskRenderToken) return;
-          currentCard.classList.add('task-card--exit');
-          nextCard.classList.add('task-card--active');
-          elements.taskList.style.height = Math.max(previousHeight, nextCard.offsetHeight) + 'px';
-          window.scrollTo(0, scrollY);
-        });
-
-        window.setTimeout(() => {
-          if (renderToken !== taskRenderToken) return;
-          elements.taskList.replaceChildren(nextCard);
-          elements.taskList.style.height = '';
-          elements.taskList.classList.remove('task-list-crossfade');
-          nextCard.classList.remove('task-card--entering', 'task-card--active');
-          window.scrollTo(0, scrollY);
-        }, 360);
       }
 
       function markLoadedImages(container) {
@@ -2439,6 +2229,7 @@
       // Gemeinsamer Renderpfad: Karte, Liste, Aufgabenansicht, Fortschritt.
       function render() {
         emitHook('beforeRender', { selectedStationId: uiState.selectedStationId });
+        showView(uiState.detailsOpen);
         updateMapPins();
         renderLegendState();
         renderStationList();
@@ -2452,44 +2243,31 @@
          7. Navigation
          ========================================================== */
       function showView(taskViewActive) {
+        const changed = elements.planView.hidden !== taskViewActive;
         elements.planView.hidden = taskViewActive;
         elements.taskView.hidden = !taskViewActive;
-        if (!taskViewActive && map) setTimeout(() => map.invalidateSize(), 50);
+        if (changed && !taskViewActive && map) setTimeout(() => map.invalidateSize(), 50);
       }
 
       function focusTaskTitle() {
-        const title = document.getElementById('task-title');
-        if (title) title.focus({ preventScroll: true });
+        taskViewUpdate.then(() => {
+          const title = document.getElementById('task-title');
+          if (title) title.focus({ preventScroll: true });
+        });
       }
 
       function openStation(stationId) {
         if (uiState.suggestion.picking) return;
-        if (!gameStarted) {
-          gameStarted = true;
+        if (AppStore.startGame()) {
           elements.howTo.open = false;
           saveIntroState(false);
         }
         emitHook('beforeDetailsOpen', { stationId });
         setSelectedStation(stationId);
-        showView(true);
-        render();
+        notifyStateChanged('select');
         focusTaskTitle();
         ensureDetails(stationId);
         emitHook('afterDetailsOpen', { stationId });
-      }
-
-      async function fetchApi(url) {
-        const response = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-cache' });
-        let payload = null;
-        try {
-          payload = await response.json();
-        } catch (error) {
-          // Keine gültige JSON-Antwort: unten als Fehler behandelt.
-        }
-        if (!response.ok || !payload || payload.error || payload.data === null || payload.data === undefined) {
-          throw new Error((payload && payload.error && payload.error.message) || 'HTTP ' + response.status);
-        }
-        return payload.data;
       }
 
       function isValidPin(pin) {
@@ -2497,20 +2275,31 @@
       }
 
       function isValidCategory(category) {
-        return category && typeof category.id === 'string' && category.id !== ''
-          && typeof category.name === 'string'
-          && (category.icon === null || typeof category.icon === 'string')
-          && typeof category.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(category.color);
+        return category && typeof category.id === 'string' && category.id !== '' && typeof category.name === 'string' && (category.icon === null || typeof category.icon === 'string') && typeof category.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(category.color);
       }
 
       function isValidDetails(details) {
-        return details && Array.isArray(details.options) && details.options.length >= 2 && Number.isInteger(details.correctOptionIndex) && details.correctOptionIndex >= 0 && details.correctOptionIndex < details.options.length && typeof details.hint === 'string' && typeof details.solutionTitle === 'string' && typeof details.info === 'string' && Array.isArray(details.links);
+        return (
+          details &&
+          Array.isArray(details.options) &&
+          details.options.length >= 2 &&
+          Number.isInteger(details.correctOptionIndex) &&
+          details.correctOptionIndex >= 0 &&
+          details.correctOptionIndex < details.options.length &&
+          typeof details.hint === 'string' &&
+          typeof details.solutionTitle === 'string' &&
+          typeof details.info === 'string' &&
+          Array.isArray(details.links) &&
+          details.links.every((link) => link && typeof link.title === 'string' && isValidExternalUrl(link.url))
+        );
       }
 
       async function loadStations() {
         elements.loadError.hidden = true;
+        uiState.loading = true;
+        notifyStateChanged('stations-loading');
         try {
-          const [categories, pins] = await Promise.all([fetchApi(API_CATEGORIES_URL), fetchApi(API_PINS_URL)]);
+          const [categories, pins] = await Promise.all([StationApiService.loadCategories(), StationApiService.loadPins()]);
           if (!Array.isArray(categories) || !categories.every(isValidCategory)) throw new Error('Ungültige Kategoriedaten');
           if (!Array.isArray(pins) || !pins.every(isValidPin)) throw new Error('Ungültige Stationsdaten');
           categoriesById.clear();
@@ -2520,9 +2309,12 @@
           stationsById.clear();
           stations.forEach((station) => stationsById.set(station.id, station));
           addMarkers();
-          render();
+          uiState.loading = false;
+          notifyStateChanged('stations-loaded');
           if (!stations.length) showLoadError('Aktuell sind keine Stationen verfügbar.', false);
         } catch (error) {
+          uiState.loading = false;
+          notifyStateChanged('stations-load-failed');
           showLoadError('Kategorien oder Stationen konnten nicht geladen werden.', true);
         }
       }
@@ -2536,22 +2328,21 @@
       function ensureDetails(stationId) {
         const station = stationsById.get(stationId);
         if (!station || hasDetails(station) || detailsRequests.has(stationId)) return;
-        detailsErrors.delete(stationId);
-        const request = fetchApi(API_DETAILS_URL + '?id=' + encodeURIComponent(stationId))
+        AppStore.setDetailsError(stationId, false);
+        const request = StationApiService.loadDetails(stationId)
           .then((details) => {
             if (!isValidDetails(details)) throw new Error('Ungültige Stationsdetails');
             Object.assign(station, details);
-            stationDetailsCache.set(stationId, details);
           })
           .catch(() => {
-            detailsErrors.add(stationId);
+            AppStore.setDetailsError(stationId, true);
           })
           .finally(() => {
             detailsRequests.delete(stationId);
             if (uiState.selectedStationId === stationId) {
-              render();
+              notifyStateChanged('details-loaded');
               focusTaskTitle();
-              announce(detailsErrors.has(stationId) ? 'Die Station konnte nicht geladen werden.' : 'Station ' + station.number + ' geladen.');
+              announce(AppStore.state.detailsErrors.has(stationId) ? 'Die Station konnte nicht geladen werden.' : 'Station ' + station.number + ' geladen.');
             }
           });
         detailsRequests.set(stationId, request);
@@ -2561,8 +2352,7 @@
         const previousStationId = uiState.selectedStationId;
         emitHook('beforeDetailsClose', { stationId: previousStationId });
         setSelectedStation(null);
-        showView(false);
-        render();
+        notifyStateChanged('deselect');
         if (previousStationId) focusMapPin(previousStationId);
         else elements.pageTitle.focus({ preventScroll: true });
         emitHook('afterDetailsClose', { stationId: previousStationId });
@@ -2590,8 +2380,7 @@
          ========================================================== */
       function markSolved(stationId, selectedOptionIndex) {
         const station = stationsById.get(stationId);
-        updateStationProgress(stationId, { solved: true, selectedOptionIndex });
-        render();
+        updateStationProgress(stationId, { solved: true, selectedOptionIndex }, 'solved');
         focusTaskTitle();
         announce('Station ' + station.number + ' gelöst: ' + station.solutionTitle + (countSolved() === stations.length ? '. Alle Aufgaben sind gelöst.' : ''));
       }
@@ -2602,33 +2391,80 @@
           markSolved(stationId, optionIndex);
           return;
         }
-        updateStationProgress(stationId, { attempts: getStationProgress(stationId).attempts + 1, selectedOptionIndex: optionIndex });
-        const wrongButton = elements.taskList.querySelector('[data-option-index="' + optionIndex + '"]');
-        if (wrongButton) wrongButton.classList.add('option--wrong');
-        const errorMessage = document.getElementById('error-message');
-        errorMessage.hidden = false;
-        errorMessage.classList.remove('feedback-in');
-        void errorMessage.offsetWidth;
-        errorMessage.classList.add('feedback-in');
-        announce(errorMessage.textContent);
+        updateStationProgress(
+          stationId,
+          { attempts: getStationProgress(stationId).attempts + 1, selectedOptionIndex: optionIndex },
+          'wrong-answer',
+        );
+        announce('Noch nicht – probier es nochmal oder nutze den Hinweis.');
       }
 
-      function toggleHint(button) {
-        const hintBox = document.getElementById('hint-box');
-        const isVisible = hintBox.classList.toggle('is-visible');
-        hintBox.setAttribute('aria-hidden', String(!isVisible));
-        button.setAttribute('aria-expanded', String(isVisible));
-        if (isVisible) updateStationProgress(uiState.selectedStationId, { hintUsed: true });
+      function toggleHint() {
+        const stationId = uiState.selectedStationId;
+        const progress = getStationProgress(stationId);
+        const hintVisible = !progress.hintVisible;
+        updateStationProgress(
+          stationId,
+          { hintUsed: progress.hintUsed || hintVisible, hintVisible },
+          'hint-toggled',
+        );
+      }
+
+      const resetDialog = {
+        element: document.getElementById('reset-dialog'),
+        trigger: null,
+        closing: false,
+      };
+
+      function openResetDialog() {
+        if (resetDialog.element.open || resetDialog.closing) return;
+        resetDialog.trigger = document.activeElement;
+        resetDialog.element.showModal();
+        transitionIn(resetDialog.element, 'slide-enter');
+        document.getElementById('reset-cancel').focus();
+      }
+
+      function closeResetDialog(options) {
+        if (!resetDialog.element.open || resetDialog.closing) return;
+        resetDialog.closing = true;
+        const restoreFocus = !options || options.restoreFocus !== false;
+        const afterClose = options && options.afterClose;
+        transitionOut(
+          resetDialog.element,
+          () => {
+            resetDialog.closing = false;
+            if (resetDialog.element.open) resetDialog.element.close();
+            if (restoreFocus && resetDialog.trigger && document.contains(resetDialog.trigger)) resetDialog.trigger.focus();
+            if (afterClose) afterClose();
+          },
+          'slide-exit',
+        );
+      }
+
+      function confirmProgressReset() {
+        AppStore.resetProgress();
+        announce('Fortschritt zurückgesetzt.');
+        closeResetDialog({
+          restoreFocus: false,
+          afterClose: () => {
+            window.scrollTo(0, 0);
+            if (uiState.selectedStationId) focusTaskTitle();
+            else elements.pageTitle.focus({ preventScroll: true });
+          },
+        });
       }
 
       function resetProgress() {
-        if (!confirm('Fortschritt wirklich zurücksetzen?')) return;
-        progress = createEmptyProgress();
-        saveProgress();
-        render();
-        announce('Fortschritt zurückgesetzt.');
-        if (uiState.selectedStationId) focusTaskTitle();
-        else elements.pageTitle.focus({ preventScroll: true });
+        openResetDialog();
+      }
+
+      function initResetDialog() {
+        document.getElementById('reset-confirm').addEventListener('click', confirmProgressReset);
+        document.getElementById('reset-cancel').addEventListener('click', () => closeResetDialog());
+        resetDialog.element.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          closeResetDialog();
+        });
       }
 
       function handleTaskListClick(event) {
@@ -2640,15 +2476,14 @@
             selectOption(stationId, Number(button.dataset.optionIndex));
             break;
           case 'toggle-hint':
-            toggleHint(button);
+            toggleHint();
             break;
           case 'reveal':
             updateStationProgress(stationId, { revealed: true });
             markSolved(stationId, null);
             break;
           case 'retry':
-            detailsErrors.delete(stationId);
-            render();
+            AppStore.setDetailsError(stationId, false);
             ensureDetails(stationId);
             break;
           case 'next':
@@ -2733,6 +2568,7 @@
         form: document.getElementById('suggest-form'),
         openButton: document.getElementById('suggest-open'),
         status: document.getElementById('suggest-status'),
+        submitButton: document.querySelector('#suggest-form button[type="submit"]'),
         result: document.getElementById('suggest-result'),
         success: document.getElementById('suggest-success'),
         category: document.getElementById('suggest-category'),
@@ -2747,12 +2583,11 @@
           hint: { input: document.getElementById('suggest-hint'), error: document.getElementById('suggest-hint-error') },
           question: { input: document.getElementById('suggest-question'), error: document.getElementById('suggest-editorial-error') },
         },
-        options: Array.from({ length: 4 }, (_, index) => document.getElementById('suggest-option-' + index)),
-        correctOption: () => suggest.form.querySelector('input[name="correct-option"]:checked'),
         editorialError: document.getElementById('suggest-editorial-error'),
         editorialInfo: document.getElementById('suggest-info'),
         trigger: null,
         closing: false,
+        submitting: false,
       };
       const SUGGEST_LIMITS = { name: 100, description: 1000, hint: 1000, question: 500, option: 500, info: 1000 };
 
@@ -2762,20 +2597,23 @@
       }
 
       // Reine Validierung: gibt Fehler je Feld sowie bei Erfolg das fertige JSON-Objekt zurück.
+      // raw ist das flache Objekt aus Object.fromEntries(new FormData(form)). Keine DOM-Zugriffe.
       function validateSuggestion(raw) {
         const errors = {};
-        const name = raw.name.trim();
-        const description = raw.description.trim();
-        const category = raw.category.trim();
-        const hint = raw.hint.trim();
-        const question = raw.question.trim();
-        const rawOptions = raw.options.map((option) => option.trim());
+        const text = (key) => String(raw[key] == null ? '' : raw[key]).trim();
+        const name = text('name');
+        const description = text('description');
+        const category = text('category');
+        const hint = text('hint');
+        const question = text('question');
+        const rawOptions = [0, 1, 2, 3].map((index) => text('option-' + index));
         const options = rawOptions.filter(Boolean);
-        const correctOptionIndex = raw.correctOptionIndex;
+        const correctText = text('correct-option'); // Radio ohne Auswahl fehlt in FormData
+        const correctOptionIndex = correctText === '' ? null : Number(correctText);
         const normalizedCorrectIndex = correctOptionIndex === null ? null : rawOptions.slice(0, correctOptionIndex + 1).filter(Boolean).length - 1;
-        const editorialInfo = raw.editorialInfo.trim();
-        const latText = raw.latitude.trim();
-        const lonText = raw.longitude.trim();
+        const editorialInfo = text('editorial-info');
+        const latText = text('latitude');
+        const lonText = text('longitude');
 
         if (!name) errors.name = 'Bitte gib einen Stationsnamen an.';
         else if (name.length > SUGGEST_LIMITS.name) errors.name = 'Der Name darf höchstens ' + SUGGEST_LIMITS.name + ' Zeichen lang sein.';
@@ -2789,7 +2627,7 @@
         if (hasEditorial && (question || options.length || correctOptionIndex !== null)) {
           if (!question) errors.editorial = 'Bitte ergänze eine Frage.';
           if (options.length < 2 || options.length > 4) errors.editorial = 'Bitte ergänze zwei bis vier Antwortoptionen.';
-          if (correctOptionIndex === null || normalizedCorrectIndex < 0 || !options[normalizedCorrectIndex]) errors.editorial = 'Bitte markiere eine ausgefüllte Antwort als richtig.';
+          if (correctOptionIndex === null || !rawOptions[correctOptionIndex]) errors.editorial = 'Bitte markiere eine ausgefüllte Antwort als richtig.';
           options.forEach((option) => {
             if (option.length > SUGGEST_LIMITS.option) errors.editorial = 'Eine Antwort darf höchstens ' + SUGGEST_LIMITS.option + ' Zeichen lang sein.';
           });
@@ -2824,19 +2662,7 @@
       }
 
       function readSuggestionForm() {
-        const { fields } = suggest;
-        return {
-          name: fields.name.input.value,
-          description: fields.description.input.value,
-          category: fields.category.input.value,
-          latitude: fields.latitude.input.value,
-          longitude: fields.longitude.input.value,
-          hint: fields.hint.input.value,
-          question: fields.question.input.value,
-          options: suggest.options.map((input) => input.value),
-          correctOptionIndex: suggest.correctOption() ? Number(suggest.correctOption().value) : null,
-          editorialInfo: suggest.editorialInfo.value,
-        };
+        return Object.fromEntries(new FormData(suggest.form));
       }
 
       function showFieldErrors(errors) {
@@ -2884,38 +2710,39 @@
       // Öffentliche Schnittstelle: Das JSON wird zusätzlich als Hook-Ereignis
       // veröffentlicht, damit Integrationen und Animationen unabhängig bleiben.
       async function sendSuggestion(payload) {
-      document.dispatchEvent(new CustomEvent('ms:stationSuggested', { detail: payload }));
-      let response;
-      try {
-        response = await fetch('api/submit_station.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } catch (error) {
-        throw new Error('Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und sende den Vorschlag erneut ab.');
-      }
-      let body = {};
-      try {
-        body = await response.json();
-      } catch (error) {
-        body = {};
-      }
-      if (!response.ok) {
-        const serverMessage = body.error && body.error.message;
-        if (response.status === 422 && body.error && body.error.code === 'validation_failed') {
-          throw new Error('Der Vorschlag wurde nicht akzeptiert: ' + serverMessage + ' Bitte korrigiere die Angaben und sende erneut ab.');
+        document.dispatchEvent(new CustomEvent('ms:stationSuggested', { detail: payload }));
+        let response;
+        try {
+          response = await fetch(StationApiService.urls.submit, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch (error) {
+          throw new Error('Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und sende den Vorschlag erneut ab.');
         }
-        if (response.status === 429) {
-          throw new Error('Du hast in kurzer Zeit zu viele Vorschläge gesendet. Bitte warte etwa eine Stunde und versuche es dann erneut.');
+        let body = {};
+        try {
+          body = await response.json();
+        } catch (error) {
+          body = {};
         }
-        throw new Error('Der Server konnte den Vorschlag gerade nicht verarbeiten (Fehler ' + response.status + '). Deine Eingaben bleiben erhalten – bitte versuche es in ein paar Minuten erneut.');
-      }
-      return { ok: true, data: body.data };
+        if (!response.ok) {
+          const serverMessage = body.error && body.error.message;
+          if (response.status === 422 && body.error && body.error.code === 'validation_failed') {
+            throw new Error('Der Vorschlag wurde nicht akzeptiert: ' + serverMessage + ' Bitte korrigiere die Angaben und sende erneut ab.');
+          }
+          if (response.status === 429) {
+            throw new Error('Du hast in kurzer Zeit zu viele Vorschläge gesendet. Bitte warte etwa eine Stunde und versuche es dann erneut.');
+          }
+          throw new Error('Der Server konnte den Vorschlag gerade nicht verarbeiten (Fehler ' + response.status + '). Deine Eingaben bleiben erhalten – bitte versuche es in ein paar Minuten erneut.');
+        }
+        return { ok: true, data: body.data };
       }
 
       async function handleSuggestSubmit(event) {
         event.preventDefault();
+        if (suggest.submitting) return;
         const { errors, value } = validateSuggestion(readSuggestionForm());
         showFieldErrors(errors);
         const invalidKeys = Object.keys(errors);
@@ -2925,12 +2752,19 @@
           firstField.input.focus();
           return;
         }
-        setSuggestStatus('', '');
+        suggest.submitting = true;
+        suggest.submitButton.disabled = true;
+        suggest.form.setAttribute('aria-busy', 'true');
+        setSuggestStatus('', 'Wird gesendet ...');
         let outcome;
         try {
           outcome = await sendSuggestion(value);
         } catch (error) {
           outcome = { ok: false, message: error.message };
+        } finally {
+          suggest.submitting = false;
+          suggest.submitButton.disabled = false;
+          suggest.form.removeAttribute('aria-busy');
         }
         if (!outcome.ok) {
           setSuggestStatus('error', outcome.message || 'Der Vorschlag konnte nicht verarbeitet werden. Bitte versuche es erneut.');
@@ -3059,8 +2893,12 @@
       /* ==========================================================
          9. Start
          ========================================================== */
+      document.addEventListener('ms:stateChanged', () => {
+        render();
+      });
       initThemeControls();
       initSuggestion();
+      initResetDialog();
       elements.legend.addEventListener('click', (event) => {
         const button = event.target.closest('[data-category-id]');
         if (button) setCategoryFilter(button.dataset.categoryId);
@@ -3079,7 +2917,6 @@
       });
       document.getElementById('completion-restart').addEventListener('click', () => {
         resetProgress();
-        window.scrollTo(0, 0);
       });
       elements.howTo.open = loadIntroState();
       elements.howTo.addEventListener('toggle', () => saveIntroState(elements.howTo.open));
@@ -3088,7 +2925,7 @@
 
       elements.loadRetry.addEventListener('click', loadStations);
       initMap();
-      render();
+      notifyStateChanged('init');
       loadStations();
     </script>
   </body>

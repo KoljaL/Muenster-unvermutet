@@ -26,6 +26,7 @@ function config(string $key = null)
             'suggest_max_per_hour' => 5,
             'allow_http_links' => true,
             'timezone' => 'Europe/Berlin',
+            'debug' => false, // in config.local.php auf true setzen, um Fehlerdetails in API-Antworten zu sehen
         ];
         $local = __DIR__ . '/config.local.php';
         if (is_file($local)) {
