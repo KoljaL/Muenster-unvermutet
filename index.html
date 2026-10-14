@@ -70,9 +70,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
     <style>
       /* ==========================================================
-         7. Optimierungen (k2): Basis, Layout und Komponenten
-         Alle Farben laufen ausschliesslich ueber Variablen (Abschnitt 8).
-         ========================================================== */
+               7. Optimierungen (k2): Basis, Layout und Komponenten
+               Alle Farben laufen ausschliesslich ueber Variablen (Abschnitt 8).
+               ========================================================== */
       :root {
         font-family:
           system-ui,
@@ -157,10 +157,16 @@
         background: transparent;
         color: var(--color-text);
         padding: 22px 0;
+        padding-top: 0px;
       }
       .hero h1 {
         color: var(--color-text);
         font-size: 1.9rem;
+        font-size: clamp(1.6rem, 5.5vw, 2.1rem);
+        font-weight: 900;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+        line-height: 1.1;
       }
       .hero-heading-row {
         display: flex;
@@ -180,21 +186,29 @@
       .how-to {
         position: absolute;
         z-index: 10;
-        top: 100%;
-        left: 0;
-        right: 0;
+        top: 40%;
+        left: 1em;
+        right: 1em;
         margin-top: 16px;
         background: var(--color-surface-alt);
         color: var(--color-text);
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
         border-radius: 14px;
+        box-shadow: var(--shadow-card);
         clip-path: inset(0 0 0 0);
-        transition: clip-path 0.4s ease, margin-top 0.4s ease, max-height 0.4s ease, visibility 0s linear 0.4s;
+        transition:
+          clip-path 0.4s ease,
+          margin-top 0.4s ease,
+          max-height 0.4s ease,
+          visibility 0s linear 0.4s;
         max-height: 600px;
       }
       .how-to:not(.is-closed) {
         visibility: visible;
-        transition: clip-path 0.4s ease, margin-top 0.4s ease, max-height 0.4s ease;
+        transition:
+          clip-path 0.4s ease,
+          margin-top 0.4s ease,
+          max-height 0.4s ease;
       }
       /* Aufziehen von oben rechts nach unten links */
       .how-to.is-closed {
@@ -262,7 +276,10 @@
         gap: 8px;
         background: none;
         color: var(--color-text);
-        border: 2px solid var(--color-border);
+        /* border: var(--border-width) solid var(--color-border); */
+        /* box-shadow: var(--shadow-control); */
+        border: none;
+        box-shadow: none;
         font-weight: 700;
         font-size: 0.95rem;
       }
@@ -279,14 +296,14 @@
       .progress {
         background: var(--color-surface);
         color: var(--color-text);
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
         border-radius: 14px;
         padding: 14px 18px;
         margin-top: 16px;
         display: flex;
         align-items: center;
         gap: 16px;
-        box-shadow: var(--shadow-progress);
+        box-shadow: var(--shadow-card);
       }
       .progress-main {
         flex: 1;
@@ -305,7 +322,8 @@
       }
       .progress-track {
         height: 16px;
-        background: var(--color-border);
+        background: var(--color-surface-sunken);
+        box-shadow: inset 0 0 0 var(--border-width) var(--color-border);
         border-radius: 999px;
         overflow: hidden;
       }
@@ -337,7 +355,7 @@
         border-radius: 50%;
         background: var(--category-color, var(--color-surface-sunken));
         color: var(--category-text, var(--color-text));
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
         font-size: 0.8rem;
         display: flex;
         align-items: center;
@@ -364,7 +382,7 @@
       }
       #map {
         height: clamp(300px, 52vh, 440px);
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
         border-radius: 16px;
         overflow: hidden;
         margin-top: 16px;
@@ -549,8 +567,9 @@
         gap: 0.4rem;
         min-height: 44px;
         padding: 0.25rem 0.75rem 0.25rem 0.35rem;
-        border: 2px solid var(--color-border-strong);
+        border: var(--border-width) solid var(--color-border-strong);
         border-radius: 999px;
+        box-shadow: var(--shadow-control);
         background: var(--color-surface);
         color: var(--color-text);
         font-size: 0.88rem;
@@ -583,7 +602,8 @@
       .secondary-button {
         background: var(--color-surface);
         color: var(--color-text);
-        border: 2px solid var(--color-border-strong);
+        border: var(--border-width) solid var(--color-border-strong);
+        box-shadow: var(--shadow-control);
         font-weight: 700;
       }
       .secondary-button:hover {
@@ -592,7 +612,7 @@
       .filter-empty {
         margin: 12px 0 0;
         padding: 12px 14px;
-        border: 2px dashed var(--color-border-strong);
+        border: var(--border-width) dashed var(--color-border-strong);
         border-radius: 12px;
         color: var(--color-muted-text);
       }
@@ -633,12 +653,14 @@
         text-align: left;
         background: var(--color-surface);
         color: var(--color-text);
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
+        box-shadow: var(--shadow-control);
         padding: 10px 14px;
         min-height: 60px;
         font-weight: 600;
       }
       .station-item:hover {
+        box-shadow: var(--shadow-control-hover);
         border-color: var(--color-accent);
         background: var(--color-accent-soft);
       }
@@ -679,7 +701,8 @@
       .back-button {
         font-size: 1rem;
         padding: 9px 14px;
-        border: 2px solid var(--color-border-strong);
+        border: var(--border-width) solid var(--color-border-strong);
+        box-shadow: var(--shadow-control);
         background: var(--color-surface);
         color: var(--color-text);
         font-weight: 700;
@@ -691,8 +714,8 @@
       .task-card {
         background: var(--color-surface);
         color: var(--color-text);
-        border: 2px solid var(--color-border);
-        border-top-width: 6px;
+        border: var(--border-width) solid var(--color-border);
+        border-top-width: 4px;
         border-top-color: var(--cat);
         border-radius: 16px;
         overflow: hidden;
@@ -798,7 +821,7 @@
         font-size: 1rem;
         background: var(--color-hint-bg);
         color: var(--color-hint-text);
-        border: 2px solid var(--color-hint-border);
+        border: var(--border-width) solid var(--color-hint-border);
         border-radius: 10px;
         max-height: 0;
         margin: 0;
@@ -851,8 +874,9 @@
         width: 100%;
         text-align: left;
         min-height: 56px;
-        border: 2px solid var(--color-border-strong);
+        border: var(--border-width) solid var(--color-border-strong);
         border-radius: 10px;
+        box-shadow: var(--shadow-control);
         background: var(--color-surface);
         color: var(--color-text);
         padding: 12px 14px;
@@ -860,11 +884,13 @@
         font-weight: normal;
         transition:
           border-color 0.18s ease,
+          box-shadow 0.18s ease,
           background-color 0.18s ease,
           transform 0.18s ease;
       }
       .option:hover {
         background: var(--color-option-hover-bg);
+        box-shadow: var(--shadow-control-hover);
         border-color: var(--color-accent);
       }
       .option--wrong {
@@ -888,7 +914,8 @@
       }
       .hint-button {
         background: var(--color-surface);
-        border: 2px solid var(--color-border-strong);
+        border: var(--border-width) solid var(--color-border-strong);
+        box-shadow: var(--shadow-control);
         color: var(--color-text);
         width: 100%;
       }
@@ -901,7 +928,7 @@
         font-weight: 600;
         margin: 0;
         background: var(--color-danger-bg);
-        border: 2px solid var(--color-danger);
+        border: var(--border-width) solid var(--color-danger);
         border-radius: 10px;
         padding: 10px 12px;
       }
@@ -935,7 +962,8 @@
         margin: 0;
         border-radius: 12px;
         overflow: hidden;
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
+        box-shadow: var(--shadow-control);
       }
       .solution-photo img {
         width: 100%;
@@ -1126,8 +1154,11 @@
         width: min(36rem, calc(100vw - 1.5rem));
         max-height: calc(100vh - 1.5rem);
         padding: 0;
-        border: 2px solid var(--color-border-strong);
+        border: var(--border-width) solid var(--color-border-strong);
         border-radius: 1rem;
+        box-shadow:
+          0 10px 30px rgba(0, 0, 0, 0.18),
+          0 2px 6px rgba(0, 0, 0, 0.1);
         background: var(--color-surface);
         color: var(--color-text);
         overflow: auto;
@@ -1161,7 +1192,7 @@
         gap: 1rem;
       }
       .suggest-optional {
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
         border-radius: 0.75rem;
         padding: 0.75rem;
       }
@@ -1216,8 +1247,9 @@
         min-height: 48px;
         color: var(--color-text);
         background: var(--color-surface-alt);
-        border: 2px solid var(--color-border-strong);
+        border: var(--border-width) solid var(--color-border-strong);
         border-radius: 0.6rem;
+        box-shadow: var(--shadow-control);
       }
       .field textarea {
         min-height: 7rem;
@@ -1225,7 +1257,7 @@
       }
       .field [aria-invalid='true'] {
         border-color: var(--color-danger);
-        border-width: 3px;
+        box-shadow: 0 0 0 1px var(--color-danger);
       }
       .field-hint {
         margin: 0;
@@ -1242,7 +1274,7 @@
         content: '⚠ ';
       }
       fieldset.field {
-        border: 2px solid var(--color-border);
+        border: var(--border-width) solid var(--color-border);
         border-radius: 0.75rem;
         padding: 0.75rem;
         margin: 0;
@@ -1262,12 +1294,12 @@
       .form-status[data-kind='error'] {
         background: var(--color-danger-bg);
         color: var(--color-danger);
-        border: 2px solid var(--color-danger);
+        border: var(--border-width) solid var(--color-danger);
       }
       .form-status[data-kind='success'] {
         background: var(--color-accent-soft);
         color: var(--color-text);
-        border: 2px solid var(--color-accent);
+        border: var(--border-width) solid var(--color-accent);
       }
       .form-actions {
         display: flex;
@@ -1368,9 +1400,9 @@
       }
 
       /* ==========================================================
-         8. Farbmodi: Light = Standard, Dark ueber Klasse .dark auf <html>
-         Einzige Stelle fuer Farbwerte. Alles andere nutzt var(--...).
-         ========================================================== */
+               8. Farbmodi: Light = Standard, Dark ueber Klasse .dark auf <html>
+               Einzige Stelle fuer Farbwerte. Alles andere nutzt var(--...).
+               ========================================================== */
       :root {
         color-scheme: light;
         --color-background: #f5f5f4;
@@ -1382,8 +1414,13 @@
         --color-muted-text: #44403c;
         --color-accent: #065f46;
         --color-accent-soft: #ecfdf5;
-        --color-border: #d6d3d1;
-        --color-border-strong: #a8a29e;
+        --border-width: 1px;
+        --color-border: #e0dedb;
+        --color-border-strong: #c9c5c1;
+        /* Dezenter Schatten fuer Controls und Karten (zusammen mit 1px-Border) */
+        --shadow-control: 0 1px 2px rgba(28, 25, 23, 0.07), 0 1px 1px rgba(28, 25, 23, 0.04);
+        --shadow-card: 0 1px 3px rgba(28, 25, 23, 0.1), 0 1px 2px rgba(28, 25, 23, 0.06);
+        --shadow-control-hover: 0 2px 6px rgba(28, 25, 23, 0.12), 0 1px 2px rgba(28, 25, 23, 0.06);
         --color-focus: #b45309;
         --color-danger: #b91c1c;
         --color-danger-bg: #fef2f2;
@@ -1414,7 +1451,6 @@
         --gradient-completion: linear-gradient(135deg, #064e3b, #047857 60%, #b45309);
         --gradient-progress: linear-gradient(90deg, #059669, #065f46);
         --shadow-progress: 0 1px 3px rgba(0, 0, 0, 0.05);
-        --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.06);
         --shadow-hero: 0 6px 18px rgba(6, 78, 59, 0.25);
         --shadow-completion: 0 8px 24px rgba(6, 78, 59, 0.35);
         --shadow-pin: 0 3px 8px rgba(0, 0, 0, 0.45);
@@ -1430,8 +1466,11 @@
         --color-muted-text: #d6d3d1;
         --color-accent: #34d399;
         --color-accent-soft: #12332a;
-        --color-border: #57605b;
-        --color-border-strong: #8b948f;
+        --color-border: #3b433f;
+        --color-border-strong: #4f5853;
+        --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 1px rgba(0, 0, 0, 0.25);
+        --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.35);
+        --shadow-control-hover: 0 2px 8px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
         --color-focus: #fbbf24;
         --color-danger: #fca5a5;
         --color-danger-bg: #3b1515;
@@ -1983,10 +2022,11 @@
       let taskViewUpdate = Promise.resolve();
 
       function categoryTextColor(color) {
-        const channels = color.slice(1).match(/.{2}/g).map((channel) => parseInt(channel, 16) / 255);
-        const luminance = channels
-          .map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
-          .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+        const channels = color
+          .slice(1)
+          .match(/.{2}/g)
+          .map((channel) => parseInt(channel, 16) / 255);
+        const luminance = channels.map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
         const whiteContrast = 1.05 / (luminance + 0.05);
         const darkContrast = (luminance + 0.05) / 0.05;
         return whiteContrast >= darkContrast ? 'var(--color-category-text-light)' : 'var(--color-category-text-dark)';
@@ -2160,12 +2200,14 @@
         const allSolved = !uiState.loading && total > 0 && solvedCount === total;
         elements.completion.hidden = !allSolved;
         if (allSolved) renderCompletion();
-        elements.miniBadges.innerHTML = uiState.loading ? '' : stations
-          .map((station) => {
-            const category = categoryOf(station);
-            return '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (isSolved(station.id) ? '✓' : categoryImageHtml(category)) + '</span>';
-          })
-          .join('');
+        elements.miniBadges.innerHTML = uiState.loading
+          ? ''
+          : stations
+              .map((station) => {
+                const category = categoryOf(station);
+                return '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (isSolved(station.id) ? '✓' : categoryImageHtml(category)) + '</span>';
+              })
+              .join('');
       }
 
       function renderStationList() {
@@ -2284,19 +2326,7 @@
       }
 
       function isValidDetails(details) {
-        return (
-          details &&
-          Array.isArray(details.options) &&
-          details.options.length >= 2 &&
-          Number.isInteger(details.correctOptionIndex) &&
-          details.correctOptionIndex >= 0 &&
-          details.correctOptionIndex < details.options.length &&
-          typeof details.hint === 'string' &&
-          typeof details.solutionTitle === 'string' &&
-          typeof details.info === 'string' &&
-          Array.isArray(details.links) &&
-          details.links.every((link) => link && typeof link.title === 'string' && isValidExternalUrl(link.url))
-        );
+        return details && Array.isArray(details.options) && details.options.length >= 2 && Number.isInteger(details.correctOptionIndex) && details.correctOptionIndex >= 0 && details.correctOptionIndex < details.options.length && typeof details.hint === 'string' && typeof details.solutionTitle === 'string' && typeof details.info === 'string' && Array.isArray(details.links) && details.links.every((link) => link && typeof link.title === 'string' && isValidExternalUrl(link.url));
       }
 
       async function loadStations() {
@@ -2402,11 +2432,7 @@
           markSolved(stationId, optionIndex);
           return;
         }
-        updateStationProgress(
-          stationId,
-          { attempts: getStationProgress(stationId).attempts + 1, selectedOptionIndex: optionIndex },
-          'wrong-answer',
-        );
+        updateStationProgress(stationId, { attempts: getStationProgress(stationId).attempts + 1, selectedOptionIndex: optionIndex }, 'wrong-answer');
         announce('Noch nicht – probier es nochmal oder nutze den Hinweis.');
       }
 
@@ -2414,11 +2440,7 @@
         const stationId = uiState.selectedStationId;
         const progress = getStationProgress(stationId);
         const hintVisible = !progress.hintVisible;
-        updateStationProgress(
-          stationId,
-          { hintUsed: progress.hintUsed || hintVisible, hintVisible },
-          'hint-toggled',
-        );
+        updateStationProgress(stationId, { hintUsed: progress.hintUsed || hintVisible, hintVisible }, 'hint-toggled');
       }
 
       const resetDialog = {
