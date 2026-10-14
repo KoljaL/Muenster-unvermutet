@@ -12,8 +12,8 @@ foreach (UI_REGISTRY as $key => $definition) {
 
 admin_header('Einstellungen', $admin);
 ?>
-<h1 class="admin-title">UI-Einstellungen</h1>
-<p class="task-intro">Diese Einstellungen gelten global für alle Besucher. Optionen im Testmodus sind nur mit passendem Vorschau-Parameter sichtbar, zum Beispiel <code>?preview=all</code>.</p>
+<h1 class="admin-title">Feature-Einstellungen</h1>
+<p class="task-intro">Diese Einstellungen gelten global für alle Besucher. Features im Testmodus sind nur mit passendem Vorschau-Parameter sichtbar, zum Beispiel <code>?preview=all</code>.</p>
 <form method="post" action="settings-save.php">
   <?= csrf_field() ?>
   <?php foreach ($groups as $group => $options): ?>

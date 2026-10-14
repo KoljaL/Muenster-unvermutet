@@ -162,7 +162,7 @@ Stationsdaten im Admin-Bereich, bevor ein Vorschlag veröffentlicht wird.
 
 ## Backend
 
-Das Spiel hat ein schlankes PHP-Backend mit SQLite-Datenbank und einem geschützten Admin-Bereich. Die API-Variante des Frontends ist [`index.html`](./index.html): Sie lädt Kategorien (`api/categories.php`), Karten-Pins (`api/map_pins.php`) und globale UI-Einstellungen (`api/settings.php`) parallel und erst beim Öffnen einer Station die vollständigen Stationsdaten (`api/get_details.php`, mit Ladezustand, Fehleranzeige und Retry). Namen, hochgeladene Kategoriebilder, Farben und die globalen UI-Optionen werden im Admin-Bereich gepflegt. Der Spielfortschritt bleibt weiterhin lokal im Browser (`localStorage`). UI-Optionen im Testmodus lassen sich über `?preview=key1,key2` oder `?preview=all` anzeigen.
+Das Spiel hat ein schlankes PHP-Backend mit SQLite-Datenbank und einem geschützten Admin-Bereich. Die API-Variante des Frontends ist [`index.html`](./index.html): Sie lädt Kategorien (`api/categories.php`), Karten-Pins (`api/map_pins.php`) und globale Feature-Einstellungen (`api/settings.php`) parallel und erst beim Öffnen einer Station die vollständigen Stationsdaten (`api/get_details.php`, mit Ladezustand, Fehleranzeige und Retry). Namen, hochgeladene Kategoriebilder und Farben werden im Admin-Bereich gepflegt. Als globales Feature-Flag ist derzeit nur „Station vorschlagen“ konfigurierbar; die übrige Oberfläche ist statisch und bleibt verfügbar. Weitere optionale Features können später in der Registry ergänzt werden. Der Spielfortschritt bleibt lokal im Browser (`localStorage`). Features im Testmodus lassen sich über `?preview=key1,key2` oder `?preview=all` anzeigen.
 
 Die vollständige technische Planung steht in [`Backend-Umsetzung.md`](./Backend-Umsetzung.md). Das Backend verwendet:
 
@@ -193,7 +193,7 @@ Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
 ```bash
 php setup/create_admins.php        # legt admin1–admin3 mit den Testpasswörtern an
 php setup/migrate_stations.php     # importiert Stationen und Beispielvorschläge (idempotent)
-php setup/migrate_settings.php    # ergänzt fehlende globale UI-Einstellungen (idempotent)
+php setup/migrate_settings.php    # ergänzt fehlende globale Feature-Einstellungen (idempotent)
 ./setup/reset_database.sh          # löscht die lokale DB, fragt Passwörter ab und richtet alles neu ein
 php -S 127.0.0.1:8080              # lokaler Server
 ```
@@ -203,7 +203,7 @@ php -S 127.0.0.1:8080              # lokaler Server
 - `setup/reset_database.sh --yes` überspringt die Löschbestätigung und startet anschließend den PHP-Server. Das Spiel ist dann unter `http://127.0.0.1:8080/index.html`, der Admin-Bereich unter `http://127.0.0.1:8080/admin/login.php` erreichbar. Für automatisierte Aufrufe können `ADMIN_STINA_PASSWORD`, `ADMIN_KOLJA_PASSWORD` und `ADMIN_ADMIN_PASSWORD` als Umgebungsvariablen gesetzt werden.
 - Host und Port lassen sich über `PHP_SERVER_HOST` und `PHP_SERVER_PORT` ändern.
 - Die Datenbank wird beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`).
-- Vorhandene SQLite-Datenbanken werden nicht automatisch migriert; die ergänzte Kategoriespalte setzt eine frisch angelegte Datenbank voraus. `setup/migrate_settings.php` ergänzt die UI-Einstellungstabelle und ihre fehlenden Standardwerte.
+- Vorhandene SQLite-Datenbanken werden nicht automatisch migriert; die ergänzte Kategoriespalte setzt eine frisch angelegte Datenbank voraus. `setup/migrate_settings.php` ergänzt die Feature-Einstellungstabelle und ihren fehlenden Standardwert.
 - Der Import übernimmt vorhandene Fotos `Aufgabe N.jpg` / `Loesung N.jpg` (im Projektordner, `OLD/`, `setup/images/` oder `setup/photos/`) in `uploads/`. Fehlende Fotos können im Admin-Bereich hochgeladen werden.
 - Der Migrationslauf legt zusätzlich die drei offenen Beispielvorschläge aus `setup/suggestions_seed.json` an. Bereits vorhandene Vorschläge werden nicht dupliziert; die Beispielbilder werden aus den vorhandenen `Aufgabe N.jpg`-Dateien übernommen.
 - Eigenes Passwort setzen: `php setup/create_admins.php <benutzer> <passwort>` (mind. 12 Zeichen).
@@ -214,8 +214,8 @@ php -S 127.0.0.1:8080              # lokaler Server
 | Pfad                | Inhalt                                                                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `api/`              | `settings.php`, `map_pins.php`, `get_details.php`, `submit_station.php` (Vorschläge, rate-limitiert, Honeypot)                  |
-| `admin/`            | Login (5 Min. Inaktivitäts-Timeout), Stations- und UI-Einstellungen, Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation    |
-| `includes/`         | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads und UI-Registry                                                            |
+| `admin/`            | Login (5 Min. Inaktivitäts-Timeout), Stations- und Feature-Einstellungen, Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation |
+| `includes/`         | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads und Feature-Registry                                                       |
 | `setup/`            | Schema, Seed-Daten, Import- und Migrationsskripte (nur per CLI)                                                                 |
 | `data/`, `uploads/` | SQLite-Datei bzw. Bilder, jeweils per `.htaccess` abgesichert                                                       |
 

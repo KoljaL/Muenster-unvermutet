@@ -18,4 +18,4 @@ foreach (UI_REGISTRY as $key => $definition) {
     $statement->execute([$key, $definition['default'], $timestamp]);
 }
 
-echo "UI-Einstellungen erfolgreich angelegt und fehlende Defaults ergänzt.\n";
+echo "Feature-Einstellungen erfolgreich angelegt und fehlende Defaults ergänzt.\n";

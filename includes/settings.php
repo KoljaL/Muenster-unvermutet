@@ -4,48 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/database.php';
 
 const UI_REGISTRY = [
-    'ui.help' => [
-        'label' => 'Hilfe',
-        'group' => 'Darstellung',
-        'description' => 'Hilfe-Schaltfläche und Anleitung „So funktioniert’s“',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.accessibility_toggle' => [
-        'label' => 'Barrierefrei-Schalter',
-        'group' => 'Darstellung',
-        'description' => 'Schaltet die barrierefreie Stationsliste und große Kartenpins ein.',
-        'default' => 'on',
-        'requires' => ['ui.station_list'],
-    ],
-    'ui.theme_toggle' => [
-        'label' => 'Dark-Mode-Schalter',
-        'group' => 'Darstellung',
-        'description' => 'Schaltfläche zum Wechseln des Farbmodus; die Systemeinstellung bleibt Standard.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.progress' => [
-        'label' => 'Fortschrittsanzeige',
-        'group' => 'Fortschritt',
-        'description' => 'Fortschrittsbalken und Zähler.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.badges' => [
-        'label' => 'Mini-Badges',
-        'group' => 'Fortschritt',
-        'description' => 'Kleine Stations-Badges neben der Fortschrittsanzeige.',
-        'default' => 'on',
-        'requires' => ['ui.progress'],
-    ],
-    'ui.reset' => [
-        'label' => 'Fortschritt zurücksetzen',
-        'group' => 'Fortschritt',
-        'description' => 'Schaltfläche und Bestätigungsdialog zum Zurücksetzen.',
-        'default' => 'on',
-        'requires' => ['ui.progress'],
-    ],
     'ui.suggest' => [
         'label' => 'Station vorschlagen',
         'group' => 'Karte',
@@ -53,41 +11,6 @@ const UI_REGISTRY = [
         'default' => 'on',
         'requires' => [],
         'server_enforced' => true,
-    ],
-    'ui.legend' => [
-        'label' => 'Kategorien-Legende',
-        'group' => 'Karte',
-        'description' => 'Kategorie-Legende und Filter für Kartenpins.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.station_list' => [
-        'label' => 'Stationsliste',
-        'group' => 'Karte',
-        'description' => 'Alternative barrierefreie Stationsliste unter der Karte.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.hint_button' => [
-        'label' => 'Hinweis-Schaltfläche',
-        'group' => 'Aufgaben',
-        'description' => 'Schaltfläche zum Anzeigen eines Stationshinweises.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.reveal_button' => [
-        'label' => 'Lösungs-Schaltfläche',
-        'group' => 'Aufgaben',
-        'description' => 'Schaltfläche zum Anzeigen der Lösung einer Station.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.completion' => [
-        'label' => 'Abschluss-Screen',
-        'group' => 'Aufgaben',
-        'description' => 'Zusammenfassung, wenn alle Stationen gelöst wurden.',
-        'default' => 'on',
-        'requires' => [],
     ],
 ];
 
