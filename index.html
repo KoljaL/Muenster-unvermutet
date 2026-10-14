@@ -112,7 +112,7 @@
         outline: none;
       }
       .hero :focus-visible {
-        outline-color: var(--color-on-brand);
+        outline-color: var(--color-focus);
       }
       .visually-hidden {
         position: absolute;
@@ -152,14 +152,14 @@
         color: var(--color-text);
       }
       .hero {
-        background: var(--gradient-hero);
-        color: var(--color-on-brand);
-        border-radius: 20px;
-        padding: 22px 20px;
-        box-shadow: var(--shadow-hero);
+        position: relative;
+        z-index: 20;
+        background: transparent;
+        color: var(--color-text);
+        padding: 22px 0;
       }
       .hero h1 {
-        color: var(--color-on-brand);
+        color: var(--color-text);
         font-size: 1.9rem;
       }
       .hero-heading-row {
@@ -172,40 +172,42 @@
         min-width: 0;
       }
       .hero .page-subtitle {
-        color: var(--color-on-brand-muted);
+        color: var(--color-muted-text);
         margin: 8px 0 0;
         line-height: 1.5;
         font-size: 0.95rem;
       }
       .how-to {
+        position: absolute;
+        z-index: 10;
+        top: 100%;
+        left: 0;
+        right: 0;
         margin-top: 16px;
-        background: var(--color-glass-weak);
+        background: var(--color-surface-alt);
+        color: var(--color-text);
+        border: 2px solid var(--color-border);
         border-radius: 14px;
+        clip-path: inset(0 0 0 0);
+        transition: clip-path 0.4s ease, margin-top 0.4s ease, max-height 0.4s ease, visibility 0s linear 0.4s;
+        max-height: 600px;
       }
-      .how-to summary {
-        cursor: pointer;
-        font-weight: 700;
-        padding: 14px 16px;
-        min-height: 48px;
-        list-style: none;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+      .how-to:not(.is-closed) {
+        visibility: visible;
+        transition: clip-path 0.4s ease, margin-top 0.4s ease, max-height 0.4s ease;
       }
-      .how-to summary::-webkit-details-marker {
-        display: none;
-      }
-      .how-to summary::after {
-        content: '\25BE';
-        transition: transform 0.2s;
-      }
-      .how-to[open] summary::after {
-        transform: rotate(180deg);
+      /* Aufziehen von oben rechts nach unten links */
+      .how-to.is-closed {
+        clip-path: inset(0 0 100% 100%);
+        visibility: hidden;
+        pointer-events: none;
+        margin-top: 0;
+        max-height: 0;
       }
       .how-to ol {
         list-style: none;
         margin: 0;
-        padding: 0 16px 16px;
+        padding: 16px;
         display: grid;
         gap: 10px;
       }
@@ -219,8 +221,8 @@
         flex: 0 0 34px;
         height: 34px;
         border-radius: 50%;
-        background: var(--color-on-brand);
-        color: var(--color-brand);
+        background: var(--color-brand);
+        color: var(--color-on-brand);
         font-weight: 800;
         display: flex;
         align-items: center;
@@ -244,7 +246,7 @@
       }
       .tool-button.tool-text[aria-pressed='true'] {
         background: none;
-        color: var(--color-on-brand);
+        color: var(--color-text);
       }
       .tool-button.tool-icon {
         padding: 0;
@@ -258,9 +260,9 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        background: var(--color-glass);
-        color: var(--color-on-brand);
-        border: 2px solid var(--color-glass-border);
+        background: none;
+        color: var(--color-text);
+        border: 2px solid var(--color-border);
         font-weight: 700;
         font-size: 0.95rem;
       }
@@ -270,7 +272,7 @@
       }
       .tool-button[aria-pressed='true'] {
         background: none;
-        color: var(--color-brand-dark);
+        color: var(--color-accent);
       }
 
       /* Fortschritt */
@@ -356,6 +358,10 @@
       }
 
       /* Karte (Leaflet / OpenStreetMap) */
+      #plan-view {
+        position: relative;
+        z-index: 1;
+      }
       #map {
         height: clamp(300px, 52vh, 440px);
         border: 2px solid var(--color-border);
@@ -1454,6 +1460,7 @@
           <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
           <!-- Darstellung: Barrierefrei/Klassisch und Farbmodus -->
           <div class="hero-tools" role="group" aria-label="Darstellung">
+            <button type="button" class="tool-button tool-text" id="help-toggle" aria-expanded="true" aria-controls="how-to">Hilfe</button>
             <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="false" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
             <button type="button" class="tool-button tool-icon" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
               <span id="theme-icon" aria-hidden="true">🌙</span>
@@ -1461,8 +1468,7 @@
           </div>
         </div>
         <p class="page-subtitle">Eine Foto-Schnitzeljagd von Bettina Säger · Idee inspiriert durch ein Buch von Clemens Köyer</p>
-        <details class="how-to" id="how-to" open>
-          <summary>So funktioniert's</summary>
+        <div class="how-to" id="how-to" role="region" aria-label="So funktioniert's">
           <ol>
             <li>
               <span class="step" aria-hidden="true">1</span><span><b>Pin antippen:</b> Wähle eine Station auf der Karte oder in der Liste.</span>
@@ -1474,7 +1480,7 @@
               <span class="step" aria-hidden="true">3</span><span><b>Frage beantworten:</b> Die richtige Antwort verrät die Geschichte dahinter.</span>
             </li>
           </ol>
-        </details>
+        </div>
       </header>
 
       <section class="progress" aria-label="Fortschritt">
@@ -2259,8 +2265,7 @@
       function openStation(stationId) {
         if (uiState.suggestion.picking) return;
         if (AppStore.startGame()) {
-          elements.howTo.open = false;
-          saveIntroState(false);
+          setHowTo(false);
         }
         emitHook('beforeDetailsOpen', { stationId });
         setSelectedStation(stationId);
@@ -2356,6 +2361,12 @@
         if (previousStationId) focusMapPin(previousStationId);
         else elements.pageTitle.focus({ preventScroll: true });
         emitHook('afterDetailsClose', { stationId: previousStationId });
+      }
+
+      function setHowTo(isOpen, persist = true) {
+        elements.howTo.classList.toggle('is-closed', !isOpen);
+        document.getElementById('help-toggle').setAttribute('aria-expanded', String(isOpen));
+        if (persist) saveIntroState(isOpen);
       }
 
       function loadIntroState() {
@@ -2918,8 +2929,8 @@
       document.getElementById('completion-restart').addEventListener('click', () => {
         resetProgress();
       });
-      elements.howTo.open = loadIntroState();
-      elements.howTo.addEventListener('toggle', () => saveIntroState(elements.howTo.open));
+      setHowTo(loadIntroState(), false);
+      document.getElementById('help-toggle').addEventListener('click', () => setHowTo(elements.howTo.classList.contains('is-closed')));
       renderLegend();
       elements.resetButton.addEventListener('click', resetProgress);
 
