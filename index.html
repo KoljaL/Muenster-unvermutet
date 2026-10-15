@@ -1011,7 +1011,8 @@
         font-size: 0.85rem;
       }
       .coordinates-row {
-        display: flex;
+        display: none;
+        /* display: flex; */
         flex-wrap: wrap;
         align-items: center;
         gap: 10px;
@@ -1570,6 +1571,9 @@
           <p id="load-error-text">Kategorien oder Stationen konnten nicht geladen werden.</p>
           <button type="button" id="load-retry">Erneut versuchen</button>
         </div>
+        <div class="load-error" id="station-link-error" role="alert" hidden>
+          <p>Die verlinkte Station wurde nicht gefunden. Bitte prüfe den Link.</p>
+        </div>
         <ul class="legend" id="legend" aria-label="Kategorien – zum Filtern auswählen"></ul>
         <div class="plan-actions" data-ui-option="suggest" hidden>
           <button type="button" class="primary-button" id="suggest-open" aria-haspopup="dialog"><span aria-hidden="true">+</span> Station vorschlagen</button>
@@ -2070,6 +2074,7 @@
         loadError: document.getElementById('load-error'),
         loadErrorText: document.getElementById('load-error-text'),
         loadRetry: document.getElementById('load-retry'),
+        stationLinkError: document.getElementById('station-link-error'),
         filterEmpty: document.getElementById('filter-empty'),
         themeToggle: document.getElementById('theme-toggle'),
         layoutToggle: document.getElementById('layout-toggle'),
@@ -2094,11 +2099,10 @@
       }
 
       function distanceBetween(lat1, lon1, lat2, lon2) {
-        const radians = (degrees) => degrees * Math.PI / 180;
+        const radians = (degrees) => (degrees * Math.PI) / 180;
         const latitudeDelta = radians(lat2 - lat1);
         const longitudeDelta = radians(lon2 - lon1);
-        const a = Math.sin(latitudeDelta / 2) ** 2
-          + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(longitudeDelta / 2) ** 2;
+        const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(longitudeDelta / 2) ** 2;
         const boundedA = Math.min(1, Math.max(0, a));
         return 6371000 * 2 * Math.atan2(Math.sqrt(boundedA), Math.sqrt(1 - boundedA));
       }
@@ -2225,9 +2229,7 @@
           marker.getElement().focus({ preventScroll: true });
           return;
         }
-        const listItem = elements.stationList && elements.stationList.isConnected
-          ? elements.stationList.querySelector('[data-station-id="' + stationId + '"]')
-          : null;
+        const listItem = elements.stationList && elements.stationList.isConnected ? elements.stationList.querySelector('[data-station-id="' + stationId + '"]') : null;
         if (listItem) listItem.focus({ preventScroll: true });
         else elements.pageTitle.focus({ preventScroll: true });
       }
@@ -2259,10 +2261,20 @@
         return '<details class="station-orientation" open><summary>OpenStreetMap-Orientierungskarte</summary><div class="station-orientation-map" id="station-orientation-map" role="region" aria-label="Karte mit Stationsziel und eigener Position"></div><p class="station-distance">' + escapeHtml(distance) + '</p></details>';
       }
 
+      // DEV-FAKE-POSITION (1/4): Entwicklerhilfe, vor dem Livegang entfernen (nach "DEV-FAKE-POSITION" suchen)
+      function devFakePositionButton(state) {
+        return '<button type="button" data-action="fake-position"' + (state.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>';
+      }
+      function devFakePosition(stationId) {
+        const station = stationsById.get(stationId);
+        return { coords: { latitude: station.lat, longitude: station.lon, accuracy: 5 }, timestamp: Date.now() };
+      }
+      // /DEV-FAKE-POSITION
+
       function renderLocationStatus(station) {
         const state = locationStates.get(station.id) || {};
         const message = state.message || 'Begib dich zum abgebildeten Ort und aktualisiere anschließend deinen Standort.';
-        return '<div class="task-status location-status" role="status" aria-live="polite"><p>' + escapeHtml(message) + '</p><button type="button" data-action="verify-location"' + (state.loading ? ' disabled' : '') + '>Standort aktualisieren</button></div>';
+        return '<div class="task-status location-status" role="status" aria-live="polite"><p>' + escapeHtml(message) + '</p><button type="button" data-action="verify-location"' + (state.loading ? ' disabled' : '') + '>Standort aktualisieren</button>' + devFakePositionButton(state) + '</div>';
       }
 
       function renderUnsolvedBody(station) {
@@ -2418,7 +2430,13 @@
         const player = playerLocations.get(station.id);
         if (player) {
           const playerMarker = L.circleMarker([player.lat, player.lon], { radius: 8, color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.9 }).addTo(stationMap).bindPopup('Dein aktueller Standort');
-          L.polyline([[player.lat, player.lon], [station.lat, station.lon]], { color: '#1d4ed8', dashArray: '6 6' }).addTo(stationMap);
+          L.polyline(
+            [
+              [player.lat, player.lon],
+              [station.lat, station.lon],
+            ],
+            { color: '#1d4ed8', dashArray: '6 6' },
+          ).addTo(stationMap);
           stationMap.fitBounds([target.getLatLng(), playerMarker.getLatLng()], { padding: [24, 24], maxZoom: 17 });
         }
       }
@@ -2459,17 +2477,49 @@
         });
       }
 
-      function openStation(stationId) {
+      function openStation(stationId, options) {
         if (uiState.suggestion.picking) return;
-        if (AppStore.startGame()) {
-          setHowTo(false);
+        const source = options && options.source ? options.source : 'user';
+        if (source === 'user') {
+          elements.stationLinkError.hidden = true;
+          if (AppStore.startGame()) setHowTo(false);
+          updateStationUrl(stationId, 'push');
         }
         emitHook('beforeDetailsOpen', { stationId });
         setSelectedStation(stationId);
         notifyStateChanged('select');
         focusTaskTitle();
-        ensureDetails(stationId);
+        ensureDetails(stationId, { passive: source !== 'user' });
         emitHook('afterDetailsOpen', { stationId });
+      }
+
+      function updateStationUrl(stationId, method) {
+        const url = new URL(window.location.href);
+        if (stationId) url.searchParams.set('station', stationId);
+        else url.searchParams.delete('station');
+        if (url.href === window.location.href) return;
+        window.history[method + 'State'](window.history.state, '', url);
+      }
+
+      function handleStationUrlChange(initial = false) {
+        if (uiState.loading) return;
+        const url = new URL(window.location.href);
+        const stationId = url.searchParams.get('station');
+        if (!url.searchParams.has('station')) {
+          elements.stationLinkError.hidden = true;
+          if (!initial && uiState.selectedStationId) showPlan({ source: 'history' });
+          return;
+        }
+        if (!stationsById.has(stationId)) {
+          if (uiState.selectedStationId) showPlan({ source: 'history' });
+          elements.stationLinkError.hidden = false;
+          announce('Der Link verweist auf eine unbekannte Station.');
+          return;
+        }
+        elements.stationLinkError.hidden = true;
+        if (uiState.selectedStationId !== stationId) {
+          openStation(stationId, { source: initial ? 'direct-link' : 'history' });
+        }
       }
 
       function isValidPin(pin) {
@@ -2481,13 +2531,7 @@
       }
 
       function isValidDetails(details, publicOnly = false) {
-        const validPublicDetails = details
-          && typeof details.id === 'string'
-          && typeof details.title === 'string'
-          && Number.isFinite(details.lat)
-          && Number.isFinite(details.lon)
-          && typeof details.hint === 'string'
-          && typeof details.taskImage === 'string';
+        const validPublicDetails = details && typeof details.id === 'string' && typeof details.title === 'string' && Number.isFinite(details.lat) && Number.isFinite(details.lon) && typeof details.hint === 'string' && typeof details.taskImage === 'string';
         if (!validPublicDetails) return false;
         if (publicOnly) return !Object.prototype.hasOwnProperty.call(details, 'options');
         return Array.isArray(details.options) && details.options.length >= 2 && Number.isInteger(details.correctOptionIndex) && details.correctOptionIndex >= 0 && details.correctOptionIndex < details.options.length && typeof details.solutionTitle === 'string' && typeof details.info === 'string' && Array.isArray(details.links) && details.links.every((link) => link && typeof link.title === 'string' && isValidExternalUrl(link.url));
@@ -2498,8 +2542,10 @@
         uiState.loading = true;
         try {
           const settingsPromise = StationApiService.loadSettings().catch(() => null);
-          const stationsPromise = Promise.all([StationApiService.loadCategories(), StationApiService.loadPins()])
-            .then((data) => ({ data }), (error) => ({ error }));
+          const stationsPromise = Promise.all([StationApiService.loadCategories(), StationApiService.loadPins()]).then(
+            (data) => ({ data }),
+            (error) => ({ error }),
+          );
           const [settings, stationResult] = await Promise.all([settingsPromise, stationsPromise]);
           ui = resolveUi(settings && settings.ui);
           const configuredLocation = settings && settings.location;
@@ -2524,6 +2570,7 @@
           uiState.loading = false;
           notifyStateChanged('stations-loaded');
           if (!stations.length) showLoadError('Aktuell sind keine Stationen verfügbar.', false);
+          handleStationUrlChange(true);
         } catch (error) {
           uiState.loading = false;
           notifyStateChanged('stations-load-failed');
@@ -2537,15 +2584,14 @@
         elements.loadError.hidden = false;
       }
 
-      function ensureDetails(stationId) {
+      function ensureDetails(stationId, options) {
         const station = stationsById.get(stationId);
         if (!station || detailsRequests.has(stationId)) return;
         const generation = locationGeneration;
         const needsPublicDetails = !station.publicDetailsLoaded;
         const progress = getStationProgress(stationId);
-        const needsProtectedDetails = isEnabled('location_gate')
-          && (progress.locationVerified || progress.solved)
-          && !station.protectedDetailsLoaded;
+        const passive = Boolean(options && options.passive);
+        const needsProtectedDetails = !passive && isEnabled('location_gate') && (progress.locationVerified || progress.solved) && !station.protectedDetailsLoaded;
         if (!needsPublicDetails && !needsProtectedDetails) return;
         if (needsPublicDetails) AppStore.setDetailsError(stationId, false);
         const request = (async () => {
@@ -2593,8 +2639,13 @@
         ['options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links'].forEach((key) => delete station[key]);
       }
 
-      function showPlan() {
+      function showPlan(options) {
         const previousStationId = uiState.selectedStationId;
+        const source = options && options.source ? options.source : 'user';
+        if (source === 'user') {
+          elements.stationLinkError.hidden = true;
+          updateStationUrl(null, 'push');
+        }
         emitHook('beforeDetailsClose', { stationId: previousStationId });
         setSelectedStation(null);
         notifyStateChanged('deselect');
@@ -2643,11 +2694,11 @@
         return 'Der Standort konnte nicht geprüft werden.';
       }
 
-      async function verifyStationLocation(stationId) {
+      async function verifyStationLocation(stationId, devFake = false /* DEV-FAKE-POSITION (2/4) */) {
         const currentState = locationStates.get(stationId) || {};
         const generation = locationGeneration;
         if (currentState.loading) return;
-        if (!navigator.geolocation) {
+        if (!devFake && !navigator.geolocation) {
           locationStates.set(stationId, { message: 'Die Standortbestimmung wird von diesem Browser nicht unterstützt.' });
           notifyStateChanged('location-unavailable');
           return;
@@ -2655,19 +2706,19 @@
         locationStates.set(stationId, { loading: true, message: 'Standort wird ermittelt …' });
         notifyStateChanged('location-started');
         try {
-          const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              maximumAge: 0,
-              timeout: LOCATION_TIMEOUT_MS,
-            });
-          });
+          const position = devFake
+            ? devFakePosition(stationId) /* DEV-FAKE-POSITION (3/4) */
+            : await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                  enableHighAccuracy: true,
+                  maximumAge: 0,
+                  timeout: LOCATION_TIMEOUT_MS,
+                });
+              });
           const { latitude, longitude, accuracy } = position.coords;
           const timestamp = position.timestamp;
           const now = Date.now();
-          if (![latitude, longitude, accuracy, timestamp].every(Number.isFinite)
-            || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180
-            || accuracy <= 0 || timestamp < now - LOCATION_MAX_AGE_MS || timestamp > now + 30000) {
+          if (![latitude, longitude, accuracy, timestamp].every(Number.isFinite) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || accuracy <= 0 || timestamp < now - LOCATION_MAX_AGE_MS || timestamp > now + 30000) {
             locationStates.set(stationId, { message: 'Der Standort ist veraltet oder ungültig. Bitte erneut versuchen.' });
             return;
           }
@@ -2818,6 +2869,9 @@
         switch (button.dataset.action) {
           case 'verify-location':
             verifyStationLocation(stationId);
+            break;
+          case 'fake-position': // DEV-FAKE-POSITION (4/4)
+            verifyStationLocation(stationId, true);
             break;
           case 'select-option':
             selectOption(stationId, Number(button.dataset.optionIndex));
@@ -3283,6 +3337,7 @@
         document.getElementById('help-toggle').addEventListener('click', () => setHowTo(elements.howTo.classList.contains('is-closed')));
         elements.resetButton.addEventListener('click', resetProgress);
         elements.loadRetry.addEventListener('click', loadStations);
+        window.addEventListener('popstate', () => handleStationUrlChange());
         initMap();
       }
 

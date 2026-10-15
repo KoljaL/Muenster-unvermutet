@@ -20,6 +20,20 @@ Die Stationen können in beliebiger Reihenfolge gespielt werden. Der Fortschritt
 8. Nach dem Lösen kannst du die Ortsinformationen und das Lösungsfoto ansehen. Über **Nächste Station** gelangst du zur nächsten noch offenen Aufgabe.
 9. Kehre über **Zurück zum Stadtplan** zur Übersicht zurück und spiele weitere Stationen.
 
+## Stationslinks
+
+Eine Station lässt sich direkt über einen Link mit ihrer stabilen ID öffnen:
+`?station=STATIONS-ID`. Die ID bleibt auch dann verwendbar, wenn sich die
+Stationsnummer oder der Titel ändert. Beim Öffnen und Schließen einer Station
+wird die URL aktualisiert; Browser-Zurück und -Vorwärts wechseln zwischen den
+zuvor besuchten Ansichten. Ist die ID ungültig oder die Station nicht mehr
+verfügbar, bleibt die Übersicht geöffnet und es erscheint ein Hinweis.
+
+Ein Stationslink öffnet nur die Ansicht. Er startet das Spiel nicht, verändert
+keinen gespeicherten Fortschritt und erteilt oder erneuert keine
+Standortfreigabe. Bei aktiver Standortprüfung bleiben geschützte Antworten
+gesperrt, bis die Freigabe im Spiel regulär erfolgt.
+
 ## Fortschritt
 
 Der Fortschrittsbalken zeigt an, wie viele Stationen bereits gelöst sind. Der Spielstand wird mit `localStorage` im verwendeten Browser gespeichert und bleibt beim erneuten Öffnen der Seite erhalten.
@@ -229,6 +243,19 @@ Die folgenden Zugangsdaten sind ausschließlich für eine Testinstallation vorge
 | `admin3`     | `Muenster-Test-2026-3!` |
 
 **Wichtig:** Diese Testpasswörter dürfen nicht unverändert produktiv verwendet werden. Vor dem öffentlichen Deployment müssen neue Zugangsdaten gesetzt werden. In der SQLite-Datenbank werden nur Passwort-Hashes gespeichert.
+
+### Dev-Button „Fake Position“ (vor dem Release entfernen)
+
+Auf jeder Stationsseite gibt es den Button „🛠 Fake Position (Dev)“. Er verwendet die Stationskoordinaten als eigene Position und löst die Standortfreigabe aus, sodass man nicht zu jeder Station fahren muss. Der Server prüft dabei normal. Vor dem Livegang **muss er entfernt werden**, da sonst jeder die Standortprüfung umgehen kann.
+
+Alle Stellen in `index.html` sind mit `DEV-FAKE-POSITION` markiert (nach dem Begriff suchen):
+
+1. Block mit `devFakePositionButton` und `devFakePosition` vor `renderLocationStatus` komplett löschen.
+2. In `renderLocationStatus` den Aufruf `+ devFakePositionButton(state)` entfernen.
+3. In `verifyStationLocation` den Parameter `devFake`, die Bedingung `!devFake &&` und den Zweig `devFake ? devFakePosition(stationId) :` entfernen.
+4. In `handleTaskListClick` den `case 'fake-position'` löschen.
+
+Kontrolle: Die Suche nach `DEV-FAKE-POSITION`, `devFake` und `fake-position` darf in `index.html` keine Treffer mehr liefern.
 
 ### Einrichtung und lokaler Test
 
