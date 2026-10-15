@@ -46,4 +46,45 @@ admin_header('Hilfe', $admin);
     </ul>
   </div>
 </details>
+
+<details class="how-to">
+  <summary>Einstellungen: Funktionen ein- und ausschalten</summary>
+  <div>
+    <ul>
+      <li>Alle Schalter findest du im Menü „Einstellungen“. Nach dem Klick auf „Einstellungen speichern“ (unten auf der Seite) gelten sie sofort für alle Besucher.</li>
+      <li><strong>Aus:</strong> Die Funktion ist für niemanden sichtbar. <strong>An:</strong> Alle Besucher sehen sie.</li>
+      <li><strong>Test:</strong> Nur du siehst die Funktion, um sie auszuprobieren. Öffne dazu die Webseite und hänge <code>?preview=all</code> an die Adresse an, z. B. <code>https://deine-seite.de/?preview=all</code>. Normale Besucher sehen weiterhin nichts.</li>
+      <li><strong>Karte:</strong>
+        <ul>
+          <li><em>Station vorschlagen</em> – der Knopf „+ Station vorschlagen“ unter der Karte. Die Einsendungen landen bei dir im Menü „Vorschläge“.</li>
+          <li><em>Kategorien-Legende</em> – die farbige Liste unter der Karte. Besucher können damit Stationen einer Kategorie ausblenden.</li>
+          <li><em>Stationsliste</em> – die Liste „Alle Stationen“ unter der Karte. Sie hilft Menschen, die die Karte nicht gut bedienen können.</li>
+          <li><em>OSM-Orientierungskarte</em> – die kleine Karte innerhalb einer Aufgabe, die Ziel und eigenen Standort zeigt.</li>
+        </ul>
+      </li>
+      <li><strong>Aufgaben:</strong>
+        <ul>
+          <li><em>Hinweis-Schaltfläche</em> – der Knopf „Hinweis anzeigen“ in der Aufgabe. Der Text kommt aus dem Feld „Hinweis“ der Station.</li>
+          <li><em>Lösungs-Schaltfläche</em> – der Knopf „Lösung anzeigen“. Wer nicht weiterkommt, sieht damit die Lösung.</li>
+          <li><em>Standortabhängige Antwortfreigabe</em> – siehe unten.</li>
+          <li><em>Abschluss-Screen</em> – die Seite „Geschafft – Münster entdeckt!“ nach der letzten gelösten Station.</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</details>
+
+<details class="how-to">
+  <summary>Standortprüfung (Besucher müssen vor Ort sein)</summary>
+  <div>
+    <ul>
+      <li>Wenn „Standortabhängige Antwortfreigabe“ unter „Einstellungen“ → „Aufgaben“ auf <strong>An</strong> steht, sehen Besucher die Antwortmöglichkeiten und die Lösung erst, wenn sie am Ort der Station sind. Der Browser fragt dazu das Handy nach dem Standort; Besucher müssen das erlauben.</li>
+      <li>Ob jemand „vor Ort“ ist, wird mit dem Standort verglichen, den du im Stationsformular (Menü „Stationen“) auf der Karte gesetzt hast. Prüfe deshalb, dass dieser Punkt genau stimmt.</li>
+      <li><strong>Prüfungsradius:</strong> Wie viele Meter Besucher höchstens vom Ziel entfernt sein dürfen. Größer = großzügiger (empfohlen: 50 m; in engen Gassen oder bei schlechtem Empfang etwas mehr).</li>
+      <li><strong>Maximale GPS-Ungenauigkeit:</strong> Handys wissen ihren Standort nur ungefähr. Ist die Ortung ungenauer als dieser Wert, wird sie abgelehnt und Besucher können über „Standort aktualisieren“ erneut prüfen lassen. Ein zu kleiner Wert führt zu vielen Fehlversuchen.</li>
+      <li>Wenn Besucher sich beschweren, dass sie vor Ort nicht weiterkommen: Radius erhöhen oder die Station als „Test“ ausprobieren.</li>
+      <li>Ist diese Funktion auf „Aus“, werden die beiden Werte nicht verwendet.</li>
+    </ul>
+  </div>
+</details>
 <?php admin_footer();

@@ -14,7 +14,7 @@ foreach (UI_REGISTRY as $key => $definition) {
 admin_header('Einstellungen', $admin);
 ?>
 <h1 class="admin-title">Feature-Einstellungen</h1>
-<p class="task-intro">Diese Einstellungen gelten global für alle Besucher. Features im Testmodus sind nur mit passendem Vorschau-Parameter sichtbar, zum Beispiel <code>?preview=all</code>.</p>
+<p class="task-intro">Hier legst du fest, welche Funktionen Besucher auf der Webseite sehen. Änderungen gelten sofort für alle. <strong>Aus</strong> = für niemanden sichtbar, <strong>An</strong> = für alle sichtbar, <strong>Test</strong> = nur für dich sichtbar (Adresse der Webseite mit <code>?preview=all</code> am Ende öffnen). Mehr dazu unter <a href="help.php">Hilfe</a>.</p>
 <form method="post" action="settings-save.php">
   <?= csrf_field() ?>
   <?php foreach ($groups as $group => $options): ?>
@@ -37,7 +37,7 @@ admin_header('Einstellungen', $admin);
     <legend>Standortprüfung</legend>
     <fieldset class="setting-option">
       <legend>Prüfgrenzwerte</legend>
-      <p>Werte in Metern. Zulässiger Prüfungsradius: 5–5000 m; maximale GPS-Ungenauigkeit: 1–500 m.</p>
+      <p>Wirkt nur, wenn „Standortabhängige Antwortfreigabe“ aktiv ist. Prüfungsradius: so nah (5–5000 m) müssen Besucher am Ziel sein. Max. GPS-Ungenauigkeit: so ungenau (1–500 m) darf die Handy-Ortung sein.</p>
       <label>Prüfungsradius
         <input type="number" name="location[location_radius_m]" min="5" max="5000" step="1" required value="<?= h((string) $locationSettings['location_radius_m']) ?>">
       </label>

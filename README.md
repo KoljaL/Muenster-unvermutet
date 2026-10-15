@@ -155,6 +155,47 @@ Stationsdaten im Admin-Bereich, bevor ein Vorschlag veröffentlicht wird.
 - Bei nicht erreichbarem Backend zeigt das Formular den Fehler an und behandelt
   den Vorschlag nicht als erfolgreich übermittelt.
 
+## Geplante Verbesserungen (zukünftige Updates)
+
+### Persistente serverseitige Standortfreigabe
+
+**Problem:** Die Freigabe einer Station wird an zwei Stellen gespeichert: als
+`locationVerified` im lokalen Spielstand (`localStorage`) und als Eintrag in der
+PHP-Sitzung auf dem Server (`$_SESSION['verified_stations']`). Geschützte Details
+(Antworten, Lösung, Lösungsfoto, Info-Text) liefert `api/get_details.php?protected=1`
+nur, wenn die Sitzung die Freigabe kennt. Geht die Sitzung verloren (Cookie gelöscht,
+Browserwechsel, Ablauf der Sitzung, Aufräumen durch den Server), verweigert der Server
+den Abruf, obwohl der lokale Spielstand die Station als freigeschaltet oder gelöst
+führt. Die Station erscheint dann wieder gesperrt und verlangt eine erneute
+Standortprüfung. Das widerspricht der Anforderung, dass gelöste Stationen ohne erneute
+Prüfung zugänglich bleiben.
+
+**Lösungsvorschlag:**
+
+1. Nach erfolgreicher Standortprüfung erzeugt der Server eine kryptografisch zufällige,
+   nicht erratbare Kennung (z. B. `random_bytes(32)`) und setzt sie als langlebiges
+   Cookie (`HttpOnly`, `Secure`, `SameSite=Lax`, begrenzte Laufzeit).
+2. In der Datenbank wird nicht die Kennung selbst, sondern ihr Hash zusammen mit den
+   freigeschalteten Stations-IDs und einem Ablaufzeitpunkt gespeichert. Positionsdaten
+   werden weiterhin nicht gespeichert.
+3. `api/get_details.php?protected=1` prüft Cookie-Hash, Station und Ablaufzeitpunkt in
+   der Datenbank und liefert nur dann die geschützten Details aus. Der lokale
+   `localStorage`-Wert allein reicht weiterhin nicht aus.
+4. `api/reset_location.php` löscht die zugehörigen Freigaben in der Datenbank und das
+   Cookie. Abgelaufene Datensätze werden regelmäßig entfernt.
+5. Das Frontend behandelt einen abgelehnten Abruf geschützter Details als „Freigabe
+   nicht mehr verfügbar“ und hält Freigabestatus und Fortschrittsanzeige konsistent.
+
+**Datenschutz:** Die zufällige Kennung ist eine pseudonyme Zuordnung und kann als
+personenbezogenes Datum gelten. Zu klären und zu dokumentieren sind Zweck,
+Speicherdauer, Löschkonzept, Hinweis in der Datenschutzerklärung und die Einstufung des
+Cookies als technisch erforderlich nach § 25 TDDDG. IP-Adressen dürfen nicht mit den
+Freigaben verknüpft werden.
+
+**Alternative:** Ein Spielkonto mit serverseitigem Spielstand würde auch geräteübergreifende
+Freigaben ermöglichen, erfordert aber deutlich mehr Aufwand und zusätzliche
+Datenschutzanforderungen.
+
 ## Voraussetzungen und Dateien
 
 - Für die interaktive Karte und die Kartendaten wird eine Internetverbindung benötigt.
