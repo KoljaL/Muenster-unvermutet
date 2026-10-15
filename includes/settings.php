@@ -82,6 +82,21 @@ const UI_REGISTRY = [
         'default' => 'on',
         'requires' => [],
     ],
+    'ui.location_gate' => [
+        'label' => 'Standortabhängige Antwortfreigabe',
+        'group' => 'Aufgaben',
+        'description' => 'Antworten und Lösung erst nach erfolgreicher Standortprüfung freigeben.',
+        'default' => 'off',
+        'requires' => [],
+        'server_enforced' => true,
+    ],
+    'ui.station_map' => [
+        'label' => 'OSM-Orientierungskarte',
+        'group' => 'Karte',
+        'description' => 'Kompakte OpenStreetMap-Karte in der Stationsansicht anzeigen.',
+        'default' => 'on',
+        'requires' => [],
+    ],
     'ui.completion' => [
         'label' => 'Abschluss-Screen',
         'group' => 'Aufgaben',
@@ -92,6 +107,64 @@ const UI_REGISTRY = [
 ];
 
 const UI_SETTING_STATES = ['off', 'on', 'test'];
+const LOCATION_SETTING_DEFAULTS = ['location_radius_m' => 50, 'location_max_accuracy_m' => 50];
+const LOCATION_SETTING_LIMITS = ['location_radius_m' => [5, 5000], 'location_max_accuracy_m' => [1, 500]];
+
+/** @return array{location_radius_m: int, location_max_accuracy_m: int} */
+function location_settings(): array
+{
+    $settings = LOCATION_SETTING_DEFAULTS;
+    $rows = db()->query("SELECT key, value FROM settings WHERE key IN ('location_radius_m', 'location_max_accuracy_m')")->fetchAll();
+    foreach ($rows as $row) {
+        $key = $row['key'];
+        if (!isset(LOCATION_SETTING_LIMITS[$key]) || !is_numeric($row['value'])) {
+            continue;
+        }
+        $value = filter_var($row['value'], FILTER_VALIDATE_INT);
+        [$minimum, $maximum] = LOCATION_SETTING_LIMITS[$key];
+        if ($value !== false && $value >= $minimum && $value <= $maximum) {
+            $settings[$key] = $value;
+        }
+    }
+    return $settings;
+}
+
+/** @param array<string, mixed> $values
+ *  @return array{location_radius_m: int, location_max_accuracy_m: int}
+ */
+function validate_location_settings(array $values): array
+{
+    $validated = [];
+    foreach (LOCATION_SETTING_LIMITS as $key => [$minimum, $maximum]) {
+        $value = $values[$key] ?? null;
+        if (!is_string($value) || !preg_match('/^[0-9]+$/', $value)) {
+            throw new InvalidArgumentException('Ungültige Standortgrenze.');
+        }
+        $number = (int) $value;
+        if ($number < $minimum || $number > $maximum) {
+            throw new InvalidArgumentException('Ungültige Standortgrenze.');
+        }
+        $validated[$key] = $number;
+    }
+    return $validated;
+}
+
+/** @param array{location_radius_m: int, location_max_accuracy_m: int} $values */
+function save_location_settings(array $values): void
+{
+    $statement = db()->prepare(
+        'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+    );
+    foreach ($values as $key => $value) {
+        $statement->execute([$key, (string) $value, now()]);
+    }
+}
+
+function location_gate_enabled(string|array|null $preview = null): bool
+{
+    return ui_option_enabled('ui.location_gate', $preview);
+}
 
 /** @return array<string, string> */
 function ui_setting_states(): array
