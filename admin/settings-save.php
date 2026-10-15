@@ -26,5 +26,5 @@ try {
     redirect('settings.php');
 }
 
-flash('ok', 'UI-Einstellungen gespeichert.');
+flash('ok', 'Feature-Einstellungen gespeichert.');
 redirect('settings.php');

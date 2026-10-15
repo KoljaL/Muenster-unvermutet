@@ -4,48 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/database.php';
 
 const UI_REGISTRY = [
-    'ui.help' => [
-        'label' => 'Hilfe',
-        'group' => 'Darstellung',
-        'description' => 'Hilfe-Schaltfläche und Anleitung „So funktioniert’s“',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.accessibility_toggle' => [
-        'label' => 'Barrierefrei-Schalter',
-        'group' => 'Darstellung',
-        'description' => 'Schaltet die barrierefreie Stationsliste und große Kartenpins ein.',
-        'default' => 'on',
-        'requires' => ['ui.station_list'],
-    ],
-    'ui.theme_toggle' => [
-        'label' => 'Dark-Mode-Schalter',
-        'group' => 'Darstellung',
-        'description' => 'Schaltfläche zum Wechseln des Farbmodus; die Systemeinstellung bleibt Standard.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.progress' => [
-        'label' => 'Fortschrittsanzeige',
-        'group' => 'Fortschritt',
-        'description' => 'Fortschrittsbalken und Zähler.',
-        'default' => 'on',
-        'requires' => [],
-    ],
-    'ui.badges' => [
-        'label' => 'Mini-Badges',
-        'group' => 'Fortschritt',
-        'description' => 'Kleine Stations-Badges neben der Fortschrittsanzeige.',
-        'default' => 'on',
-        'requires' => ['ui.progress'],
-    ],
-    'ui.reset' => [
-        'label' => 'Fortschritt zurücksetzen',
-        'group' => 'Fortschritt',
-        'description' => 'Schaltfläche und Bestätigungsdialog zum Zurücksetzen.',
-        'default' => 'on',
-        'requires' => ['ui.progress'],
-    ],
     'ui.suggest' => [
         'label' => 'Station vorschlagen',
         'group' => 'Karte',
