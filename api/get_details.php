@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/location.php';
 require_method('GET');
 
 $id = $_GET['id'] ?? '';
@@ -17,15 +19,18 @@ if (!$s) {
     json_error(404, 'station_not_found', 'Station nicht gefunden.');
 }
 
-$stmt = $pdo->prepare('SELECT option_text FROM options WHERE station_id = ? ORDER BY option_index');
-$stmt->execute([$id]);
-$options = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$preview = is_string($_GET['preview'] ?? null) ? $_GET['preview'] : null;
+$locationGate = location_gate_enabled($preview);
+$protected = !$locationGate;
+if ($locationGate && ($_GET['protected'] ?? '') === '1') {
+    start_game_session();
+    $protected = !empty($_SESSION['verified_stations'][$id]);
+    if (!$protected) {
+        json_error(403, 'location_not_verified', 'Der Standort wurde für diese Station noch nicht bestätigt.');
+    }
+}
 
-$stmt = $pdo->prepare('SELECT title, url FROM links WHERE station_id = ? ORDER BY id');
-$stmt->execute([$id]);
-$links = $stmt->fetchAll();
-
-json_ok([
+$data = [
     'id' => $s['id'],
     'number' => (int) $s['number'],
     'title' => $s['title'],
@@ -33,12 +38,26 @@ json_ok([
     'lon' => (float) $s['lon'],
     'category' => $s['category'],
     'hint' => $s['hint'],
-    'options' => $options,
-    'correctOptionIndex' => (int) $s['correct_option_index'],
-    'solutionTitle' => $s['solution_title'],
-    'solutionCaption' => $s['solution_caption'],
-    'info' => $s['info'],
     'taskImage' => $s['task_image'],
-    'solutionImage' => $s['solution_image'],
-    'links' => $links,
-]);
+];
+if (!$locationGate || $protected) {
+    $stmt = $pdo->prepare('SELECT option_text FROM options WHERE station_id = ? ORDER BY option_index');
+    $stmt->execute([$id]);
+    $options = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $stmt = $pdo->prepare('SELECT title, url FROM links WHERE station_id = ? ORDER BY id');
+    $stmt->execute([$id]);
+    $links = $stmt->fetchAll();
+
+    $data = array_merge($data, [
+        'options' => $options,
+        'correctOptionIndex' => (int) $s['correct_option_index'],
+        'solutionTitle' => $s['solution_title'],
+        'solutionCaption' => $s['solution_caption'],
+        'info' => $s['info'],
+        'solutionImage' => $s['solution_image'],
+        'links' => $links,
+    ]);
+}
+
+json_ok($data);

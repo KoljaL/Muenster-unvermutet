@@ -517,6 +517,33 @@
         background: var(--color-surface-alt);
         border-color: var(--color-border);
       }
+      .location-status {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+      }
+      .location-status p {
+        margin: 0;
+      }
+      .station-orientation {
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        padding: 10px;
+        background: var(--color-surface-alt);
+      }
+      .station-orientation summary {
+        min-height: 44px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .station-orientation-map {
+        height: 220px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .station-distance {
+        margin: 8px 0 0;
+      }
       .load-error button,
       .task-status button {
         min-height: 44px;
@@ -1693,6 +1720,8 @@
       const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
       const MAP_CENTER = [51.9622, 7.6278];
       const MAP_TILE_URL = 'https://tile.openstreetmap.de/{z}/{x}/{y}.png';
+      const LOCATION_TIMEOUT_MS = 15000;
+      const LOCATION_MAX_AGE_MS = 120000;
 
       /* ==========================================================
          2. Daten
@@ -1712,13 +1741,15 @@
           categories: 'api/categories.php',
           submit: 'api/submit_station.php',
           settings: 'api/settings.php',
+          verifyLocation: 'api/verify_location.php',
         },
-        async fetchApi(url) {
+        async fetchApi(url, options = {}) {
           const controller = new AbortController();
           const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
           try {
             const response = await fetch(url, {
-              headers: { Accept: 'application/json' },
+              ...options,
+              headers: { Accept: 'application/json', ...(options.headers || {}) },
               cache: 'no-cache',
               signal: controller.signal,
             });
@@ -1745,16 +1776,46 @@
         loadSettings() {
           const preview = new URLSearchParams(window.location.search).get('preview');
           const query = preview === null ? '' : '?preview=' + encodeURIComponent(preview);
-          return this.fetchApi(this.urls.settings + query).then((data) => data.ui);
+          return this.fetchApi(this.urls.settings + query);
         },
         loadDetails(stationId) {
-          return this.fetchApi(this.urls.details + '?id=' + encodeURIComponent(stationId));
+          return this.fetchApi(this.urls.details + '?id=' + encodeURIComponent(stationId) + previewQuery());
+        },
+        loadProtectedDetails(stationId) {
+          return this.fetchApi(this.urls.details + '?id=' + encodeURIComponent(stationId) + '&protected=1' + previewQuery());
+        },
+        resetLocationAccess() {
+          return this.fetchApi('api/reset_location.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+        },
+        verifyLocation(stationId, location) {
+          return this.fetchApi(this.urls.verifyLocation + previewQuery('?'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: stationId, ...location }),
+          });
         },
       };
       const UI_DEFAULTS = Object.freeze({
         suggest: true,
+        legend: true,
+        station_list: true,
+        hint_button: true,
+        reveal_button: true,
+        location_gate: false,
+        station_map: true,
+        completion: true,
       });
       let ui = UI_DEFAULTS;
+      let locationConfig = { radius: 50, maxAccuracy: 50 };
+      const locationStates = new Map();
+      const playerLocations = new Map();
+      const pendingLocationRequests = new Set();
+      let locationGeneration = 0;
+      let stationMap = null;
 
       function resolveUi(settings) {
         const resolved = {};
@@ -1766,6 +1827,11 @@
 
       function isEnabled(key) {
         return ui[key] === true;
+      }
+
+      function previewQuery(separator = '&') {
+        const preview = new URLSearchParams(window.location.search).get('preview');
+        return preview === null ? '' : separator + 'preview=' + encodeURIComponent(preview);
       }
 
       function applyUiSettings() {
@@ -1804,13 +1870,13 @@
          {
            version: 1,
            stations: {
-             '<stationId>': { solved: boolean, attempts: number, selectedOptionIndex: number | null }
+             '<stationId>': { solved: boolean, locationVerified: boolean, attempts: number, selectedOptionIndex: number | null }
            }
          }
          Neue Felder (z. B. gespeicherte Antworten) hier in createStationProgress() ergänzen.
          ========================================================== */
       function createStationProgress() {
-        return { solved: false, attempts: 0, selectedOptionIndex: null, hintUsed: false, hintVisible: false, revealed: false };
+        return { solved: false, locationVerified: false, attempts: 0, selectedOptionIndex: null, hintUsed: false, hintVisible: false, revealed: false };
       }
 
       function createEmptyProgress() {
@@ -1853,6 +1919,7 @@
         getStationProgress(stationId) {
           const stored = this.state.progress.stations[stationId];
           const stationProgress = { ...createStationProgress(), ...(stored || {}) };
+          stationProgress.locationVerified = stationProgress.locationVerified === true;
           if (stored && typeof stored.hintVisible !== 'boolean') stationProgress.hintVisible = Boolean(stored.hintUsed);
           return stationProgress;
         },
@@ -2019,11 +2086,21 @@
       }
 
       function hasDetails(station) {
-        return Array.isArray(station.options);
+        return Boolean(station && (station.publicDetailsLoaded || Array.isArray(station.options)));
       }
 
       function formatCoordinates(station) {
         return station.lat.toFixed(5) + ', ' + station.lon.toFixed(5);
+      }
+
+      function distanceBetween(lat1, lon1, lat2, lon2) {
+        const radians = (degrees) => degrees * Math.PI / 180;
+        const latitudeDelta = radians(lat2 - lat1);
+        const longitudeDelta = radians(lon2 - lon1);
+        const a = Math.sin(latitudeDelta / 2) ** 2
+          + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(longitudeDelta / 2) ** 2;
+        const boundedA = Math.min(1, Math.max(0, a));
+        return 6371000 * 2 * Math.atan2(Math.sqrt(boundedA), Math.sqrt(1 - boundedA));
       }
 
       function announce(message) {
@@ -2175,15 +2252,30 @@
         return '<div class="options" role="group" aria-labelledby="task-intro">' + buttons + '</div>';
       }
 
+      function renderOrientationMap(station) {
+        if (!isEnabled('station_map')) return '';
+        const player = playerLocations.get(station.id);
+        const distance = player ? Math.round(distanceBetween(player.lat, player.lon, station.lat, station.lon)) + ' m bis zum Ziel' : 'Der eigene Standort erscheint nach einer Standortaktualisierung.';
+        return '<details class="station-orientation" open><summary>OpenStreetMap-Orientierungskarte</summary><div class="station-orientation-map" id="station-orientation-map" role="region" aria-label="Karte mit Stationsziel und eigener Position"></div><p class="station-distance">' + escapeHtml(distance) + '</p></details>';
+      }
+
+      function renderLocationStatus(station) {
+        const state = locationStates.get(station.id) || {};
+        const message = state.message || 'Begib dich zum abgebildeten Ort und aktualisiere anschließend deinen Standort.';
+        return '<div class="task-status location-status" role="status" aria-live="polite"><p>' + escapeHtml(message) + '</p><button type="button" data-action="verify-location"' + (state.loading ? ' disabled' : '') + '>Standort aktualisieren</button></div>';
+      }
+
       function renderUnsolvedBody(station) {
         const progress = getStationProgress(station.id);
         const coordinates = formatCoordinates(station);
         const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
         const hintVisible = progress.hintVisible;
         const wrongAnswerSelected = progress.selectedOptionIndex !== null && progress.selectedOptionIndex !== station.correctOptionIndex;
-        const hintButton = '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="' + String(hintVisible) + '" aria-controls="hint-box">💡 Hinweis anzeigen</button>';
-        const revealButton = '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>';
-        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box' + (hintVisible ? ' is-visible' : '') + '" id="hint-box" aria-hidden="' + String(!hintVisible) + '">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + '<div class="task-actions">' + renderOptions(station) + hintButton + '</div>' + '<p class="error-message' + (wrongAnswerSelected ? ' feedback-in' : '') + '" id="error-message"' + (wrongAnswerSelected ? '' : ' hidden') + '>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>' + revealButton;
+        const hintButton = isEnabled('hint_button') ? '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="' + String(hintVisible) + '" aria-controls="hint-box">💡 Hinweis anzeigen</button>' : '';
+        const gated = isEnabled('location_gate') && !station.protectedDetailsLoaded;
+        const revealButton = !gated && isEnabled('reveal_button') ? '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>' : '';
+        const options = gated ? renderLocationStatus(station) : renderOptions(station);
+        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box' + (hintVisible ? ' is-visible' : '') + '" id="hint-box" aria-hidden="' + String(!hintVisible) + '">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + renderOrientationMap(station) + '<div class="task-actions">' + options + hintButton + '</div>' + (gated ? '' : '<p class="error-message' + (wrongAnswerSelected ? ' feedback-in' : '') + '" id="error-message"' + (wrongAnswerSelected ? '' : ' hidden') + '>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>') + revealButton;
       }
 
       function renderSolvedBody(station) {
@@ -2220,7 +2312,7 @@
 
       function renderTaskCard(station) {
         if (!hasDetails(station)) return renderTaskPlaceholder(station);
-        const solved = isSolved(station.id);
+        const solved = isSolved(station.id) && (!isEnabled('location_gate') || station.protectedDetailsLoaded);
         const category = categoryOf(station);
         return '<article class="task-card" aria-labelledby="task-title" data-station-id="' + station.id + '" style="--cat:' + escapeHtml(category.color) + '">' + renderTaskPhoto(station, solved) + '<div class="task-body">' + '<span class="category-chip">' + categoryImageHtml(category) + escapeHtml(category.name) + '</span>' + '<h2 class="task-title" id="task-title" tabindex="-1">' + escapeHtml(solved ? station.solutionTitle : station.title) + '</h2>' + (solved ? renderSolvedBody(station) : renderUnsolvedBody(station)) + '</div></article>';
       }
@@ -2294,6 +2386,10 @@
         const nextMarkup = station ? renderTaskCard(station) : '';
         if (nextMarkup === renderedTaskMarkup) return; // unveraenderte Ansicht: keine Transition
         renderedTaskMarkup = nextMarkup;
+        if (stationMap) {
+          stationMap.remove();
+          stationMap = null;
+        }
         if (!document.startViewTransition) {
           elements.taskList.innerHTML = nextMarkup;
           markLoadedImages(elements.taskList);
@@ -2305,6 +2401,25 @@
               markLoadedImages(elements.taskList);
             })
             .updateCallbackDone.catch(() => {});
+        }
+        taskViewUpdate.then(setupOrientationMap);
+      }
+
+      function setupOrientationMap() {
+        const container = document.getElementById('station-orientation-map');
+        const station = stationsById.get(uiState.selectedStationId);
+        if (!container || !station || typeof L === 'undefined') return;
+        stationMap = L.map(container).setView([station.lat, station.lon], 17);
+        L.tileLayer(MAP_TILE_URL, {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+        }).addTo(stationMap);
+        const target = L.marker([station.lat, station.lon]).addTo(stationMap).bindPopup('Stationsziel');
+        const player = playerLocations.get(station.id);
+        if (player) {
+          const playerMarker = L.circleMarker([player.lat, player.lon], { radius: 8, color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.9 }).addTo(stationMap).bindPopup('Dein aktueller Standort');
+          L.polyline([[player.lat, player.lon], [station.lat, station.lon]], { color: '#1d4ed8', dashArray: '6 6' }).addTo(stationMap);
+          stationMap.fitBounds([target.getLatLng(), playerMarker.getLatLng()], { padding: [24, 24], maxZoom: 17 });
         }
       }
 
@@ -2365,8 +2480,17 @@
         return category && typeof category.id === 'string' && category.id !== '' && typeof category.name === 'string' && (category.icon === null || typeof category.icon === 'string') && typeof category.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(category.color);
       }
 
-      function isValidDetails(details) {
-        return details && Array.isArray(details.options) && details.options.length >= 2 && Number.isInteger(details.correctOptionIndex) && details.correctOptionIndex >= 0 && details.correctOptionIndex < details.options.length && typeof details.hint === 'string' && typeof details.solutionTitle === 'string' && typeof details.info === 'string' && Array.isArray(details.links) && details.links.every((link) => link && typeof link.title === 'string' && isValidExternalUrl(link.url));
+      function isValidDetails(details, publicOnly = false) {
+        const validPublicDetails = details
+          && typeof details.id === 'string'
+          && typeof details.title === 'string'
+          && Number.isFinite(details.lat)
+          && Number.isFinite(details.lon)
+          && typeof details.hint === 'string'
+          && typeof details.taskImage === 'string';
+        if (!validPublicDetails) return false;
+        if (publicOnly) return !Object.prototype.hasOwnProperty.call(details, 'options');
+        return Array.isArray(details.options) && details.options.length >= 2 && Number.isInteger(details.correctOptionIndex) && details.correctOptionIndex >= 0 && details.correctOptionIndex < details.options.length && typeof details.solutionTitle === 'string' && typeof details.info === 'string' && Array.isArray(details.links) && details.links.every((link) => link && typeof link.title === 'string' && isValidExternalUrl(link.url));
       }
 
       async function loadStations() {
@@ -2377,7 +2501,12 @@
           const stationsPromise = Promise.all([StationApiService.loadCategories(), StationApiService.loadPins()])
             .then((data) => ({ data }), (error) => ({ error }));
           const [settings, stationResult] = await Promise.all([settingsPromise, stationsPromise]);
-          ui = resolveUi(settings);
+          ui = resolveUi(settings && settings.ui);
+          const configuredLocation = settings && settings.location;
+          locationConfig = {
+            radius: Number.isFinite(configuredLocation && configuredLocation.radius) ? configuredLocation.radius : 50,
+            maxAccuracy: Number.isFinite(configuredLocation && configuredLocation.maxAccuracy) ? configuredLocation.maxAccuracy : 50,
+          };
           applyUiSettings();
           initializeUi();
           notifyStateChanged('settings-loaded');
@@ -2410,15 +2539,35 @@
 
       function ensureDetails(stationId) {
         const station = stationsById.get(stationId);
-        if (!station || hasDetails(station) || detailsRequests.has(stationId)) return;
-        AppStore.setDetailsError(stationId, false);
-        const request = StationApiService.loadDetails(stationId)
-          .then((details) => {
-            if (!isValidDetails(details)) throw new Error('Ungültige Stationsdetails');
+        if (!station || detailsRequests.has(stationId)) return;
+        const generation = locationGeneration;
+        const needsPublicDetails = !station.publicDetailsLoaded;
+        const progress = getStationProgress(stationId);
+        const needsProtectedDetails = isEnabled('location_gate')
+          && (progress.locationVerified || progress.solved)
+          && !station.protectedDetailsLoaded;
+        if (!needsPublicDetails && !needsProtectedDetails) return;
+        if (needsPublicDetails) AppStore.setDetailsError(stationId, false);
+        const request = (async () => {
+          if (needsPublicDetails) {
+            const details = await StationApiService.loadDetails(stationId);
+            if (!isValidDetails(details, isEnabled('location_gate'))) throw new Error('Ungültige Stationsdetails');
             Object.assign(station, details);
-          })
+            station.publicDetailsLoaded = true;
+            if (!isEnabled('location_gate')) station.protectedDetailsLoaded = true;
+          }
+          const currentProgress = getStationProgress(stationId);
+          if (generation === locationGeneration && isEnabled('location_gate') && (currentProgress.locationVerified || currentProgress.solved) && !station.protectedDetailsLoaded) {
+            try {
+              await loadProtectedDetails(station, generation);
+            } catch (error) {
+              if (currentProgress.locationVerified) updateStationProgress(stationId, { locationVerified: false }, 'location-expired');
+              locationStates.set(stationId, { message: 'Die Freigabe konnte nicht bestätigt werden. Bitte aktualisiere deinen Standort.' });
+            }
+          }
+        })()
           .catch(() => {
-            AppStore.setDetailsError(stationId, true);
+            if (needsPublicDetails) AppStore.setDetailsError(stationId, true);
           })
           .finally(() => {
             detailsRequests.delete(stationId);
@@ -2429,6 +2578,19 @@
             }
           });
         detailsRequests.set(stationId, request);
+      }
+
+      async function loadProtectedDetails(station, generation = locationGeneration) {
+        const details = await StationApiService.loadProtectedDetails(station.id);
+        if (!isValidDetails(details)) throw new Error('Geschützte Stationsdetails konnten nicht geladen werden.');
+        if (generation !== locationGeneration) return;
+        Object.assign(station, details);
+        station.protectedDetailsLoaded = true;
+      }
+
+      function clearProtectedDetails(station) {
+        station.protectedDetailsLoaded = false;
+        ['options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links'].forEach((key) => delete station[key]);
       }
 
       function showPlan() {
@@ -2468,6 +2630,95 @@
       /* ==========================================================
          8. Aktionen
          ========================================================== */
+      function locationFailureMessage(error) {
+        if (error && error.code === 1) return 'Der Zugriff auf den Standort wurde verweigert.';
+        if (error && error.code === 2) return 'Der Standort konnte nicht ermittelt werden.';
+        if (error && error.code === 3) return 'Die Standortabfrage dauerte zu lange. Bitte erneut versuchen.';
+        return 'Der Standort konnte nicht geprüft werden. Bitte erneut versuchen.';
+      }
+
+      function locationResultMessage(result) {
+        if (result.reason === 'poor_accuracy') return 'Die Standortgenauigkeit ist derzeit zu gering (maximal ' + locationConfig.maxAccuracy + ' Meter).';
+        if (result.reason === 'too_far') return 'Du bist noch etwa ' + result.distance + ' Meter vom Ziel entfernt (Prüfungsradius: ' + (result.radius || locationConfig.radius) + ' Meter).';
+        return 'Der Standort konnte nicht geprüft werden.';
+      }
+
+      async function verifyStationLocation(stationId) {
+        const currentState = locationStates.get(stationId) || {};
+        const generation = locationGeneration;
+        if (currentState.loading) return;
+        if (!navigator.geolocation) {
+          locationStates.set(stationId, { message: 'Die Standortbestimmung wird von diesem Browser nicht unterstützt.' });
+          notifyStateChanged('location-unavailable');
+          return;
+        }
+        locationStates.set(stationId, { loading: true, message: 'Standort wird ermittelt …' });
+        notifyStateChanged('location-started');
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              maximumAge: 0,
+              timeout: LOCATION_TIMEOUT_MS,
+            });
+          });
+          const { latitude, longitude, accuracy } = position.coords;
+          const timestamp = position.timestamp;
+          const now = Date.now();
+          if (![latitude, longitude, accuracy, timestamp].every(Number.isFinite)
+            || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180
+            || accuracy <= 0 || timestamp < now - LOCATION_MAX_AGE_MS || timestamp > now + 30000) {
+            locationStates.set(stationId, { message: 'Der Standort ist veraltet oder ungültig. Bitte erneut versuchen.' });
+            return;
+          }
+          if (generation !== locationGeneration) return;
+          playerLocations.set(stationId, { lat: latitude, lon: longitude });
+          locationStates.set(stationId, { loading: true, message: 'Standort wird geprüft …' });
+          notifyStateChanged('location-checking');
+          const verification = StationApiService.verifyLocation(stationId, {
+            lat: latitude,
+            lon: longitude,
+            accuracy,
+            timestamp,
+          });
+          pendingLocationRequests.add(verification);
+          let result;
+          try {
+            result = await verification;
+          } finally {
+            pendingLocationRequests.delete(verification);
+          }
+          if (generation !== locationGeneration) return;
+          if (!result.success) {
+            locationStates.set(stationId, { message: locationResultMessage(result) });
+            return;
+          }
+          locationStates.set(stationId, { loading: true, message: 'Standort bestätigt. Antworten werden geladen …' });
+          updateStationProgress(stationId, { locationVerified: true }, 'location-verified');
+          const station = stationsById.get(stationId);
+          await loadProtectedDetails(station, generation);
+          if (generation !== locationGeneration) {
+            clearProtectedDetails(station);
+            return;
+          }
+          locationStates.set(stationId, { message: 'Standort bestätigt. Die Antworten sind freigegeben.' });
+          announce('Standort bestätigt. Die Antwortmöglichkeiten sind freigegeben.');
+          if (uiState.selectedStationId === stationId) focusTaskTitle();
+        } catch (error) {
+          if (generation !== locationGeneration) return;
+          const progress = getStationProgress(stationId);
+          if (progress.locationVerified) updateStationProgress(stationId, { locationVerified: false }, 'location-check-failed');
+          locationStates.set(stationId, { message: locationFailureMessage(error) });
+          announce(locationFailureMessage(error));
+        } finally {
+          if (generation === locationGeneration) {
+            const state = locationStates.get(stationId) || {};
+            locationStates.set(stationId, { ...state, loading: false });
+            notifyStateChanged('location-finished');
+          }
+        }
+      }
+
       function markSolved(stationId, selectedOptionIndex) {
         const station = stationsById.get(stationId);
         updateStationProgress(stationId, { solved: true, selectedOptionIndex }, 'solved');
@@ -2477,6 +2728,7 @@
 
       function selectOption(stationId, optionIndex) {
         const station = stationsById.get(stationId);
+        if (isEnabled('location_gate') && !station.protectedDetailsLoaded) return;
         if (optionIndex === station.correctOptionIndex) {
           markSolved(stationId, optionIndex);
           return;
@@ -2524,7 +2776,17 @@
       }
 
       function confirmProgressReset() {
+        locationGeneration += 1;
         AppStore.resetProgress();
+        playerLocations.clear();
+        locationStates.clear();
+        if (isEnabled('location_gate')) {
+          stations.forEach(clearProtectedDetails);
+        }
+        Promise.all(Array.from(pendingLocationRequests, (request) => request.catch(() => {})))
+          .then(() => StationApiService.resetLocationAccess())
+          .catch(() => {});
+        notifyStateChanged('location-reset');
         announce('Fortschritt zurückgesetzt.');
         closeResetDialog({
           restoreFocus: false,
@@ -2554,6 +2816,9 @@
         if (!button) return;
         const stationId = uiState.selectedStationId;
         switch (button.dataset.action) {
+          case 'verify-location':
+            verifyStationLocation(stationId);
+            break;
           case 'select-option':
             selectOption(stationId, Number(button.dataset.optionIndex));
             break;
@@ -2561,6 +2826,7 @@
             toggleHint();
             break;
           case 'reveal':
+            if (isEnabled('location_gate') && !stationsById.get(stationId).protectedDetailsLoaded) break;
             updateStationProgress(stationId, { revealed: true });
             markSolved(stationId, null);
             break;

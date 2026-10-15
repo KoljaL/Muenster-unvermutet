@@ -17,5 +17,8 @@ $timestamp = now();
 foreach (UI_REGISTRY as $key => $definition) {
     $statement->execute([$key, $definition['default'], $timestamp]);
 }
+foreach (LOCATION_SETTING_DEFAULTS as $key => $value) {
+    $statement->execute([$key, (string) $value, $timestamp]);
+}
 
-echo "Feature-Einstellungen erfolgreich angelegt und fehlende Defaults ergänzt.\n";
+echo "UI- und Standorteinstellungen erfolgreich angelegt und fehlende Defaults ergänzt.\n";

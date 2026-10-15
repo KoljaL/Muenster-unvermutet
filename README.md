@@ -13,11 +13,12 @@ Die Stationen können in beliebiger Reihenfolge gespielt werden. Der Fortschritt
 1. Öffne [`index.html`](./index.html) in einem modernen Webbrowser.
 2. Wähle eine Station, indem du einen nummerierten Pin auf der Karte oder eine Station in der Liste anklickst.
 3. Sieh dir das Aufgabenfoto an und suche das abgebildete Detail vor Ort.
-4. Nutze bei Bedarf den Button **Hint anzeigen**. Die Koordinaten können außerdem direkt in Google Maps geöffnet werden.
-5. Lies die Antwortmöglichkeiten und wähle die passende Antwort aus.
-6. Bei einer falschen Antwort kannst du es erneut versuchen. Mit **Lösung anzeigen** lässt sich die Station auch direkt auflösen.
-7. Nach dem Lösen kannst du die Ortsinformationen und das Lösungsfoto ansehen. Über **Nächste Station** gelangst du zur nächsten noch offenen Aufgabe.
-8. Kehre über **Zurück zum Stadtplan** zur Übersicht zurück und spiele weitere Stationen.
+4. Nutze bei Bedarf den Button **Hinweis anzeigen**. Die Koordinaten können außerdem direkt in Google Maps geöffnet werden.
+5. Wenn die standortabhängige Freigabe aktiv ist, aktualisiere am Ziel deinen Standort. Erst nach erfolgreicher Prüfung werden die Antwortmöglichkeiten freigegeben.
+6. Lies die Antwortmöglichkeiten und wähle die passende Antwort aus.
+7. Bei einer falschen Antwort kannst du es erneut versuchen. Mit **Lösung anzeigen** lässt sich die Station auch direkt auflösen, sofern die Standortfreigabe nicht aktiv ist oder bereits erteilt wurde.
+8. Nach dem Lösen kannst du die Ortsinformationen und das Lösungsfoto ansehen. Über **Nächste Station** gelangst du zur nächsten noch offenen Aufgabe.
+9. Kehre über **Zurück zum Stadtplan** zur Übersicht zurück und spiele weitere Stationen.
 
 ## Fortschritt
 
@@ -146,6 +147,8 @@ Stationsdaten im Admin-Bereich, bevor ein Vorschlag veröffentlicht wird.
 - Für die Kartenansicht werden Leaflet und OpenStreetMap-Kacheln aus dem Internet
   geladen. Ohne Netzwerkverbindung bleibt die Stationslogik nutzbar, die Karte
   kann jedoch nicht dargestellt werden.
+- Die Standortprüfung fragt den Standort nur nach Klick auf **Standort aktualisieren**
+  ab und benötigt einen sicheren Kontext (HTTPS oder localhost).
 - Die Standortübernahme per Karte ist eine Maus-/Touch-Interaktion. Per Tastatur
   stehen die Koordinatenfelder als gleichwertiger Eingabeweg zur Verfügung.
 - `prefers-reduced-motion` deaktiviert bzw. reduziert Übergänge und Animationen.
@@ -162,7 +165,7 @@ Stationsdaten im Admin-Bereich, bevor ein Vorschlag veröffentlicht wird.
 
 ## Backend
 
-Das Spiel hat ein schlankes PHP-Backend mit SQLite-Datenbank und einem geschützten Admin-Bereich. Die API-Variante des Frontends ist [`index.html`](./index.html): Sie lädt Kategorien (`api/categories.php`), Karten-Pins (`api/map_pins.php`) und globale Feature-Einstellungen (`api/settings.php`) parallel und erst beim Öffnen einer Station die vollständigen Stationsdaten (`api/get_details.php`, mit Ladezustand, Fehleranzeige und Retry). Namen, hochgeladene Kategoriebilder und Farben werden im Admin-Bereich gepflegt. Als globales Feature-Flag ist derzeit nur „Station vorschlagen“ konfigurierbar; die übrige Oberfläche ist statisch und bleibt verfügbar. Weitere optionale Features können später in der Registry ergänzt werden. Der Spielfortschritt bleibt lokal im Browser (`localStorage`). Features im Testmodus lassen sich über `?preview=key1,key2` oder `?preview=all` anzeigen.
+Das Spiel hat ein schlankes PHP-Backend mit SQLite-Datenbank und einem geschützten Admin-Bereich. Die API-Variante des Frontends ist [`index.html`](./index.html): Sie lädt Kategorien (`api/categories.php`), Karten-Pins (`api/map_pins.php`) und globale UI-Einstellungen (`api/settings.php`) parallel und erst beim Öffnen einer Station die Stationsdaten (`api/get_details.php`, mit Ladezustand, Fehleranzeige und Retry). Ist die standortabhängige Antwortfreigabe eingeschaltet, liefert dieser Abruf zunächst keine Antworten oder Lösungsdaten. `api/verify_location.php` prüft die ausdrücklich abgefragte Browserposition serverseitig anhand der Stationskoordinaten; geschützte Details werden danach separat freigegeben. Standardradius und maximale GPS-Ungenauigkeit betragen jeweils 50 Meter und sind im Admin-Bereich konfigurierbar. Die optionale OSM-Orientierungskarte ist unabhängig davon schaltbar. Die erfolgreiche Freigabe wird lokal als Spielstand gespeichert; die genaue Position wird weder lokal noch serverseitig dauerhaft gespeichert. UI-Optionen im Testmodus lassen sich über `?preview=key1,key2` oder `?preview=all` anzeigen.
 
 Die vollständige technische Planung steht in [`Backend-Umsetzung.md`](./Backend-Umsetzung.md). Das Backend verwendet:
 
@@ -213,6 +216,9 @@ php -S 127.0.0.1:8080              # lokaler Server
 
 | Pfad                | Inhalt                                                                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `api/`              | Kategorien, Pins und Einstellungen; Stationsdetails, Standortprüfung und Freigabe-Reset; Vorschläge (rate-limitiert, Honeypot) |
+| `admin/`            | Login (5 Min. Inaktivitäts-Timeout), Stations- und UI-Einstellungen, Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation    |
+| `includes/`         | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads und UI-Registry                                                            |
 | `api/`              | `settings.php`, `map_pins.php`, `get_details.php`, `submit_station.php` (Vorschläge, rate-limitiert, Honeypot)                  |
 | `admin/`            | Login (5 Min. Inaktivitäts-Timeout), Stations- und Feature-Einstellungen, Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation |
 | `includes/`         | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads und Feature-Registry                                                       |

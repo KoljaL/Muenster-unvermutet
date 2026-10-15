@@ -7,13 +7,16 @@ require_admin();
 require_post();
 
 $values = $_POST['settings'] ?? null;
-if (!is_array($values)) {
+$locationValues = $_POST['location'] ?? null;
+if (!is_array($values) || !is_array($locationValues)) {
     flash('err', 'Bitte wähle für alle Optionen einen gültigen Wert.');
     redirect('settings.php');
 }
 
 try {
+    $validatedLocationSettings = validate_location_settings($locationValues);
     save_ui_settings($values);
+    save_location_settings($validatedLocationSettings);
 } catch (InvalidArgumentException $error) {
     flash('err', 'Ungültige oder unvollständige Einstellungen. Bitte prüfe das Formular.');
     redirect('settings.php');

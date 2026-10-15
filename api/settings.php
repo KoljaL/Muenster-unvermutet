@@ -21,4 +21,15 @@ foreach ($resolved as $key => $enabled) {
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
-echo json_encode(['ok' => true, 'data' => ['ui' => $data]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$location = location_settings();
+echo json_encode([
+    'ok' => true,
+    'data' => [
+        'ui' => $data,
+        'location' => [
+            'enabled' => $data['location_gate'] ?? false,
+            'radius' => $location['location_radius_m'],
+            'maxAccuracy' => $location['location_max_accuracy_m'],
+        ],
+    ],
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
