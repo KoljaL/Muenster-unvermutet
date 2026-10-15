@@ -7,6 +7,8 @@ function start_game_session(): void
         return;
     }
     ini_set('session.gc_maxlifetime', (string) (30 * 24 * 60 * 60));
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
     session_name('muenster_game');
     session_set_cookie_params([
         'lifetime' => 30 * 24 * 60 * 60,
@@ -25,6 +27,7 @@ function location_distance_m(float $lat1, float $lon1, float $lat2, float $lon2)
     $lonDelta = deg2rad($lon2 - $lon1);
     $a = sin($latDelta / 2) ** 2
         + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($lonDelta / 2) ** 2;
+    $a = min(1.0, max(0.0, $a));
     return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
 }
 

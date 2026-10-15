@@ -135,6 +135,11 @@ function location_settings(): array
 function validate_location_settings(array $values): array
 {
     $validated = [];
+    foreach (array_keys($values) as $key) {
+        if (!isset(LOCATION_SETTING_LIMITS[$key])) {
+            throw new InvalidArgumentException('Ungültige Standortgrenze.');
+        }
+    }
     foreach (LOCATION_SETTING_LIMITS as $key => [$minimum, $maximum]) {
         $value = $values[$key] ?? null;
         if (!is_string($value) || !preg_match('/^[0-9]+$/', $value)) {
@@ -152,12 +157,22 @@ function validate_location_settings(array $values): array
 /** @param array{location_radius_m: int, location_max_accuracy_m: int} $values */
 function save_location_settings(array $values): void
 {
-    $statement = db()->prepare(
-        'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
-    );
-    foreach ($values as $key => $value) {
-        $statement->execute([$key, (string) $value, now()]);
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare(
+            'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+        );
+        foreach ($values as $key => $value) {
+            $statement->execute([$key, (string) $value, now()]);
+        }
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
     }
 }
 

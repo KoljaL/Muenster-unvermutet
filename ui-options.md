@@ -30,6 +30,8 @@ Ziel: Elemente der [index.html](index.html) werden abhängig von Einstellungen i
 | `ui.station_list` | Stationsliste (Barrierefrei-Ansicht) | `elements.stationList` | Ohne Liste bleibt die Karte; Barrierefrei-Toggle entfällt dann |
 | `ui.hint_button` | „Hinweis anzeigen“ | `data-action="toggle-hint"` in `renderUnsolvedBody()` | – |
 | `ui.reveal_button` | „Lösung anzeigen“ | `data-action="reveal"` | – |
+| `ui.location_gate` | Standortabhängige Antwortfreigabe | `api/verify_location.php` und `api/get_details.php` | Serverseitig erzwungen; Testmodus nur mit passendem `preview` |
+| `ui.station_map` | OSM-Orientierungskarte | Stationsansicht in `index.html` | unabhängig von `ui.location_gate` |
 | `ui.completion` | Abschluss-Screen | `#completion` | – |
 
 Regel für Abhängigkeiten: Sie stehen in der Registry (`requires`), der Server liefert sie mit; das Frontend löst sie in `resolveUi()` auf (z. B. `badges = badges && progress`).
@@ -75,13 +77,15 @@ CREATE TABLE IF NOT EXISTS settings (
 `GET api/settings.php[?preview=key1,key2|all]` (Muster wie [api/categories.php](api/categories.php))
 
 ```json
-{ "ok": true, "data": { "ui": { "help": true, "suggest": false, "legend": true } } }
+{"ok": true, "data": { "ui": { "help": true, "suggest": false, "legend": true }, "location": { "enabled": false, "radius": 50, "maxAccuracy": 50 } } }
 ```
 
-- Die API liefert bereits **aufgelöste Booleans**: `an` → `true`, `aus` → `false`, `test` → `true` nur, wenn der Key in `preview` steht (oder `preview=all`). Den Roh-Zustand `test` sieht das Frontend nicht.
+- Die API liefert bereits **aufgelöste Booleans**: `an` → `true`, `aus` → `false`, `test` → `true` nur, wenn der Key in `preview` steht (oder `preview=all`). Den Roh-Zustand `test` sieht das Frontend nicht. Zusätzlich enthält `data.location` die aufgelöste Freigabe sowie Prüfungsradius und maximale GPS-Ungenauigkeit.
 - `requires` wird serverseitig angewendet.
 - Nur `GET`, nur Registry-Keys, keine sensiblen Daten.
 - Antworten mit `preview` werden nicht gecacht (`Cache-Control: no-store`). Ohne `preview` ist `max-age=60` zulässig (Änderungen wirken bis zu 60 s verzögert).
+- `ui.location_gate` ist standardmäßig aus. Bei Aktivierung liefert `api/get_details.php` zunächst nur öffentliche Stationsdaten; Optionen und Lösung sind nur über `protected=1` nach einer erfolgreichen serverseitigen Prüfung verfügbar. `api/verify_location.php` nutzt offizielle Stationskoordinaten, verlangt eine gleich-originige POST-Anfrage und speichert nur die Stationsfreigabe in der PHP-Sitzung, keine Positionsdaten.
+- Die Meterwerte liegen als `location_radius_m` (Standard 50, gültig 5–5000) und `location_max_accuracy_m` (Standard 50, gültig 1–500) in `settings`. Sie sind Zahlenwerte und keine UI-Schalter.
 
 ## Testmodus per URL
 

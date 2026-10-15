@@ -41,23 +41,23 @@ $data = [
     'taskImage' => $s['task_image'],
 ];
 if (!$locationGate || $protected) {
-$stmt = $pdo->prepare('SELECT option_text FROM options WHERE station_id = ? ORDER BY option_index');
-$stmt->execute([$id]);
-$options = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $stmt = $pdo->prepare('SELECT option_text FROM options WHERE station_id = ? ORDER BY option_index');
+    $stmt->execute([$id]);
+    $options = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-$stmt = $pdo->prepare('SELECT title, url FROM links WHERE station_id = ? ORDER BY id');
-$stmt->execute([$id]);
-$links = $stmt->fetchAll();
+    $stmt = $pdo->prepare('SELECT title, url FROM links WHERE station_id = ? ORDER BY id');
+    $stmt->execute([$id]);
+    $links = $stmt->fetchAll();
 
-$data = array_merge($data, [
-    'options' => $options,
-    'correctOptionIndex' => (int) $s['correct_option_index'],
-    'solutionTitle' => $s['solution_title'],
-    'solutionCaption' => $s['solution_caption'],
-    'info' => $s['info'],
-    'solutionImage' => $s['solution_image'],
-    'links' => $links,
-]);
+    $data = array_merge($data, [
+        'options' => $options,
+        'correctOptionIndex' => (int) $s['correct_option_index'],
+        'solutionTitle' => $s['solution_title'],
+        'solutionCaption' => $s['solution_caption'],
+        'info' => $s['info'],
+        'solutionImage' => $s['solution_image'],
+        'links' => $links,
+    ]);
 }
 
 json_ok($data);

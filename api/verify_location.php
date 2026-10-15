@@ -61,7 +61,7 @@ $settings = location_settings();
 $distance = location_distance_m((float) $lat, (float) $lon, (float) $station['lat'], (float) $station['lon']);
 $result = [
     'success' => false,
-    'distance' => (int) round($distance),
+    'distance' => (int) ceil($distance),
     'radius' => $settings['location_radius_m'],
     'reason' => 'too_far',
 ];
@@ -71,6 +71,7 @@ if ((float) $accuracy > $settings['location_max_accuracy_m']) {
     $result['success'] = true;
     $result['reason'] = 'verified';
     start_game_session();
+    session_regenerate_id(true);
     $_SESSION['verified_stations'][$id] = true;
 }
 
