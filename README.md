@@ -235,22 +235,17 @@ Die folgenden Zugangsdaten sind ausschließlich für eine Testinstallation vorge
 Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
 
 ```bash
-php setup/create_admins.php        # legt admin1–admin3 mit den Testpasswörtern an
-php setup/migrate_stations.php     # importiert Stationen und Beispielvorschläge (idempotent)
-php setup/migrate_settings.php    # ergänzt fehlende globale Feature-Einstellungen (idempotent)
-./setup/reset_database.sh          # löscht die lokale DB, fragt Passwörter ab und richtet alles neu ein
-php -S 127.0.0.1:8080              # lokaler Server
+./setup/reset_database.sh          # löscht die lokale DB, spielt setup/snapshot.sql ein und startet den PHP-Server
 ```
 
 - Spiel: `http://127.0.0.1:8080/index.html`
 - Admin: `http://127.0.0.1:8080/admin/login.php`
-- `setup/reset_database.sh --yes` überspringt die Löschbestätigung und startet anschließend den PHP-Server. Das Spiel ist dann unter `http://127.0.0.1:8080/index.html`, der Admin-Bereich unter `http://127.0.0.1:8080/admin/login.php` erreichbar. Für automatisierte Aufrufe können `ADMIN_STINA_PASSWORD`, `ADMIN_KOLJA_PASSWORD` und `ADMIN_ADMIN_PASSWORD` als Umgebungsvariablen gesetzt werden.
+- Der Reset ist ein reiner SQL-Import: `setup/snapshot.sql` enthält Schema und alle Daten (Admins samt Passwort-Hashes, Stationen, Einstellungen, Vorschläge). Es werden keine Passwörter mehr abgefragt; die Zugänge entsprechen dem Snapshot. Voraussetzung: `sqlite3` und PHP 8+ (PDO/SQLite, `fileinfo`).
+- Aktuellen Stand als neuen Reset-Stand speichern: `sqlite3 data/game.sqlite .dump > setup/snapshot.sql`
 - Host und Port lassen sich über `PHP_SERVER_HOST` und `PHP_SERVER_PORT` ändern.
-- Die Datenbank wird beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`).
-- Vorhandene SQLite-Datenbanken werden nicht automatisch migriert; die ergänzte Kategoriespalte setzt eine frisch angelegte Datenbank voraus. `setup/migrate_settings.php` ergänzt die Feature-Einstellungstabelle und ihren fehlenden Standardwert.
-- Der Import übernimmt vorhandene Fotos `Aufgabe N.jpg` / `Loesung N.jpg` (im Projektordner, `OLD/`, `setup/images/` oder `setup/photos/`) in `uploads/`. Fehlende Fotos können im Admin-Bereich hochgeladen werden.
-- Der Migrationslauf legt zusätzlich die drei offenen Beispielvorschläge aus `setup/suggestions_seed.json` an. Bereits vorhandene Vorschläge werden nicht dupliziert; die Beispielbilder werden aus den vorhandenen `Aufgabe N.jpg`-Dateien übernommen.
-- Eigenes Passwort setzen: `php setup/create_admins.php <benutzer> <passwort>` (mind. 12 Zeichen).
+- Die Bilder in `uploads/` werden vom Reset nicht angefasst.
+- Die Import- und Migrationsskripte (`create_admins.php`, `migrate_*.php`), Seed-JSONs und Beispielbilder liegen archiviert in `setup/OLD/`. Ein einzelnes Admin-Passwort lässt sich weiterhin mit `php setup/OLD/create_admins.php <benutzer> <passwort>` setzen (mind. 12 Zeichen).
+- Ohne Reset wird die Datenbank beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`).
 - Abweichende Einstellungen (z. B. DB-Pfad außerhalb des Webroots) in `includes/config.local.php` als `return [...]` ablegen.
 
 ### Struktur
@@ -263,7 +258,7 @@ php -S 127.0.0.1:8080              # lokaler Server
 | `api/`              | `settings.php`, `map_pins.php`, `get_details.php`, `submit_station.php` (Vorschläge, rate-limitiert, Honeypot)                  |
 | `admin/`            | Login (5 Min. Inaktivitäts-Timeout), Stations- und Feature-Einstellungen, Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation |
 | `includes/`         | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads und Feature-Registry                                                       |
-| `setup/`            | Schema, Seed-Daten, Import- und Migrationsskripte (nur per CLI)                                                                 |
+| `setup/`            | Schema, DB-Snapshot und Reset-Skript; alte Import-/Migrationsskripte in `OLD/`                                                                     |
 | `data/`, `uploads/` | SQLite-Datei bzw. Bilder, jeweils per `.htaccess` abgesichert                                                       |
 
 Stationen werden im Admin nur archiviert, nicht gelöscht. Beim Deployment auf Apache/All-Inkl müssen `data/` und `uploads/` für PHP beschreibbar sein; HTTPS wird für das Session-Cookie (`Secure`) vorausgesetzt. Testkonten vor dem Livegang ersetzen.
