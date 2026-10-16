@@ -1,0 +1,3347 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Münster unvermutet – Foto-Schnitzeljagd</title>
+    <!-- Farbmodus (Roadmap 2.2): läuft vor dem ersten Rendern, damit kein Aufblitzen entsteht. -->
+    <script>
+      window.ThemeController = (function () {
+        var STORAGE_KEY = 'muenster-unvermutet:color-mode';
+        var query = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+        var listeners = [];
+
+        function readStored() {
+          try {
+            var value = localStorage.getItem(STORAGE_KEY);
+            return value === 'dark' || value === 'light' ? value : null;
+          } catch (error) {
+            return null; // Speicher blockiert: nur Systemeinstellung verwenden
+          }
+        }
+        function writeStored(value) {
+          try {
+            if (value) localStorage.setItem(STORAGE_KEY, value);
+            else localStorage.removeItem(STORAGE_KEY);
+          } catch (error) {
+            // Präferenz gilt nur für diese Sitzung.
+          }
+        }
+
+        var preference = readStored(); // 'dark' | 'light' | null (= System folgen)
+
+        function systemMode() {
+          return query && query.matches ? 'dark' : 'light';
+        }
+        function effective() {
+          return preference || systemMode();
+        }
+        function apply() {
+          var mode = effective();
+          document.documentElement.classList.toggle('dark', mode === 'dark');
+          listeners.forEach(function (listener) {
+            listener({ mode: mode, manual: preference !== null });
+          });
+        }
+
+        if (query) {
+          var onSystemChange = function () {
+            if (preference === null) apply();
+          };
+          if (query.addEventListener) query.addEventListener('change', onSystemChange);
+          else if (query.addListener) query.addListener(onSystemChange);
+        }
+        apply();
+
+        return {
+          getMode: effective,
+          toggle: function () {
+            preference = effective() === 'dark' ? 'light' : 'dark';
+            writeStored(preference);
+            apply();
+          },
+          subscribe: function (listener) {
+            listeners.push(listener);
+            listener({ mode: effective(), manual: preference !== null });
+          },
+        };
+      })();
+    </script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+    <style>
+      /* ==========================================================
+               7. Optimierungen (k2): Basis, Layout und Komponenten
+               Alle Farben laufen ausschliesslich ueber Variablen (Abschnitt 8).
+               ========================================================== */
+      :root {
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, var(--color-background-top) 0, var(--color-background) 320px);
+        color: var(--color-text);
+        font-size: 1.0625rem;
+      }
+      a {
+        color: var(--color-accent);
+      }
+      button {
+        cursor: pointer;
+        font-size: 1rem;
+        min-height: 48px;
+        padding: 12px 18px;
+        border-radius: 12px;
+        border: none;
+        font-weight: 600;
+      }
+      :focus-visible {
+        outline: 3px solid var(--color-focus);
+        outline-offset: 2px;
+      }
+      [tabindex='-1']:focus {
+        outline: none;
+      }
+      .hero :focus-visible {
+        outline-color: var(--color-focus);
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .skip-link {
+        position: absolute;
+        left: 8px;
+        top: -100px;
+        z-index: 2000;
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+      .skip-link:focus {
+        top: 8px;
+      }
+
+      /* Seitenrahmen und Kopfbereich */
+      .page {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 20px 16px 48px;
+      }
+      h1 {
+        letter-spacing: -0.02em;
+        margin: 0;
+        color: var(--color-text);
+      }
+      .hero {
+        position: relative;
+        z-index: 20;
+        background: transparent;
+        color: var(--color-text);
+        padding: 22px 0;
+        padding-top: 0px;
+      }
+      .hero h1 {
+        color: var(--color-text);
+        font-size: 1.9rem;
+        font-size: clamp(1.6rem, 5.5vw, 2.1rem);
+        font-weight: 900;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+        line-height: 1.1;
+      }
+      .hero-heading-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+      .hero-heading-row h1 {
+        min-width: 0;
+      }
+      .hero .page-subtitle {
+        color: var(--color-muted-text);
+        margin: 8px 0 0;
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+      .how-to {
+        position: absolute;
+        z-index: 10;
+        top: 40%;
+        left: 1em;
+        right: 1em;
+        margin-top: 16px;
+        background: var(--color-surface-alt);
+        color: var(--color-text);
+        border: var(--border-width) solid var(--color-border);
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+        clip-path: inset(0 0 0 0);
+        transition:
+          clip-path 0.4s ease,
+          margin-top 0.4s ease,
+          max-height 0.4s ease,
+          visibility 0s linear 0.4s;
+        max-height: 600px;
+      }
+      .how-to:not(.is-closed) {
+        visibility: visible;
+        transition:
+          clip-path 0.4s ease,
+          margin-top 0.4s ease,
+          max-height 0.4s ease;
+      }
+      /* Aufziehen von oben rechts nach unten links */
+      .how-to.is-closed {
+        clip-path: inset(0 0 100% 100%);
+        visibility: hidden;
+        pointer-events: none;
+        margin-top: 0;
+        max-height: 0;
+      }
+      .how-to ol {
+        list-style: none;
+        margin: 0;
+        padding: 16px;
+        display: grid;
+        gap: 10px;
+      }
+      .how-to li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        line-height: 1.4;
+      }
+      .how-to li span.step {
+        flex: 0 0 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--color-brand);
+        color: var(--color-on-brand);
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Werkzeugleiste im Kopfbereich (Reihenfolge der Regeln ist fuer die Kaskade relevant) */
+      .hero-tools {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+      }
+      .tool-button.tool-text {
+        background: none;
+        border-color: transparent;
+        text-decoration: none;
+        padding: 0 10px;
+      }
+      .tool-button.tool-text[aria-pressed='true'] {
+        background: none;
+        color: var(--color-text);
+      }
+      .tool-button.tool-icon {
+        padding: 0;
+        width: 44px;
+        justify-content: center;
+        border-color: transparent;
+        background: none;
+        font-size: 1.3rem;
+      }
+      .tool-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: none;
+        color: var(--color-text);
+        /* border: var(--border-width) solid var(--color-border); */
+        /* box-shadow: var(--shadow-control); */
+        border: none;
+        box-shadow: none;
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+      .tool-button:hover {
+        background: none;
+        /* background: var(--color-glass-strong); */
+      }
+      .tool-button[aria-pressed='true'] {
+        background: none;
+        color: var(--color-accent);
+      }
+
+      /* Fortschritt */
+      .progress {
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: var(--border-width) solid var(--color-border);
+        border-radius: 14px;
+        padding: 14px 18px;
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: var(--shadow-card);
+      }
+      .progress-main {
+        flex: 1;
+      }
+      .progress-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-muted-text);
+        margin-bottom: 4px;
+      }
+      .progress-loading {
+        margin: 0 0 8px;
+        color: var(--color-muted-text);
+      }
+      .progress-track {
+        height: 16px;
+        background: var(--color-surface-sunken);
+        box-shadow: inset 0 0 0 var(--border-width) var(--color-border);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--gradient-progress);
+        border-radius: 999px;
+        transition: width 0.4s;
+      }
+      .reset-button {
+        font-size: 0.9rem;
+        color: var(--color-muted-text);
+        background: none;
+        text-decoration: underline;
+        white-space: nowrap;
+        min-height: 44px;
+        padding: 0 8px;
+      }
+      .badges {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .mini {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--category-color, var(--color-surface-sunken));
+        color: var(--category-text, var(--color-text));
+        border: var(--border-width) solid var(--color-border);
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.7;
+      }
+      .mini--solved {
+        background: var(--color-accent-soft);
+        color: var(--color-accent);
+        border-color: var(--color-accent);
+        filter: none;
+        opacity: 1;
+      }
+      .mini img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      /* Karte (Leaflet / OpenStreetMap) */
+      #plan-view {
+        position: relative;
+        z-index: 1;
+      }
+      #map {
+        height: clamp(300px, 52vh, 440px);
+        border: var(--border-width) solid var(--color-border);
+        border-radius: 16px;
+        overflow: hidden;
+        margin-top: 16px;
+        box-shadow: var(--shadow-card);
+      }
+      .map-fallback {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-muted-text);
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 12px;
+      }
+      .map-pin {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        background: var(--pin, var(--color-brand));
+        color: var(--color-on-brand);
+        font-weight: 800;
+        font-size: 1.3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 3px solid var(--color-on-brand);
+        box-shadow: var(--shadow-pin);
+        transition: transform 0.15s;
+      }
+      .map-pin:hover {
+        transform: scale(1.15);
+        background: var(--pin, var(--color-brand));
+        filter: brightness(0.85);
+      }
+      .map-pin--solved {
+        background: var(--color-on-brand);
+        color: var(--color-brand);
+        border-color: var(--color-brand);
+        font-weight: 900;
+      }
+      .map-pin .pin-number {
+        position: absolute;
+        top: -7px;
+        right: -7px;
+        min-width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: var(--pin, var(--color-brand));
+        color: var(--pin-text, var(--color-category-text-light));
+        font-size: 0.75rem;
+        line-height: 22px;
+        text-align: center;
+        border: 2px solid var(--color-on-brand);
+      }
+      .map-pin--solved .pin-number {
+        background: var(--color-brand);
+        color: var(--color-on-brand);
+      }
+      .pin-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+      }
+      .pin-icon img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+      .leaflet-container a.leaflet-control-zoom-in,
+      .leaflet-container a.leaflet-control-zoom-out {
+        width: 44px;
+        height: 44px;
+        line-height: 44px;
+        font-size: 22px;
+      }
+      /* Fokus: Pins der Karte (Leaflet-Marker sind fokussierbare Buttons) */
+      .leaflet-marker-icon:focus {
+        outline: none;
+      }
+      .leaflet-marker-icon:focus-visible .map-pin {
+        outline: 4px solid var(--color-focus);
+        outline-offset: 3px;
+      }
+      body.layout-classic .station-list {
+        display: none;
+      }
+      body.layout-classic .map-pin {
+        width: 28px;
+        height: 28px;
+        margin: 8px;
+        border-width: 2px;
+        font-size: 0.85rem;
+      }
+      body.layout-classic .map-pin .pin-icon img {
+        width: 16px;
+        height: 16px;
+      }
+      body.layout-classic .map-pin .pin-number {
+        top: -9px;
+        right: -9px;
+        min-width: 18px;
+        height: 18px;
+        line-height: 14px;
+        font-size: 0.65rem;
+      }
+      #map.is-picking {
+        cursor: crosshair;
+        outline: 4px dashed var(--color-focus);
+        outline-offset: 3px;
+      }
+      #map.is-picking .leaflet-grab {
+        cursor: crosshair;
+      }
+
+      /* Lade- und Statusmeldungen */
+      .load-error,
+      .task-status {
+        margin: 16px 0;
+        padding: 16px;
+        border-radius: 12px;
+        background: var(--color-danger-bg);
+        color: var(--color-text);
+        border: 1px solid var(--color-danger-border);
+        text-align: center;
+      }
+      .task-status--loading {
+        background: var(--color-surface-alt);
+        border-color: var(--color-border);
+      }
+      .location-status {
+        display: grid;
+        gap: 10px;
+        width: 100%;
+      }
+      .location-status p {
+        margin: 0;
+      }
+      .station-orientation {
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        padding: 10px;
+        background: var(--color-surface-alt);
+      }
+      .station-orientation summary {
+        min-height: 44px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .station-orientation-map {
+        height: 220px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .station-distance {
+        margin: 8px 0 0;
+      }
+      .load-error button,
+      .task-status button {
+        min-height: 44px;
+        padding: 8px 18px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--color-action);
+        color: var(--color-on-brand);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      /* Legende, Filter und Aktionen */
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin: 12px 2px 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.88rem;
+        color: var(--color-muted-text);
+      }
+      .legend li {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: var(--category-color);
+        color: var(--category-text, var(--color-text));
+      }
+      .legend-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .legend-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 44px;
+        padding: 0.25rem 0.75rem 0.25rem 0.35rem;
+        border: var(--border-width) solid var(--color-border-strong);
+        border-radius: 999px;
+        box-shadow: var(--shadow-control);
+        background: var(--color-surface);
+        color: var(--color-text);
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      .legend-button[aria-pressed='true'] {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+      }
+      .legend-button[aria-pressed='true']::after {
+        content: '\2713';
+        font-weight: 800;
+        color: var(--color-accent);
+      }
+      .plan-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 14px;
+      }
+      .primary-button {
+        background: var(--color-brand);
+        color: var(--color-on-brand);
+        font-weight: 700;
+      }
+      .primary-button:hover {
+        background: var(--color-brand-dark);
+      }
+      .secondary-button {
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: var(--border-width) solid var(--color-border-strong);
+        box-shadow: var(--shadow-control);
+        font-weight: 700;
+      }
+      .secondary-button:hover {
+        background: var(--color-surface-alt);
+      }
+      .filter-empty {
+        margin: 12px 0 0;
+        padding: 12px 14px;
+        border: var(--border-width) dashed var(--color-border-strong);
+        border-radius: 12px;
+        color: var(--color-muted-text);
+      }
+      .pick-banner {
+        position: sticky;
+        top: 8px;
+        z-index: 1100;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--color-brand-dark);
+        color: var(--color-on-brand);
+        font-weight: 600;
+      }
+      .pick-banner button {
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        min-height: 44px;
+      }
+
+      /* Stationsliste unter der Karte (grosse Touch-Ziele) */
+      .station-list {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .station-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: var(--border-width) solid var(--color-border);
+        box-shadow: var(--shadow-control);
+        padding: 10px 14px;
+        min-height: 60px;
+        font-weight: 600;
+      }
+      .station-item:hover {
+        box-shadow: var(--shadow-control-hover);
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+      }
+      .station-item--solved {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+      }
+      .station-item .ico {
+        flex: 0 0 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        overflow: hidden;
+        background: var(--category-color);
+        color: var(--category-text, var(--color-text));
+      }
+      .station-item .ico img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .station-sub {
+        display: block;
+        font-weight: 500;
+        color: var(--color-muted-text);
+      }
+      .station-item .state {
+        margin-left: auto;
+        font-weight: 800;
+        color: var(--color-accent);
+        white-space: nowrap;
+      }
+
+      /* Aufgabenkarte */
+      .back-button {
+        font-size: 1rem;
+        padding: 9px 14px;
+        border: var(--border-width) solid var(--color-border-strong);
+        box-shadow: var(--shadow-control);
+        background: var(--color-surface);
+        color: var(--color-text);
+        font-weight: 700;
+        margin: 10px;
+      }
+      .back-button:hover {
+        background: var(--color-surface-alt);
+      }
+      .task-card {
+        background: var(--color-surface);
+        color: var(--color-text);
+        border: var(--border-width) solid var(--color-border);
+        border-top-width: 4px;
+        border-top-color: var(--cat);
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--shadow-card);
+        margin-top: 22px;
+      }
+      #task-list {
+        view-transition-name: task-list;
+      }
+      ::view-transition-group(root),
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation: none;
+      }
+      .task-photo {
+        position: relative;
+        background: var(--color-surface-sunken);
+        height: clamp(230px, 58vw, 320px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .task-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        opacity: 0;
+        transition: opacity 0.45s ease;
+      }
+      .task-photo img.is-loaded {
+        opacity: 1;
+      }
+      .photo-fallback {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-muted-text);
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 16px;
+      }
+      .badge {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        background: var(--color-brand-dark);
+        color: var(--color-on-brand);
+        font-size: 0.9rem;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 999px;
+      }
+      .badge--solved {
+        right: 12px;
+        left: auto;
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        border: 2px solid var(--color-brand);
+      }
+      .task-body {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        flex: 1;
+      }
+      .task-title {
+        margin: 0;
+        font-size: 1.3rem;
+        line-height: 1.25;
+        color: var(--color-text);
+      }
+      .category-chip {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: var(--color-chip-bg);
+        color: var(--color-text);
+        border: 1px solid var(--cat);
+      }
+      .category-chip img {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+      }
+      .task-intro {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--color-muted-text);
+      }
+      .hint-box {
+        font-size: 1rem;
+        background: var(--color-hint-bg);
+        color: var(--color-hint-text);
+        border: var(--border-width) solid var(--color-hint-border);
+        border-radius: 10px;
+        max-height: 0;
+        margin: 0;
+        padding: 0 14px;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-6px);
+        transition:
+          max-height 0.28s ease,
+          margin 0.28s ease,
+          padding 0.28s ease,
+          opacity 0.22s ease,
+          transform 0.28s ease;
+      }
+      .hint-box.is-visible {
+        max-height: 160px;
+        margin: 0;
+        padding: 12px 14px;
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .coordinates {
+        font-family: ui-monospace, monospace;
+        background: var(--color-chip-bg);
+        color: var(--color-text);
+        border: 1px solid var(--color-border-strong);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        padding: 10px 14px;
+        display: inline-block;
+      }
+      .coordinates-link {
+        text-decoration: none;
+      }
+      .task-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+      .option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        text-align: left;
+        min-height: 56px;
+        border: var(--border-width) solid var(--color-border-strong);
+        border-radius: 10px;
+        box-shadow: var(--shadow-control);
+        background: var(--color-surface);
+        color: var(--color-text);
+        padding: 12px 14px;
+        font-size: 1rem;
+        font-weight: normal;
+        transition:
+          border-color 0.18s ease,
+          box-shadow 0.18s ease,
+          background-color 0.18s ease,
+          transform 0.18s ease;
+      }
+      .option:hover {
+        background: var(--color-option-hover-bg);
+        box-shadow: var(--shadow-control-hover);
+        border-color: var(--color-accent);
+      }
+      .option--wrong {
+        border-color: var(--color-danger);
+        background: var(--color-danger-bg);
+        text-decoration: line-through;
+        color: var(--color-danger);
+        animation: wrong-answer 0.34s ease-out;
+      }
+      .option-letter {
+        flex: 0 0 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--color-letter-bg);
+        color: var(--color-on-brand);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+      }
+      .hint-button {
+        background: var(--color-surface);
+        border: var(--border-width) solid var(--color-border-strong);
+        box-shadow: var(--shadow-control);
+        color: var(--color-text);
+        width: 100%;
+      }
+      .hint-button:hover {
+        background: var(--color-surface-alt);
+      }
+      .error-message {
+        color: var(--color-danger);
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        background: var(--color-danger-bg);
+        border: var(--border-width) solid var(--color-danger);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .feedback-in {
+        animation: feedback-in 0.28s ease-out both;
+      }
+      .reveal-button {
+        margin-top: auto;
+        align-self: flex-start;
+        font-size: 0.95rem;
+        color: var(--color-muted-text);
+        background: none;
+        text-decoration: underline;
+        min-height: 48px;
+        padding: 0 4px;
+      }
+
+      /* Loesungsansicht */
+      .solution {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 1rem;
+        line-height: 1.55;
+        color: var(--color-text);
+      }
+      .solution p {
+        margin: 0;
+      }
+      .solution-photo {
+        margin: 0;
+        border-radius: 12px;
+        overflow: hidden;
+        border: var(--border-width) solid var(--color-border);
+        box-shadow: var(--shadow-control);
+      }
+      .solution-photo img {
+        width: 100%;
+        max-height: 320px;
+        object-fit: contain;
+        display: block;
+      }
+      .solution-photo figcaption {
+        font-size: 0.75rem;
+        color: var(--color-muted-text);
+        padding: 8px 12px;
+        background: var(--color-surface-alt);
+      }
+      .solution-photo-fallback {
+        padding: 20px;
+        text-align: center;
+        color: var(--color-muted-text);
+        font-size: 0.85rem;
+      }
+      .coordinates-row {
+        display: none;
+        /* display: flex; */
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .sources {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        font-size: 0.9rem;
+        color: var(--color-muted-text);
+      }
+      .coordinates-row a,
+      .sources a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        font-weight: 600;
+      }
+      .next-button {
+        background: var(--color-brand);
+        color: var(--color-on-brand);
+        width: 100%;
+        font-size: 1.05rem;
+        transition:
+          transform 0.18s ease,
+          background-color 0.18s ease;
+      }
+      .next-button:hover {
+        background: var(--color-brand-dark);
+        transform: translateY(-2px);
+      }
+
+      /* Abschluss: Siegesansicht */
+      .completion {
+        position: relative;
+        overflow: hidden;
+        margin-top: 26px;
+        text-align: center;
+        background: var(--gradient-completion);
+        color: var(--color-on-brand);
+        padding: 32px 20px;
+        border-radius: 20px;
+        box-shadow: var(--shadow-completion);
+      }
+      .completion p {
+        margin: 0;
+      }
+      .completion-trophy {
+        font-size: 4rem;
+        line-height: 1;
+        animation: pop 0.8s ease-out both;
+      }
+      .completion-title {
+        font-size: 1.7rem;
+        font-weight: 900;
+      }
+      .completion .completion-text {
+        color: var(--color-on-brand-soft);
+        margin-top: 8px;
+        font-size: 1.05rem;
+      }
+      .completion-stats {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 18px 0;
+        flex-wrap: wrap;
+      }
+      .stat {
+        background: var(--color-glass);
+        border-radius: 14px;
+        padding: 10px 16px;
+        min-width: 96px;
+      }
+      .stat b {
+        display: block;
+        font-size: 1.6rem;
+      }
+      .stat span {
+        font-size: 0.85rem;
+      }
+      .completion-rank {
+        font-weight: 800;
+        font-size: 1.15rem;
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        display: inline-block;
+        border-radius: 999px;
+        padding: 8px 18px;
+      }
+      .completion-actions {
+        margin-top: 18px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .completion-actions button {
+        background: var(--color-on-brand);
+        color: var(--color-brand-dark);
+        font-weight: 800;
+      }
+      @keyframes pop {
+        0% {
+          transform: scale(0.3);
+        }
+        70% {
+          transform: scale(1.2);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes wrong-answer {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        30%,
+        70% {
+          transform: translateX(-5px);
+        }
+        50% {
+          transform: translateX(5px);
+        }
+      }
+      @keyframes feedback-in {
+        from {
+          opacity: 0;
+          transform: translateY(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Animations-Hooks (Roadmap 5): wiederverwendbare Klassen, standardmäßig ohne Wirkung */
+      .transition-fade {
+        transition: opacity 0.25s ease;
+      }
+      .transition-fade.is-entering,
+      .transition-fade.is-exiting {
+        opacity: 0;
+      }
+      .slide-enter {
+        transition:
+          transform 0.25s ease,
+          opacity 0.25s ease;
+      }
+      .slide-enter.is-entering {
+        transform: translateY(16px);
+        opacity: 0;
+      }
+      .slide-exit {
+        transition:
+          transform 0.2s ease,
+          opacity 0.2s ease;
+      }
+      .slide-exit.is-exiting {
+        transform: translateY(16px);
+        opacity: 0;
+      }
+
+      /* Dialog „Station vorschlagen“ */
+      .suggest-dialog {
+        width: min(36rem, calc(100vw - 1.5rem));
+        max-height: calc(100vh - 1.5rem);
+        padding: 0;
+        border: var(--border-width) solid var(--color-border-strong);
+        border-radius: 1rem;
+        box-shadow:
+          0 10px 30px rgba(0, 0, 0, 0.18),
+          0 2px 6px rgba(0, 0, 0, 0.1);
+        background: var(--color-surface);
+        color: var(--color-text);
+        overflow: auto;
+      }
+      .suggest-dialog::backdrop {
+        background: var(--color-overlay);
+      }
+      .suggest-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.25rem 0;
+      }
+      .suggest-header h2 {
+        margin: 0;
+        font-size: 1.3rem;
+      }
+      .suggest-body {
+        padding: 0.75rem 1.25rem 1.25rem;
+        display: grid;
+        gap: 1rem;
+      }
+      .suggest-intro {
+        margin: 0;
+        color: var(--color-muted-text);
+        font-size: 0.95rem;
+      }
+      .suggest-form {
+        display: grid;
+        gap: 1rem;
+      }
+      .suggest-optional {
+        border: var(--border-width) solid var(--color-border);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+      }
+      .suggest-optional summary {
+        cursor: pointer;
+        min-height: 2.75rem;
+        display: flex;
+        align-items: center;
+        font-weight: 700;
+      }
+      .suggest-optional[open] summary {
+        margin-bottom: 1rem;
+      }
+      .suggest-optional-body {
+        display: grid;
+        gap: 1rem;
+      }
+      .answer-grid {
+        display: grid;
+        gap: 0.6rem;
+      }
+      .answer-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .answer-row input[type='radio'] {
+        width: 1.25rem;
+        height: 1.25rem;
+        accent-color: var(--color-accent);
+      }
+      .field {
+        display: grid;
+        gap: 0.35rem;
+      }
+      .field label,
+      .field legend {
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0;
+      }
+      .required-mark {
+        color: var(--color-danger);
+      }
+      .field input,
+      .field textarea,
+      .field select {
+        width: 100%;
+        font: inherit;
+        padding: 0.65rem 0.75rem;
+        min-height: 48px;
+        color: var(--color-text);
+        background: var(--color-surface-alt);
+        border: var(--border-width) solid var(--color-border-strong);
+        border-radius: 0.6rem;
+        box-shadow: var(--shadow-control);
+      }
+      .field textarea {
+        min-height: 7rem;
+        resize: vertical;
+      }
+      .field [aria-invalid='true'] {
+        border-color: var(--color-danger);
+        box-shadow: 0 0 0 1px var(--color-danger);
+      }
+      .field-hint {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--color-muted-text);
+      }
+      .field-error {
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--color-danger);
+      }
+      .field-error::before {
+        content: '⚠ ';
+      }
+      fieldset.field {
+        border: var(--border-width) solid var(--color-border);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+        margin: 0;
+        min-width: 0;
+      }
+      .coord-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+        gap: 0.75rem;
+      }
+      .form-status {
+        margin: 0;
+        padding: 0.75rem;
+        border-radius: 0.6rem;
+        font-weight: 600;
+      }
+      .form-status[data-kind='error'] {
+        background: var(--color-danger-bg);
+        color: var(--color-danger);
+        border: var(--border-width) solid var(--color-danger);
+      }
+      .form-status[data-kind='success'] {
+        background: var(--color-accent-soft);
+        color: var(--color-text);
+        border: var(--border-width) solid var(--color-accent);
+      }
+      .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+      .suggest-dialog.transition-fade,
+      .suggest-dialog.slide-enter,
+      .suggest-dialog.slide-exit {
+        transition:
+          transform 0.25s ease,
+          opacity 0.25s ease;
+      }
+      .reset-dialog .suggest-intro {
+        margin-bottom: 0.25rem;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .transition-fade,
+        .slide-enter,
+        .slide-exit,
+        .suggest-dialog,
+        .map-pin {
+          transition: none !important;
+          animation: none !important;
+        }
+        .slide-enter.is-entering,
+        .slide-exit.is-exiting {
+          transform: none;
+        }
+        .completion-trophy,
+        .progress-fill,
+        .option--wrong,
+        .feedback-in {
+          animation: none;
+          transition: none;
+        }
+        .hint-box {
+          transition: none;
+        }
+        .task-photo img {
+          transition: none;
+        }
+        ::view-transition-group(*),
+        ::view-transition-old(*),
+        ::view-transition-new(*) {
+          animation: none !important;
+        }
+      }
+      @media (forced-colors: active) {
+        .map-pin {
+          background: ButtonFace;
+          color: ButtonText;
+          border-color: ButtonText;
+          filter: none;
+        }
+        .leaflet-marker-icon:focus-visible .map-pin {
+          outline: 3px solid Highlight;
+          outline-offset: 3px;
+        }
+        .map-pin--solved {
+          background: Highlight;
+          color: HighlightText;
+          border-color: Highlight;
+        }
+        .map-pin .pin-number {
+          background: Canvas;
+          color: CanvasText;
+          border-color: Canvas;
+        }
+        .map-pin--solved .pin-number {
+          background: Highlight;
+          color: HighlightText;
+          border-color: HighlightText;
+        }
+        .mini {
+          border-color: ButtonText;
+        }
+        .mini--solved {
+          background: Highlight;
+          color: HighlightText;
+          border-color: Highlight;
+        }
+        .legend-button[aria-pressed='true'] {
+          border: 3px double ButtonText;
+        }
+        .legend-button[aria-pressed='true']::after {
+          color: CanvasText;
+        }
+        .option--wrong {
+          border: 3px dashed ButtonText;
+          background: Canvas;
+          color: CanvasText;
+        }
+        .error-message {
+          border: 3px double CanvasText;
+        }
+      }
+
+      /* ==========================================================
+               8. Farbmodi: Light = Standard, Dark ueber Klasse .dark auf <html>
+               Einzige Stelle fuer Farbwerte. Alles andere nutzt var(--...).
+               ========================================================== */
+      :root {
+        color-scheme: light;
+        --color-background: #f5f5f4;
+        --color-background-top: #ecfdf5;
+        --color-surface: #ffffff;
+        --color-surface-alt: #fafaf9;
+        --color-surface-sunken: #e7e5e4;
+        --color-text: #1c1917;
+        --color-muted-text: #44403c;
+        --color-accent: #065f46;
+        --color-accent-soft: #ecfdf5;
+        --border-width: 1px;
+        --color-border: #e0dedb;
+        --color-border-strong: #c9c5c1;
+        /* Dezenter Schatten fuer Controls und Karten (zusammen mit 1px-Border) */
+        --shadow-control: 0 1px 2px rgba(28, 25, 23, 0.07), 0 1px 1px rgba(28, 25, 23, 0.04);
+        --shadow-card: 0 1px 3px rgba(28, 25, 23, 0.1), 0 1px 2px rgba(28, 25, 23, 0.06);
+        --shadow-control-hover: 0 2px 6px rgba(28, 25, 23, 0.12), 0 1px 2px rgba(28, 25, 23, 0.06);
+        --color-focus: #b45309;
+        --color-danger: #b91c1c;
+        --color-danger-bg: #fef2f2;
+        --color-danger-border: #fecaca;
+        --color-hint-bg: #fffbeb;
+        --color-hint-text: #451a03;
+        --color-hint-border: #f59e0b;
+        --color-chip-bg: #f5f5f4;
+        --color-option-hover-bg: #f0fdf4;
+        --color-letter-bg: #1c1917;
+        --color-overlay: rgba(28, 25, 23, 0.6);
+        --map-tile-filter: none;
+
+        /* Markenfarben: in beiden Modi gleich (weisser Text darauf) */
+        --color-brand: #065f46;
+        --color-brand-dark: #064e3b;
+        --color-on-brand: #ffffff;
+        --color-on-brand-muted: #d1fae5;
+        --color-on-brand-soft: #ecfdf5;
+        --color-glass-weak: rgba(255, 255, 255, 0.12);
+        --color-glass: rgba(255, 255, 255, 0.16);
+        --color-glass-strong: rgba(255, 255, 255, 0.28);
+        --color-glass-border: rgba(255, 255, 255, 0.7);
+        --color-category-text-dark: #1c1917;
+        --color-category-text-light: #ffffff;
+        --color-action: #1f3a5f;
+        --gradient-hero: linear-gradient(135deg, #064e3b, #047857);
+        --gradient-completion: linear-gradient(135deg, #064e3b, #047857 60%, #b45309);
+        --gradient-progress: linear-gradient(90deg, #059669, #065f46);
+        --shadow-progress: 0 1px 3px rgba(0, 0, 0, 0.05);
+        --shadow-hero: 0 6px 18px rgba(6, 78, 59, 0.25);
+        --shadow-completion: 0 8px 24px rgba(6, 78, 59, 0.35);
+        --shadow-pin: 0 3px 8px rgba(0, 0, 0, 0.45);
+      }
+      :root.dark {
+        color-scheme: dark;
+        --color-background: #121614;
+        --color-background-top: #0f2a22;
+        --color-surface: #1c201e;
+        --color-surface-alt: #262b28;
+        --color-surface-sunken: #2d3330;
+        --color-text: #f5f5f4;
+        --color-muted-text: #d6d3d1;
+        --color-accent: #34d399;
+        --color-accent-soft: #12332a;
+        --color-border: #3b433f;
+        --color-border-strong: #4f5853;
+        --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 1px rgba(0, 0, 0, 0.25);
+        --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.35);
+        --shadow-control-hover: 0 2px 8px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
+        --color-focus: #fbbf24;
+        --color-danger: #fca5a5;
+        --color-danger-bg: #3b1515;
+        --color-danger-border: #7f1d1d;
+        --color-hint-bg: #3a2a08;
+        --color-hint-text: #fde68a;
+        --color-hint-border: #d97706;
+        --color-chip-bg: #262b28;
+        --color-option-hover-bg: #12332a;
+        --color-letter-bg: #57534e;
+        --color-overlay: rgba(0, 0, 0, 0.75);
+        --color-category-text-dark: #1c1917;
+        --color-category-text-light: #ffffff;
+        --map-tile-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+      }
+      .leaflet-tile-pane {
+        filter: var(--map-tile-filter);
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Zum Hauptinhalt springen</a>
+    <main class="page" id="main">
+      <header class="hero">
+        <div class="hero-heading-row">
+          <h1 id="page-title" tabindex="-1">Münster unvermutet 🔍</h1>
+          <!-- Darstellung: Barrierefrei/Klassisch und Farbmodus -->
+          <div class="hero-tools" role="group" aria-label="Darstellung">
+            <button type="button" class="tool-button tool-text" id="help-toggle" aria-expanded="true" aria-controls="how-to">Hilfe</button>
+            <button type="button" class="tool-button tool-text" id="layout-toggle" aria-pressed="false" aria-label="Barrierefrei: Liste und große Pins anzeigen">Barrierefrei</button>
+            <button type="button" class="tool-button tool-icon" id="theme-toggle" aria-pressed="false" aria-label="Dunkler Modus">
+              <span id="theme-icon" aria-hidden="true">🌙</span>
+            </button>
+          </div>
+        </div>
+        <p class="page-subtitle">Eine Foto-Schnitzeljagd von Bettina Säger · Idee inspiriert durch ein Buch von Clemens Köyer</p>
+        <div class="how-to is-closed" id="how-to" role="region" aria-label="So funktioniert's">
+          <ol>
+            <li>
+              <span class="step" aria-hidden="true">1</span><span><b>Pin antippen:</b> Wähle eine Station auf der Karte oder in der Liste.</span>
+            </li>
+            <li>
+              <span class="step" aria-hidden="true">2</span><span><b>Ort finden:</b> Erkenne das Detail auf dem Foto – bei Bedarf hilft ein Hint.</span>
+            </li>
+            <li>
+              <span class="step" aria-hidden="true">3</span><span><b>Frage beantworten:</b> Die richtige Antwort verrät die Geschichte dahinter.</span>
+            </li>
+          </ol>
+        </div>
+      </header>
+
+      <section class="progress" aria-label="Fortschritt">
+        <div class="progress-main">
+          <p class="progress-loading" id="progress-loading" role="status">Stationen werden geladen ...</p>
+          <div class="progress-labels"><span id="progress-label">Fortschritt</span><span id="progress-count"></span></div>
+          <div class="progress-track" id="progress-track" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="badges" id="mini-badges" aria-hidden="true"></div>
+        </div>
+        <button type="button" class="reset-button" id="reset-button" hidden>Zurücksetzen</button>
+      </section>
+
+      <!-- Startseite: Stadtplan als OpenStreetMap (Leaflet) -->
+      <section id="plan-view" aria-label="Stadtplan mit Aufgaben">
+        <div id="map" role="region" aria-label="Karte von Münster – die Aufgaben sind per Tastatur erreichbar und mit Enter auswählbar">
+          <div class="map-fallback" id="map-fallback" hidden>🗺️ Die OpenStreetMap kann hier in der Vorschau nicht geladen werden –<br />das Spiel herunterladen und im Browser öffnen, dann erscheint die Karte.</div>
+        </div>
+        <div class="load-error" id="load-error" role="alert" hidden>
+          <p id="load-error-text">Kategorien oder Stationen konnten nicht geladen werden.</p>
+          <button type="button" id="load-retry">Erneut versuchen</button>
+        </div>
+        <div class="load-error" id="station-link-error" role="alert" hidden>
+          <p>Die verlinkte Station wurde nicht gefunden. Bitte prüfe den Link.</p>
+        </div>
+        <ul class="legend" id="legend" aria-label="Kategorien – zum Filtern auswählen"></ul>
+        <div class="plan-actions" data-ui-option="suggest" hidden>
+          <button type="button" class="primary-button" id="suggest-open" aria-haspopup="dialog"><span aria-hidden="true">+</span> Station vorschlagen</button>
+        </div>
+        <div class="pick-banner" id="pick-banner" data-ui-option="suggest" data-ui-hidden-default hidden role="group" aria-label="Standort auf der Karte wählen">
+          <span>Klicke auf die Karte, um den Standort zu übernehmen.</span>
+          <button type="button" id="pick-cancel">Abbrechen</button>
+        </div>
+        <p class="filter-empty" id="filter-empty" hidden>Keine Stationen in den gewählten Kategorien.</p>
+        <ul class="station-list" id="station-list" aria-label="Alle Stationen"></ul>
+      </section>
+
+      <!-- Aufgaben-Ansicht -->
+      <section id="task-view" hidden>
+        <button type="button" class="back-button" id="back-button">← Zurück zum Stadtplan</button>
+        <div id="task-list"></div>
+      </section>
+
+      <div class="completion" id="completion" hidden>
+        <div class="completion-trophy" aria-hidden="true">🏆</div>
+        <p class="completion-title">Geschafft – Münster entdeckt!</p>
+        <p class="completion-text">Du hast alle Stationen gelöst. Gut gesehen!</p>
+        <div class="completion-stats" id="completion-stats"></div>
+        <p class="completion-rank" id="completion-rank"></p>
+        <div class="completion-actions">
+          <button type="button" id="completion-map">🗺️ Zur Karte</button>
+          <button type="button" id="completion-restart">↻ Nochmal spielen</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Dialog: Station vorschlagen (Roadmap 6). Natives <dialog> mit showModal(): Fokus-Falle, inerter Hintergrund. -->
+    <dialog class="suggest-dialog" id="suggest-dialog" data-ui-option="suggest" data-ui-hidden-default hidden aria-labelledby="suggest-title" aria-describedby="suggest-intro">
+      <div class="suggest-header">
+        <h2 id="suggest-title" tabindex="-1">Station vorschlagen</h2>
+        <button type="button" class="secondary-button" id="suggest-close" aria-label="Dialog schließen">✕ Schließen</button>
+      </div>
+      <div class="suggest-body">
+        <p class="suggest-intro" id="suggest-intro">Kennst du einen besonderen Ort in Münster? Felder mit <span class="required-mark" aria-hidden="true">*</span> sind Pflichtfelder.</p>
+        <form class="suggest-form" id="suggest-form" novalidate>
+          <div class="field">
+            <label for="suggest-name">Stationsname <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
+            <input type="text" id="suggest-name" name="name" maxlength="100" required aria-required="true" autocomplete="off" aria-describedby="suggest-name-error" />
+            <p class="field-error" id="suggest-name-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="suggest-category">Kategorie <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
+            <select id="suggest-category" name="category" required aria-required="true" aria-describedby="suggest-category-error">
+              <option value="">Bitte wählen …</option>
+            </select>
+            <p class="field-error" id="suggest-category-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="suggest-description">Beschreibung / Besonderheiten <span class="required-mark" aria-hidden="true">*</span><span class="visually-hidden">(Pflichtfeld)</span></label>
+            <textarea id="suggest-description" name="description" maxlength="1000" required aria-required="true" aria-describedby="suggest-description-hint suggest-description-error"></textarea>
+            <p class="field-hint" id="suggest-description-hint">Was ist dort zu entdecken? Maximal 1000 Zeichen.</p>
+            <p class="field-error" id="suggest-description-error" hidden></p>
+          </div>
+          <details class="suggest-optional">
+            <summary>Weitere Informationen (optional)</summary>
+            <div class="suggest-optional-body">
+              <p class="field-hint">Diese Angaben helfen bei der redaktionellen Prüfung. Du kannst sie auch leer lassen.</p>
+              <div class="field">
+                <label for="suggest-hint">Hinweis</label>
+                <textarea id="suggest-hint" name="hint" maxlength="1000" aria-describedby="suggest-hint-error"></textarea>
+                <p class="field-error" id="suggest-hint-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="suggest-question">Frage</label>
+                <input type="text" id="suggest-question" name="question" maxlength="500" aria-describedby="suggest-editorial-error" />
+              </div>
+              <fieldset class="field" aria-describedby="suggest-editorial-hint suggest-editorial-error">
+                <legend>Antwortoptionen</legend>
+                <p class="field-hint" id="suggest-editorial-hint">Wenn du eine Frage einträgst, ergänze bitte zwei bis vier Antworten und markiere die richtige.</p>
+                <div class="answer-grid">
+                  <div class="answer-row"><input type="radio" name="correct-option" value="0" aria-label="Erste Antwort ist richtig" /><input type="text" id="suggest-option-0" name="option-0" maxlength="500" placeholder="Antwort 1" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="1" aria-label="Zweite Antwort ist richtig" /><input type="text" id="suggest-option-1" name="option-1" maxlength="500" placeholder="Antwort 2" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="2" aria-label="Dritte Antwort ist richtig" /><input type="text" id="suggest-option-2" name="option-2" maxlength="500" placeholder="Antwort 3 (optional)" /></div>
+                  <div class="answer-row"><input type="radio" name="correct-option" value="3" aria-label="Vierte Antwort ist richtig" /><input type="text" id="suggest-option-3" name="option-3" maxlength="500" placeholder="Antwort 4 (optional)" /></div>
+                </div>
+                <p class="field-error" id="suggest-editorial-error" hidden></p>
+              </fieldset>
+              <div class="field">
+                <label for="suggest-info">Hintergrundinformationen</label>
+                <textarea id="suggest-info" name="editorial-info" maxlength="1000"></textarea>
+              </div>
+            </div>
+          </details>
+          <fieldset class="field" aria-describedby="suggest-location-hint suggest-location-error">
+            <legend>Standort (optional)</legend>
+            <p class="field-hint" id="suggest-location-hint">Koordinaten als Dezimalgrad eingeben (z. B. 51.9607 und 7.6261) oder auf der Karte wählen.</p>
+            <div class="coord-grid">
+              <div class="field">
+                <label for="suggest-lat">Breitengrad</label>
+                <input type="text" inputmode="decimal" id="suggest-lat" name="latitude" autocomplete="off" aria-describedby="suggest-location-error" />
+              </div>
+              <div class="field">
+                <label for="suggest-lon">Längengrad</label>
+                <input type="text" inputmode="decimal" id="suggest-lon" name="longitude" autocomplete="off" aria-describedby="suggest-location-error" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="secondary-button" id="suggest-pick">📍 Auf der Karte wählen</button>
+            </div>
+            <p class="field-error" id="suggest-location-error" hidden></p>
+          </fieldset>
+          <p class="form-status" id="suggest-status" role="status" data-kind="" hidden></p>
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Vorschlag absenden</button>
+            <button type="button" class="secondary-button" id="suggest-cancel">Abbrechen</button>
+          </div>
+        </form>
+        <div class="suggest-result" id="suggest-result" hidden>
+          <p class="form-status" data-kind="success" id="suggest-success" tabindex="-1">Danke! Dein Vorschlag wurde zur Prüfung übermittelt.</p>
+          <div class="form-actions">
+            <button type="button" class="primary-button" id="suggest-another">Weitere Station vorschlagen</button>
+            <button type="button" class="secondary-button" id="suggest-done">Schließen</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="suggest-dialog reset-dialog" id="reset-dialog" hidden aria-labelledby="reset-dialog-title" aria-describedby="reset-dialog-description">
+      <div class="suggest-header">
+        <h2 id="reset-dialog-title" tabindex="-1">Fortschritt zurücksetzen?</h2>
+      </div>
+      <div class="suggest-body">
+        <p class="suggest-intro" id="reset-dialog-description">Alle gespeicherten Lösungen, Fehlversuche und Hinweise werden gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden.</p>
+        <div class="form-actions">
+          <button type="button" class="primary-button" id="reset-confirm">Fortschritt löschen</button>
+          <button type="button" class="secondary-button" id="reset-cancel">Abbrechen</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Unsichtbare Statusmeldungen für Screenreader -->
+    <div class="visually-hidden" id="status-message" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+    <script>
+      /* ==========================================================
+         1. Konfiguration
+         ========================================================== */
+      const STORAGE_KEY = 'muenster-unvermutet:progress';
+      const LEGACY_STORAGE_KEY = 'ms-suchspiel'; // altes Format: Array gelöster Stations-IDs
+      const INTRO_STATE_KEY = 'muenster-unvermutet:intro-state';
+      const PROGRESS_VERSION = 1;
+      const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+      const MAP_CENTER = [51.9622, 7.6278];
+      const MAP_TILE_URL = 'https://tile.openstreetmap.de/{z}/{x}/{y}.png';
+      const LOCATION_TIMEOUT_MS = 15000;
+      const LOCATION_MAX_AGE_MS = 120000;
+
+      /* ==========================================================
+         2. Daten
+         Stationen werden im Admin-Bereich gepflegt und per API geladen:
+         - api/categories.php: Kategorienamen, Bildpfade und Farben
+         - api/map_pins.php: id, number, title, lat, lon, category (Karte und Liste)
+         - api/get_details.php?id=…: hint, options, correctOptionIndex, solutionTitle,
+           solutionCaption, info, taskImage, solutionImage, links (beim Öffnen einer Station)
+         Die stabile id ist der Schlüssel im LocalStorage.
+         ========================================================== */
+      // Kapselt alle Server-Zugriffe: URLs, Fetch-Logik und den Fehlerzustand der Detailabfragen.
+      const REQUEST_TIMEOUT_MS = 15000;
+      const StationApiService = {
+        urls: {
+          pins: 'api/map_pins.php',
+          details: 'api/get_details.php',
+          categories: 'api/categories.php',
+          submit: 'api/submit_station.php',
+          settings: 'api/settings.php',
+          verifyLocation: 'api/verify_location.php',
+        },
+        async fetchApi(url, options = {}) {
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+          try {
+            const response = await fetch(url, {
+              ...options,
+              headers: { Accept: 'application/json', ...(options.headers || {}) },
+              cache: 'no-cache',
+              signal: controller.signal,
+            });
+            let payload = null;
+            try {
+              payload = await response.json();
+            } catch (error) {
+              // Keine gültige JSON-Antwort: unten als Fehler behandelt.
+            }
+            if (!response.ok || !payload || payload.error || payload.data === null || payload.data === undefined) {
+              throw new Error((payload && payload.error && payload.error.message) || 'HTTP ' + response.status);
+            }
+            return payload.data;
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+        },
+        loadCategories() {
+          return this.fetchApi(this.urls.categories);
+        },
+        loadPins() {
+          return this.fetchApi(this.urls.pins);
+        },
+        loadSettings() {
+          const preview = new URLSearchParams(window.location.search).get('preview');
+          const query = preview === null ? '' : '?preview=' + encodeURIComponent(preview);
+          return this.fetchApi(this.urls.settings + query);
+        },
+        loadDetails(stationId) {
+          return this.fetchApi(this.urls.details + '?id=' + encodeURIComponent(stationId) + previewQuery());
+        },
+        loadProtectedDetails(stationId) {
+          return this.fetchApi(this.urls.details + '?id=' + encodeURIComponent(stationId) + '&protected=1' + previewQuery());
+        },
+        resetLocationAccess() {
+          return this.fetchApi('api/reset_location.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+        },
+        verifyLocation(stationId, location) {
+          return this.fetchApi(this.urls.verifyLocation + previewQuery('?'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: stationId, ...location }),
+          });
+        },
+      };
+      const UI_DEFAULTS = Object.freeze({
+        suggest: true,
+        legend: true,
+        station_list: true,
+        hint_button: true,
+        reveal_button: true,
+        location_gate: false,
+        station_map: true,
+        completion: true,
+      });
+      let ui = UI_DEFAULTS;
+      let locationConfig = { radius: 50, maxAccuracy: 50 };
+      const locationStates = new Map();
+      const playerLocations = new Map();
+      const pendingLocationRequests = new Set();
+      let locationGeneration = 0;
+      let stationMap = null;
+
+      function resolveUi(settings) {
+        const resolved = {};
+        Object.keys(UI_DEFAULTS).forEach((key) => {
+          resolved[key] = settings && typeof settings[key] === 'boolean' ? settings[key] : UI_DEFAULTS[key];
+        });
+        return Object.freeze(resolved);
+      }
+
+      function isEnabled(key) {
+        return ui[key] === true;
+      }
+
+      function previewQuery(separator = '&') {
+        const preview = new URLSearchParams(window.location.search).get('preview');
+        return preview === null ? '' : separator + 'preview=' + encodeURIComponent(preview);
+      }
+
+      function applyUiSettings() {
+        document.querySelectorAll('[data-ui-option]').forEach((element) => {
+          const enabled = isEnabled(element.dataset.uiOption);
+          if (!enabled) {
+            element.remove();
+          } else if (element.tagName === 'DIALOG' || !element.hasAttribute('data-ui-hidden-default')) {
+            element.hidden = false;
+          } else {
+            element.hidden = true;
+          }
+        });
+      }
+
+      // Laufzeitdaten kommen aus den APIs; Stationsdetails werden beim Öffnen nachgeladen.
+      let stations = [];
+      const categoriesById = new Map();
+      const stationsById = new Map();
+      const detailsRequests = new Map();
+
+      function categoryOf(station) {
+        return (
+          categoriesById.get(station.category) || {
+            id: station.category,
+            name: 'Unbekannte Kategorie',
+            icon: null,
+            color: '#57534e',
+          }
+        );
+      }
+
+      /* ==========================================================
+         3. Fortschritt (LocalStorage-fähig)
+         Datenmodell:
+         {
+           version: 1,
+           stations: {
+             '<stationId>': { solved: boolean, locationVerified: boolean, attempts: number, selectedOptionIndex: number | null }
+           }
+         }
+         Neue Felder (z. B. gespeicherte Antworten) hier in createStationProgress() ergänzen.
+         ========================================================== */
+      function createStationProgress() {
+        return { solved: false, locationVerified: false, attempts: 0, selectedOptionIndex: null, hintUsed: false, hintVisible: false, revealed: false };
+      }
+
+      function createEmptyProgress() {
+        return { version: PROGRESS_VERSION, stations: {} };
+      }
+
+      function migrateLegacyProgress(solvedIds) {
+        const progress = createEmptyProgress();
+        solvedIds.forEach((id) => {
+          if (typeof id === 'string') progress.stations[id] = { ...createStationProgress(), solved: true };
+        });
+        return progress;
+      }
+
+      function loadProgress() {
+        try {
+          const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          if (stored && stored.version === PROGRESS_VERSION && stored.stations) return stored;
+          const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
+          if (Array.isArray(legacy)) return migrateLegacyProgress(legacy);
+        } catch (error) {
+          // Defekter oder blockierter Speicher: mit leerem Fortschritt starten.
+        }
+        return createEmptyProgress();
+      }
+
+      const AppStore = {
+        state: {
+          progress: loadProgress(),
+          detailsErrors: new Set(),
+          gameStarted: false,
+        },
+        saveProgress() {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state.progress));
+          } catch (error) {
+            // Speicher nicht verfügbar: Fortschritt gilt nur für diese Sitzung.
+          }
+        },
+        getStationProgress(stationId) {
+          const stored = this.state.progress.stations[stationId];
+          const stationProgress = { ...createStationProgress(), ...(stored || {}) };
+          stationProgress.locationVerified = stationProgress.locationVerified === true;
+          if (stored && typeof stored.hintVisible !== 'boolean') stationProgress.hintVisible = Boolean(stored.hintUsed);
+          return stationProgress;
+        },
+        updateStationProgress(stationId, changes, reason) {
+          this.state.progress.stations[stationId] = { ...this.getStationProgress(stationId), ...changes };
+          this.saveProgress();
+          notifyStateChanged(reason || 'progress-updated');
+        },
+        resetProgress() {
+          this.state.progress = createEmptyProgress();
+          this.saveProgress();
+          notifyStateChanged('reset');
+        },
+        setDetailsError(stationId, hasError) {
+          const hadError = this.state.detailsErrors.has(stationId);
+          if (hasError === hadError) return;
+          if (hasError) this.state.detailsErrors.add(stationId);
+          else this.state.detailsErrors.delete(stationId);
+          notifyStateChanged(hasError ? 'details-failed' : 'details-retry');
+        },
+        startGame() {
+          if (this.state.gameStarted) return false;
+          this.state.gameStarted = true;
+          notifyStateChanged('game-started');
+          return true;
+        },
+      };
+
+      function getStationProgress(stationId) {
+        return AppStore.getStationProgress(stationId);
+      }
+
+      function updateStationProgress(stationId, changes, reason) {
+        AppStore.updateStationProgress(stationId, changes, reason);
+      }
+
+      function isSolved(stationId) {
+        return getStationProgress(stationId).solved;
+      }
+
+      function countSolved() {
+        return stations.filter((station) => isSolved(station.id)).length;
+      }
+
+      /* ==========================================================
+         3b. UI-Zustand & Lifecycle-Hooks (Roadmap 4)
+         Zustand wird ausschließlich über die set…-Funktionen geändert,
+         Rendering passiert in render*-Funktionen, Eingaben in handle*-Funktionen.
+         Hooks werden als CustomEvents auf `document` gesendet (Präfix "ms:"), z. B.
+           document.addEventListener('ms:afterDetailsOpen', (e) => e.detail.stationId …)
+         Verfügbare Hooks: beforeRender, afterRender, beforeDetailsOpen, afterDetailsOpen,
+         beforeDetailsClose, afterDetailsClose, beforeFilterChange, afterFilterChange,
+         beforeDialogOpen, afterDialogOpen, beforeDialogClose, afterDialogClose,
+         stateChanged (Zustand geaendert: der zentrale Listener ruft render() auf).
+         ========================================================== */
+      const uiState = {
+        selectedStationId: null, // ausgewählte Station
+        detailsOpen: false, // Detailansicht geöffnet
+        loading: true,
+        activeCategories: new Set(), // aktive Filter (leer = alle Kategorien)
+        colorMode: window.ThemeController ? window.ThemeController.getMode() : 'light',
+        suggestion: { open: false, picking: false, submitted: false }, // Vorschlagsformular
+      };
+
+      function emitHook(name, detail) {
+        document.dispatchEvent(new CustomEvent('ms:' + name, { detail: detail || {} }));
+      }
+
+      // Zustandsaenderung melden. Der zentrale Listener (Abschnitt 9) zeichnet daraufhin neu.
+      function notifyStateChanged(reason) {
+        emitHook('stateChanged', { reason: reason });
+      }
+
+      function reducedMotion() {
+        return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      }
+
+      // Animations-Helfer: setzt CSS-Klassen für Ein-/Ausblenden und ruft danach `done` auf.
+      // Ohne CSS-Transition oder bei reduzierter Bewegung wird `done` sofort ausgeführt.
+      function transitionIn(element, kind) {
+        element.classList.add(kind || 'transition-fade', 'is-entering');
+        void element.offsetWidth;
+        requestAnimationFrame(() => element.classList.remove('is-entering'));
+      }
+
+      function transitionOut(element, done, kind) {
+        if (reducedMotion()) {
+          done();
+          return;
+        }
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          element.classList.remove('is-exiting');
+          done();
+        };
+        element.classList.add(kind || 'transition-fade', 'is-exiting');
+        element.addEventListener('transitionend', finish, { once: true });
+        window.setTimeout(finish, 350); // Fallback, falls keine Transition definiert ist
+      }
+
+      function setSelectedStation(stationId) {
+        uiState.selectedStationId = stationId;
+        uiState.detailsOpen = Boolean(stationId);
+      }
+
+      function setCategoryFilter(categoryId) {
+        const detail = { categoryId, active: new Set(uiState.activeCategories) };
+        emitHook('beforeFilterChange', detail);
+        if (categoryId === null) uiState.activeCategories.clear();
+        else if (uiState.activeCategories.has(categoryId)) uiState.activeCategories.delete(categoryId);
+        else uiState.activeCategories.add(categoryId);
+        notifyStateChanged('filter');
+        const count = visibleStations().length;
+        announce(count === 1 ? '1 Station sichtbar.' : count + ' Stationen sichtbar.');
+        emitHook('afterFilterChange', { categoryId, active: new Set(uiState.activeCategories), count });
+      }
+
+      function visibleStations() {
+        if (!uiState.activeCategories.size) return stations;
+        return stations.filter((station) => uiState.activeCategories.has(station.category));
+      }
+
+      /* ==========================================================
+         4. Hilfsfunktionen
+         ========================================================== */
+      const elements = {
+        planView: document.getElementById('plan-view'),
+        taskView: document.getElementById('task-view'),
+        taskList: document.getElementById('task-list'),
+        pageTitle: document.getElementById('page-title'),
+        progressCount: document.getElementById('progress-count'),
+        progressLoading: document.getElementById('progress-loading'),
+        progressTrack: document.getElementById('progress-track'),
+        progressFill: document.getElementById('progress-fill'),
+        resetButton: document.getElementById('reset-button'),
+        backButton: document.getElementById('back-button'),
+        completion: document.getElementById('completion'),
+        mapFallback: document.getElementById('map-fallback'),
+        statusMessage: document.getElementById('status-message'),
+        howTo: document.getElementById('how-to'),
+        stationList: document.getElementById('station-list'),
+        legend: document.getElementById('legend'),
+        miniBadges: document.getElementById('mini-badges'),
+        completionStats: document.getElementById('completion-stats'),
+        completionRank: document.getElementById('completion-rank'),
+        loadError: document.getElementById('load-error'),
+        loadErrorText: document.getElementById('load-error-text'),
+        loadRetry: document.getElementById('load-retry'),
+        stationLinkError: document.getElementById('station-link-error'),
+        filterEmpty: document.getElementById('filter-empty'),
+        themeToggle: document.getElementById('theme-toggle'),
+        layoutToggle: document.getElementById('layout-toggle'),
+        themeIcon: document.getElementById('theme-icon'),
+      };
+
+      function escapeHtml(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      // Bildpfade kommen vom Server (relativ zu dieser Seite, z. B. "uploads/<name>.jpg").
+      function photoUrl(path) {
+        return path;
+      }
+
+      function hasDetails(station) {
+        return Boolean(station && (station.publicDetailsLoaded || Array.isArray(station.options)));
+      }
+
+      function formatCoordinates(station) {
+        return station.lat.toFixed(5) + ', ' + station.lon.toFixed(5);
+      }
+
+      function distanceBetween(lat1, lon1, lat2, lon2) {
+        const radians = (degrees) => (degrees * Math.PI) / 180;
+        const latitudeDelta = radians(lat2 - lat1);
+        const longitudeDelta = radians(lon2 - lon1);
+        const a = Math.sin(latitudeDelta / 2) ** 2 + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(longitudeDelta / 2) ** 2;
+        const boundedA = Math.min(1, Math.max(0, a));
+        return 6371000 * 2 * Math.atan2(Math.sqrt(boundedA), Math.sqrt(1 - boundedA));
+      }
+
+      function announce(message) {
+        elements.statusMessage.textContent = '';
+        setTimeout(() => {
+          elements.statusMessage.textContent = message;
+        }, 50);
+      }
+
+      function externalLink(url, text, className) {
+        const classAttribute = className ? ' class="' + className + '"' : '';
+        return '<a' + classAttribute + ' href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + text + '<span class="visually-hidden"> (öffnet in neuem Tab)</span></a>';
+      }
+
+      function isValidExternalUrl(value) {
+        if (typeof value !== 'string') return false;
+        try {
+          const url = new URL(value);
+          return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch (error) {
+          return false;
+        }
+      }
+
+      /* ==========================================================
+         5. Stadtplan (Leaflet / OpenStreetMap)
+         Die Nummern-Pins sitzen automatisch an den GPS-Koordinaten der Stationen.
+         ========================================================== */
+      let map = null;
+      const mapMarkers = new Map();
+      let renderedTaskMarkup = '';
+      let taskViewUpdate = Promise.resolve();
+
+      function categoryTextColor(color) {
+        const channels = color
+          .slice(1)
+          .match(/.{2}/g)
+          .map((channel) => parseInt(channel, 16) / 255);
+        const luminance = channels.map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+        const whiteContrast = 1.05 / (luminance + 0.05);
+        const darkContrast = (luminance + 0.05) / 0.05;
+        return whiteContrast >= darkContrast ? 'var(--color-category-text-light)' : 'var(--color-category-text-dark)';
+      }
+
+      function pinHtml(station) {
+        const category = categoryOf(station);
+        return '<div class="map-pin" style="--pin:' + escapeHtml(category.color) + ';--pin-text:' + categoryTextColor(category.color) + '" aria-hidden="true"><span class="pin-icon">' + categoryImageHtml(category) + '</span><span class="pin-number">' + station.number + '</span></div>';
+      }
+
+      function categoryImageHtml(category) {
+        return category.icon ? '<img src="' + escapeHtml(photoUrl(category.icon)) + '" alt="">' : '';
+      }
+
+      function initMap() {
+        if (typeof L === 'undefined') {
+          elements.mapFallback.hidden = false;
+          return;
+        }
+        map = L.map('map').setView(MAP_CENTER, 15);
+        L.tileLayer(MAP_TILE_URL, {
+          maxZoom: 18,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+        }).addTo(map);
+      }
+
+      // Während der Standortwahl übernimmt ein Pin-Klick dessen Position, statt die Station zu öffnen.
+      function handleMarkerActivate(station) {
+        if (uiState.suggestion.picking) {
+          handleMapPick({ latlng: L.latLng(station.lat, station.lon) });
+          return;
+        }
+        openStation(station.id);
+      }
+
+      function addMarkers() {
+        if (!map) return;
+        mapMarkers.forEach((marker) => marker.remove());
+        mapMarkers.clear();
+        stations.forEach((station) => {
+          const marker = L.marker([station.lat, station.lon], {
+            keyboard: true,
+            icon: L.divIcon({ className: '', iconSize: [44, 44], iconAnchor: [22, 22], html: pinHtml(station) }),
+          }).addTo(map);
+          marker.on('click', () => handleMarkerActivate(station));
+          // Leaflet löst Enter aus; Leertaste für echtes Button-Verhalten ergänzen.
+          marker.getElement().addEventListener('keydown', (event) => {
+            if (event.key === ' ' || event.key === 'Spacebar') {
+              event.preventDefault();
+              handleMarkerActivate(station);
+            }
+          });
+          mapMarkers.set(station.id, marker);
+        });
+        if (stations.length) {
+          map.fitBounds(
+            stations.map((station) => [station.lat, station.lon]),
+            { padding: [36, 36] },
+          );
+        }
+      }
+
+      function updateMapPins() {
+        mapMarkers.forEach((marker, stationId) => {
+          const station = stationsById.get(stationId);
+          const solved = isSolved(stationId);
+          const markerElement = marker.getElement();
+          const pin = markerElement.querySelector('.map-pin');
+          pin.classList.toggle('map-pin--solved', solved);
+          pin.querySelector('.pin-icon').innerHTML = solved ? '✓' : categoryImageHtml(categoryOf(station));
+          markerElement.hidden = !isStationVisible(station);
+          markerElement.setAttribute('aria-label', 'Station ' + station.number + ', ' + categoryOf(station).name + (solved ? ' (gelöst)' : ' (offen)'));
+        });
+      }
+
+      function isStationVisible(station) {
+        return !uiState.activeCategories.size || uiState.activeCategories.has(station.category);
+      }
+
+      function focusMapPin(stationId) {
+        const marker = mapMarkers.get(stationId);
+        if (marker && !marker.getElement().hidden) {
+          marker.getElement().focus({ preventScroll: true });
+          return;
+        }
+        const listItem = elements.stationList && elements.stationList.isConnected ? elements.stationList.querySelector('[data-station-id="' + stationId + '"]') : null;
+        if (listItem) listItem.focus({ preventScroll: true });
+        else elements.pageTitle.focus({ preventScroll: true });
+      }
+
+      /* ==========================================================
+         6. Rendering der Aufgaben-Ansicht
+         ========================================================== */
+      function renderTaskPhoto(station, solved) {
+        const file = station.taskImage;
+        const image = file ? '<img src="' + escapeHtml(photoUrl(file)) + '" alt="Rätselfoto zu Station ' + station.number + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="task" loading="eager" decoding="async">' : '<div class="photo-fallback">📷 Für diese Station liegt noch kein Foto vor.</div>';
+        return '<div class="task-photo">' + '<span class="badge">Station ' + station.number + '</span>' + (solved ? '<span class="badge badge--solved">✓ gelöst</span>' : '') + image + '</div>';
+      }
+
+      function renderOptions(station) {
+        const progress = getStationProgress(station.id);
+        const buttons = station.options
+          .map((option, index) => {
+            const wrong = !progress.solved && progress.selectedOptionIndex === index && index !== station.correctOptionIndex;
+            return '<button type="button" class="option' + (wrong ? ' option--wrong' : '') + '" data-action="select-option" data-option-index="' + index + '">' + '<span class="option-letter" aria-hidden="true">' + OPTION_LETTERS[index] + '</span>' + '<span>' + escapeHtml(option) + '</span></button>';
+          })
+          .join('');
+        return '<div class="options" role="group" aria-labelledby="task-intro">' + buttons + '</div>';
+      }
+
+      function renderOrientationMap(station) {
+        if (!isEnabled('station_map')) return '';
+        const player = playerLocations.get(station.id);
+        const distance = player ? Math.round(distanceBetween(player.lat, player.lon, station.lat, station.lon)) + ' m bis zum Ziel' : 'Der eigene Standort erscheint nach einer Standortaktualisierung.';
+        return '<details class="station-orientation" open><summary>OpenStreetMap-Orientierungskarte</summary><div class="station-orientation-map" id="station-orientation-map" role="region" aria-label="Karte mit Stationsziel und eigener Position"></div><p class="station-distance">' + escapeHtml(distance) + '</p></details>';
+      }
+
+      // DEV-FAKE-POSITION (1/4): Entwicklerhilfe, vor dem Livegang entfernen (nach "DEV-FAKE-POSITION" suchen)
+      function devFakePositionButton(state) {
+        return '<button type="button" data-action="fake-position"' + (state.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>';
+      }
+      function devFakePosition(stationId) {
+        const station = stationsById.get(stationId);
+        return { coords: { latitude: station.lat, longitude: station.lon, accuracy: 5 }, timestamp: Date.now() };
+      }
+      // /DEV-FAKE-POSITION
+
+      function renderLocationStatus(station) {
+        const state = locationStates.get(station.id) || {};
+        const message = state.message || 'Begib dich zum abgebildeten Ort und aktualisiere anschließend deinen Standort.';
+        return '<div class="task-status location-status" role="status" aria-live="polite"><p>' + escapeHtml(message) + '</p><button type="button" data-action="verify-location"' + (state.loading ? ' disabled' : '') + '>Standort aktualisieren</button>' + devFakePositionButton(state) + '</div>';
+      }
+
+      function renderUnsolvedBody(station) {
+        const progress = getStationProgress(station.id);
+        const coordinates = formatCoordinates(station);
+        const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
+        const hintVisible = progress.hintVisible;
+        const wrongAnswerSelected = progress.selectedOptionIndex !== null && progress.selectedOptionIndex !== station.correctOptionIndex;
+        const hintButton = isEnabled('hint_button') ? '<button type="button" class="hint-button" data-action="toggle-hint" aria-expanded="' + String(hintVisible) + '" aria-controls="hint-box">💡 Hinweis anzeigen</button>' : '';
+        const gated = isEnabled('location_gate') && !station.protectedDetailsLoaded;
+        const revealButton = !gated && isEnabled('reveal_button') ? '<button type="button" class="reveal-button" data-action="reveal">Lösung anzeigen</button>' : '';
+        const options = gated ? renderLocationStatus(station) : renderOptions(station);
+        return '<p class="task-intro" id="task-intro">Suche den Ort und beantworte dann, worum es geht.</p>' + '<div class="hint-box' + (hintVisible ? ' is-visible' : '') + '" id="hint-box" aria-hidden="' + String(!hintVisible) + '">💡 ' + escapeHtml(station.hint) + '</div>' + '<div><a class="coordinates coordinates-link" href="' + mapsUrl + '" target="_blank" rel="noopener noreferrer" aria-label="Koordinaten ' + coordinates + ' in Google Maps öffnen (neuer Tab)">' + coordinates + '</a></div>' + renderOrientationMap(station) + '<div class="task-actions">' + options + hintButton + '</div>' + (gated ? '' : '<p class="error-message' + (wrongAnswerSelected ? ' feedback-in' : '') + '" id="error-message"' + (wrongAnswerSelected ? '' : ' hidden') + '>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>') + revealButton;
+      }
+
+      function renderSolvedBody(station) {
+        const coordinates = formatCoordinates(station);
+        const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + station.lat + ',' + station.lon;
+        const osmUrl = 'https://www.openstreetmap.org/?mlat=' + station.lat + '&mlon=' + station.lon + '#map=18/' + station.lat + '/' + station.lon;
+        const file = station.solutionImage;
+        const solutionImage = file ? '<img src="' + escapeHtml(photoUrl(file)) + '" alt="Lösungsfoto: ' + escapeHtml(station.solutionTitle) + '" data-photo-file="' + escapeHtml(file) + '" data-fallback="solution">' : '<div class="solution-photo-fallback">📷 Für diese Station liegt noch kein Lösungsfoto vor.</div>';
+        const sourceLinks = station.links.map((link) => externalLink(link.url, escapeHtml(link.title) + ' ↗')).join('');
+        return '<div class="solution">' + '<figure class="solution-photo">' + solutionImage + '<figcaption>' + escapeHtml(station.solutionCaption || 'Lösungsfoto') + '</figcaption></figure>' + '<div class="coordinates-row"><span class="coordinates">' + coordinates + '</span>' + externalLink(mapsUrl, 'Google Maps ↗') + externalLink(osmUrl, 'OpenStreetMap ↗') + '</div>' + '<p>' + escapeHtml(station.info) + '</p>' + '<div class="sources"><span>Foto: Aufgabenfoto zu Station ' + station.number + '</span>' + sourceLinks + '</div>' + nextButtonHtml() + '</div>';
+      }
+
+      function nextUnsolvedStation(fromId) {
+        const index = stations.findIndex((station) => station.id === fromId);
+        for (let step = 1; step <= stations.length; step++) {
+          const candidate = stations[(index + step) % stations.length];
+          if (!isSolved(candidate.id)) return candidate;
+        }
+        return null;
+      }
+
+      function nextButtonHtml() {
+        const next = nextUnsolvedStation(uiState.selectedStationId);
+        if (!next) return '';
+        return '<button type="button" class="next-button" data-action="next" data-next-id="' + next.id + '">Nächste Station: ' + escapeHtml(categoryOf(next).name) + ' – Nr. ' + next.number + ' →</button>';
+      }
+
+      function renderTaskPlaceholder(station) {
+        const failed = AppStore.state.detailsErrors.has(station.id);
+        const status = failed ? '<div class="task-status" role="alert"><p>Die Station konnte nicht geladen werden.</p><button type="button" data-action="retry">Erneut versuchen</button></div>' : '<div class="task-status task-status--loading" role="status" aria-live="polite"><p>Station wird geladen …</p></div>';
+        const category = categoryOf(station);
+        return '<article class="task-card" aria-labelledby="task-title" data-station-id="' + station.id + '" style="--cat:' + escapeHtml(category.color) + '"><div class="task-body"><span class="category-chip">' + categoryImageHtml(category) + escapeHtml(category.name) + '</span><h2 class="task-title" id="task-title" tabindex="-1">Station ' + station.number + '</h2>' + status + '</div></article>';
+      }
+
+      function renderTaskCard(station) {
+        if (!hasDetails(station)) return renderTaskPlaceholder(station);
+        const solved = isSolved(station.id) && (!isEnabled('location_gate') || station.protectedDetailsLoaded);
+        const category = categoryOf(station);
+        return '<article class="task-card" aria-labelledby="task-title" data-station-id="' + station.id + '" style="--cat:' + escapeHtml(category.color) + '">' + renderTaskPhoto(station, solved) + '<div class="task-body">' + '<span class="category-chip">' + categoryImageHtml(category) + escapeHtml(category.name) + '</span>' + '<h2 class="task-title" id="task-title" tabindex="-1">' + escapeHtml(solved ? station.solutionTitle : station.title) + '</h2>' + (solved ? renderSolvedBody(station) : renderUnsolvedBody(station)) + '</div></article>';
+      }
+
+      function renderProgress() {
+        const solvedCount = countSolved();
+        const total = stations.length;
+        const text = solvedCount + ' von ' + total + ' gelöst';
+        const allSolved = !uiState.loading && total > 0 && solvedCount === total;
+        elements.progressLoading.hidden = !uiState.loading;
+        elements.progressCount.textContent = uiState.loading ? '' : text;
+        elements.progressTrack.hidden = uiState.loading;
+        elements.progressFill.style.width = (total ? Math.round((solvedCount / total) * 100) : 0) + '%';
+        elements.progressTrack.setAttribute('aria-valuemax', total);
+        elements.progressTrack.setAttribute('aria-valuenow', solvedCount);
+        elements.progressTrack.setAttribute('aria-valuetext', uiState.loading ? '' : text);
+        elements.resetButton.hidden = solvedCount === 0;
+        elements.completion.hidden = !allSolved;
+        if (allSolved) renderCompletion();
+        elements.miniBadges.innerHTML = uiState.loading
+          ? ''
+          : stations
+              .map((station) => {
+                const category = categoryOf(station);
+                return '<span class="mini' + (isSolved(station.id) ? ' mini--solved' : '') + '" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (isSolved(station.id) ? '✓' : categoryImageHtml(category)) + '</span>';
+              })
+              .join('');
+      }
+
+      function renderStationList() {
+        const visible = visibleStations();
+        elements.stationList.innerHTML = visible
+          .map((station) => {
+            const category = categoryOf(station);
+            const solved = isSolved(station.id);
+            return '<li><button type="button" class="station-item' + (solved ? ' station-item--solved' : '') + '" data-station-id="' + station.id + '">' + '<span class="ico" aria-hidden="true" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '">' + (solved ? '✓' : categoryImageHtml(category)) + '</span>' + '<span>Station ' + station.number + '<span class="station-sub">' + escapeHtml(solved ? station.solutionTitle : category.name) + '</span></span>' + '<span class="state">' + (solved ? '✓ gelöst' : 'Los →') + '</span></button></li>';
+          })
+          .join('');
+        elements.filterEmpty.hidden = visible.length > 0 || !stations.length;
+      }
+
+      // Legende = Kategorie-Filter. Gerendert wird nur bei neuen Kategorien, der Zustand separat,
+      // damit der Fokus auf dem gedrückten Button erhalten bleibt.
+      function renderLegend() {
+        elements.legend.innerHTML = Array.from(categoriesById.values())
+          .map((category) => '<li><button type="button" class="legend-button" data-category-id="' + escapeHtml(category.id) + '" aria-pressed="false"><span class="legend-icon" style="--category-color:' + escapeHtml(category.color) + ';--category-text:' + categoryTextColor(category.color) + '" aria-hidden="true">' + categoryImageHtml(category) + '</span>' + escapeHtml(category.name) + '</button></li>')
+          .join('');
+        renderLegendState();
+      }
+
+      function renderLegendState() {
+        elements.legend.querySelectorAll('[data-category-id]').forEach((button) => {
+          button.setAttribute('aria-pressed', String(uiState.activeCategories.has(button.dataset.categoryId)));
+        });
+      }
+
+      function renderCompletion() {
+        const stats = stations.map((station) => getStationProgress(station.id));
+        const attempts = stats.reduce((sum, item) => sum + item.attempts, 0);
+        const hints = stats.filter((item) => item.hintUsed).length;
+        const revealed = stats.filter((item) => item.revealed).length;
+        const own = stations.length - revealed;
+        elements.completionStats.innerHTML = '<div class="stat"><b>' + own + '/' + stations.length + '</b><span>selbst gelöst</span></div>' + '<div class="stat"><b>' + hints + '</b><span>Hinweise genutzt</span></div>' + '<div class="stat"><b>' + attempts + '</b><span>Fehlversuche</span></div>';
+        let rank = '🧭 Stadtentdecker:in';
+        if (revealed === 0 && attempts === 0) rank = '🏅 Münster-Meister:in';
+        else if (revealed === 0) rank = '🥈 Spürnase';
+        elements.completionRank.textContent = rank;
+      }
+
+      function renderTaskView(station) {
+        const nextMarkup = station ? renderTaskCard(station) : '';
+        if (nextMarkup === renderedTaskMarkup) return; // unveraenderte Ansicht: keine Transition
+        renderedTaskMarkup = nextMarkup;
+        if (stationMap) {
+          stationMap.remove();
+          stationMap = null;
+        }
+        if (!document.startViewTransition) {
+          elements.taskList.innerHTML = nextMarkup;
+          markLoadedImages(elements.taskList);
+          taskViewUpdate = Promise.resolve();
+        } else {
+          taskViewUpdate = document
+            .startViewTransition(() => {
+              elements.taskList.innerHTML = nextMarkup;
+              markLoadedImages(elements.taskList);
+            })
+            .updateCallbackDone.catch(() => {});
+        }
+        taskViewUpdate.then(setupOrientationMap);
+      }
+
+      function setupOrientationMap() {
+        const container = document.getElementById('station-orientation-map');
+        const station = stationsById.get(uiState.selectedStationId);
+        if (!container || !station || typeof L === 'undefined') return;
+        stationMap = L.map(container).setView([station.lat, station.lon], 17);
+        L.tileLayer(MAP_TILE_URL, {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+        }).addTo(stationMap);
+        const target = L.marker([station.lat, station.lon]).addTo(stationMap).bindPopup('Stationsziel');
+        const player = playerLocations.get(station.id);
+        if (player) {
+          const playerMarker = L.circleMarker([player.lat, player.lon], { radius: 8, color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 0.9 }).addTo(stationMap).bindPopup('Dein aktueller Standort');
+          L.polyline(
+            [
+              [player.lat, player.lon],
+              [station.lat, station.lon],
+            ],
+            { color: '#1d4ed8', dashArray: '6 6' },
+          ).addTo(stationMap);
+          stationMap.fitBounds([target.getLatLng(), playerMarker.getLatLng()], { padding: [24, 24], maxZoom: 17 });
+        }
+      }
+
+      function markLoadedImages(container) {
+        container.querySelectorAll('img[data-fallback]').forEach((image) => {
+          if (image.complete && image.naturalWidth > 0) image.classList.add('is-loaded');
+        });
+      }
+
+      // Gemeinsamer Renderpfad: Karte, Liste, Aufgabenansicht, Fortschritt.
+      function render() {
+        emitHook('beforeRender', { selectedStationId: uiState.selectedStationId });
+        showView(uiState.detailsOpen);
+        updateMapPins();
+        renderLegendState();
+        renderStationList();
+        const station = stationsById.get(uiState.selectedStationId);
+        renderTaskView(station);
+        renderProgress();
+        emitHook('afterRender', { selectedStationId: uiState.selectedStationId });
+      }
+
+      /* ==========================================================
+         7. Navigation
+         ========================================================== */
+      function showView(taskViewActive) {
+        const changed = elements.planView.hidden !== taskViewActive;
+        elements.planView.hidden = taskViewActive;
+        elements.taskView.hidden = !taskViewActive;
+        if (changed && !taskViewActive && map) setTimeout(() => map.invalidateSize(), 50);
+      }
+
+      function focusTaskTitle() {
+        taskViewUpdate.then(() => {
+          const title = document.getElementById('task-title');
+          if (title) title.focus({ preventScroll: true });
+        });
+      }
+
+      function openStation(stationId, options) {
+        if (uiState.suggestion.picking) return;
+        const source = options && options.source ? options.source : 'user';
+        if (source === 'user') {
+          elements.stationLinkError.hidden = true;
+          if (AppStore.startGame()) setHowTo(false);
+          updateStationUrl(stationId, 'push');
+        }
+        emitHook('beforeDetailsOpen', { stationId });
+        setSelectedStation(stationId);
+        notifyStateChanged('select');
+        focusTaskTitle();
+        ensureDetails(stationId, { passive: source !== 'user' });
+        emitHook('afterDetailsOpen', { stationId });
+      }
+
+      function updateStationUrl(stationId, method) {
+        const url = new URL(window.location.href);
+        if (stationId) url.searchParams.set('station', stationId);
+        else url.searchParams.delete('station');
+        if (url.href === window.location.href) return;
+        window.history[method + 'State'](window.history.state, '', url);
+      }
+
+      function handleStationUrlChange(initial = false) {
+        if (uiState.loading) return;
+        const url = new URL(window.location.href);
+        const stationId = url.searchParams.get('station');
+        if (!url.searchParams.has('station')) {
+          elements.stationLinkError.hidden = true;
+          if (!initial && uiState.selectedStationId) showPlan({ source: 'history' });
+          return;
+        }
+        if (!stationsById.has(stationId)) {
+          if (uiState.selectedStationId) showPlan({ source: 'history' });
+          elements.stationLinkError.hidden = false;
+          announce('Der Link verweist auf eine unbekannte Station.');
+          return;
+        }
+        elements.stationLinkError.hidden = true;
+        if (uiState.selectedStationId !== stationId) {
+          openStation(stationId, { source: initial ? 'direct-link' : 'history' });
+        }
+      }
+
+      function isValidPin(pin) {
+        return pin && typeof pin.id === 'string' && pin.id !== '' && Number.isFinite(pin.number) && typeof pin.title === 'string' && typeof pin.category === 'string' && Number.isFinite(pin.lat) && Number.isFinite(pin.lon);
+      }
+
+      function isValidCategory(category) {
+        return category && typeof category.id === 'string' && category.id !== '' && typeof category.name === 'string' && (category.icon === null || typeof category.icon === 'string') && typeof category.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(category.color);
+      }
+
+      function isValidDetails(details, publicOnly = false) {
+        const validPublicDetails = details && typeof details.id === 'string' && typeof details.title === 'string' && Number.isFinite(details.lat) && Number.isFinite(details.lon) && typeof details.hint === 'string' && typeof details.taskImage === 'string';
+        if (!validPublicDetails) return false;
+        if (publicOnly) return !Object.prototype.hasOwnProperty.call(details, 'options');
+        return Array.isArray(details.options) && details.options.length >= 2 && Number.isInteger(details.correctOptionIndex) && details.correctOptionIndex >= 0 && details.correctOptionIndex < details.options.length && typeof details.solutionTitle === 'string' && typeof details.info === 'string' && Array.isArray(details.links) && details.links.every((link) => link && typeof link.title === 'string' && isValidExternalUrl(link.url));
+      }
+
+      async function loadStations() {
+        elements.loadError.hidden = true;
+        uiState.loading = true;
+        try {
+          const settingsPromise = StationApiService.loadSettings().catch(() => null);
+          const stationsPromise = Promise.all([StationApiService.loadCategories(), StationApiService.loadPins()]).then(
+            (data) => ({ data }),
+            (error) => ({ error }),
+          );
+          const [settings, stationResult] = await Promise.all([settingsPromise, stationsPromise]);
+          ui = resolveUi(settings && settings.ui);
+          const configuredLocation = settings && settings.location;
+          locationConfig = {
+            radius: Number.isFinite(configuredLocation && configuredLocation.radius) ? configuredLocation.radius : 50,
+            maxAccuracy: Number.isFinite(configuredLocation && configuredLocation.maxAccuracy) ? configuredLocation.maxAccuracy : 50,
+          };
+          applyUiSettings();
+          initializeUi();
+          notifyStateChanged('settings-loaded');
+          if (stationResult.error) throw stationResult.error;
+          const [categories, pins] = stationResult.data;
+          if (!Array.isArray(categories) || !categories.every(isValidCategory)) throw new Error('Ungültige Kategoriedaten');
+          if (!Array.isArray(pins) || !pins.every(isValidPin)) throw new Error('Ungültige Stationsdaten');
+          categoriesById.clear();
+          categories.forEach((category) => categoriesById.set(category.id, category));
+          renderLegend();
+          stations = pins.map((pin) => ({ ...pin }));
+          stationsById.clear();
+          stations.forEach((station) => stationsById.set(station.id, station));
+          addMarkers();
+          uiState.loading = false;
+          notifyStateChanged('stations-loaded');
+          if (!stations.length) showLoadError('Aktuell sind keine Stationen verfügbar.', false);
+          handleStationUrlChange(true);
+        } catch (error) {
+          uiState.loading = false;
+          notifyStateChanged('stations-load-failed');
+          showLoadError('Kategorien oder Stationen konnten nicht geladen werden.', true);
+        }
+      }
+
+      function showLoadError(message, canRetry) {
+        elements.loadErrorText.textContent = message;
+        elements.loadRetry.hidden = !canRetry;
+        elements.loadError.hidden = false;
+      }
+
+      function ensureDetails(stationId, options) {
+        const station = stationsById.get(stationId);
+        if (!station || detailsRequests.has(stationId)) return;
+        const generation = locationGeneration;
+        const needsPublicDetails = !station.publicDetailsLoaded;
+        const progress = getStationProgress(stationId);
+        const passive = Boolean(options && options.passive);
+        const needsProtectedDetails = !passive && isEnabled('location_gate') && (progress.locationVerified || progress.solved) && !station.protectedDetailsLoaded;
+        if (!needsPublicDetails && !needsProtectedDetails) return;
+        if (needsPublicDetails) AppStore.setDetailsError(stationId, false);
+        const request = (async () => {
+          if (needsPublicDetails) {
+            const details = await StationApiService.loadDetails(stationId);
+            if (!isValidDetails(details, isEnabled('location_gate'))) throw new Error('Ungültige Stationsdetails');
+            Object.assign(station, details);
+            station.publicDetailsLoaded = true;
+            if (!isEnabled('location_gate')) station.protectedDetailsLoaded = true;
+          }
+          const currentProgress = getStationProgress(stationId);
+          if (generation === locationGeneration && isEnabled('location_gate') && (currentProgress.locationVerified || currentProgress.solved) && !station.protectedDetailsLoaded) {
+            try {
+              await loadProtectedDetails(station, generation);
+            } catch (error) {
+              if (currentProgress.locationVerified) updateStationProgress(stationId, { locationVerified: false }, 'location-expired');
+              locationStates.set(stationId, { message: 'Die Freigabe konnte nicht bestätigt werden. Bitte aktualisiere deinen Standort.' });
+            }
+          }
+        })()
+          .catch(() => {
+            if (needsPublicDetails) AppStore.setDetailsError(stationId, true);
+          })
+          .finally(() => {
+            detailsRequests.delete(stationId);
+            if (uiState.selectedStationId === stationId) {
+              notifyStateChanged('details-loaded');
+              focusTaskTitle();
+              announce(AppStore.state.detailsErrors.has(stationId) ? 'Die Station konnte nicht geladen werden.' : 'Station ' + station.number + ' geladen.');
+            }
+          });
+        detailsRequests.set(stationId, request);
+      }
+
+      async function loadProtectedDetails(station, generation = locationGeneration) {
+        const details = await StationApiService.loadProtectedDetails(station.id);
+        if (!isValidDetails(details)) throw new Error('Geschützte Stationsdetails konnten nicht geladen werden.');
+        if (generation !== locationGeneration) return;
+        Object.assign(station, details);
+        station.protectedDetailsLoaded = true;
+      }
+
+      function clearProtectedDetails(station) {
+        station.protectedDetailsLoaded = false;
+        ['options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links'].forEach((key) => delete station[key]);
+      }
+
+      function showPlan(options) {
+        const previousStationId = uiState.selectedStationId;
+        const source = options && options.source ? options.source : 'user';
+        if (source === 'user') {
+          elements.stationLinkError.hidden = true;
+          updateStationUrl(null, 'push');
+        }
+        emitHook('beforeDetailsClose', { stationId: previousStationId });
+        setSelectedStation(null);
+        notifyStateChanged('deselect');
+        if (previousStationId) focusMapPin(previousStationId);
+        else elements.pageTitle.focus({ preventScroll: true });
+        emitHook('afterDetailsClose', { stationId: previousStationId });
+      }
+
+      function setHowTo(isOpen, persist = true) {
+        elements.howTo.classList.toggle('is-closed', !isOpen);
+        const helpToggle = document.getElementById('help-toggle');
+        if (helpToggle) helpToggle.setAttribute('aria-expanded', String(isOpen));
+        if (persist) saveIntroState(isOpen);
+      }
+
+      function loadIntroState() {
+        try {
+          const stored = localStorage.getItem(INTRO_STATE_KEY);
+          return stored === null ? true : stored === 'open';
+        } catch (error) {
+          return true;
+        }
+      }
+
+      function saveIntroState(isOpen) {
+        try {
+          localStorage.setItem(INTRO_STATE_KEY, isOpen ? 'open' : 'closed');
+        } catch (error) {
+          // Die Einführung bleibt für diese Sitzung korrekt eingestellt.
+        }
+      }
+
+      /* ==========================================================
+         8. Aktionen
+         ========================================================== */
+      function locationFailureMessage(error) {
+        if (error && error.code === 1) return 'Der Zugriff auf den Standort wurde verweigert.';
+        if (error && error.code === 2) return 'Der Standort konnte nicht ermittelt werden.';
+        if (error && error.code === 3) return 'Die Standortabfrage dauerte zu lange. Bitte erneut versuchen.';
+        return 'Der Standort konnte nicht geprüft werden. Bitte erneut versuchen.';
+      }
+
+      function locationResultMessage(result) {
+        if (result.reason === 'poor_accuracy') return 'Die Standortgenauigkeit ist derzeit zu gering (maximal ' + locationConfig.maxAccuracy + ' Meter).';
+        if (result.reason === 'too_far') return 'Du bist noch etwa ' + result.distance + ' Meter vom Ziel entfernt (Prüfungsradius: ' + (result.radius || locationConfig.radius) + ' Meter).';
+        return 'Der Standort konnte nicht geprüft werden.';
+      }
+
+      async function verifyStationLocation(stationId, devFake = false /* DEV-FAKE-POSITION (2/4) */) {
+        const currentState = locationStates.get(stationId) || {};
+        const generation = locationGeneration;
+        if (currentState.loading) return;
+        if (!devFake && !navigator.geolocation) {
+          locationStates.set(stationId, { message: 'Die Standortbestimmung wird von diesem Browser nicht unterstützt.' });
+          notifyStateChanged('location-unavailable');
+          return;
+        }
+        locationStates.set(stationId, { loading: true, message: 'Standort wird ermittelt …' });
+        notifyStateChanged('location-started');
+        try {
+          const position = devFake
+            ? devFakePosition(stationId) /* DEV-FAKE-POSITION (3/4) */
+            : await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                  enableHighAccuracy: true,
+                  maximumAge: 0,
+                  timeout: LOCATION_TIMEOUT_MS,
+                });
+              });
+          const { latitude, longitude, accuracy } = position.coords;
+          const timestamp = position.timestamp;
+          const now = Date.now();
+          if (![latitude, longitude, accuracy, timestamp].every(Number.isFinite) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || accuracy <= 0 || timestamp < now - LOCATION_MAX_AGE_MS || timestamp > now + 30000) {
+            locationStates.set(stationId, { message: 'Der Standort ist veraltet oder ungültig. Bitte erneut versuchen.' });
+            return;
+          }
+          if (generation !== locationGeneration) return;
+          playerLocations.set(stationId, { lat: latitude, lon: longitude });
+          locationStates.set(stationId, { loading: true, message: 'Standort wird geprüft …' });
+          notifyStateChanged('location-checking');
+          const verification = StationApiService.verifyLocation(stationId, {
+            lat: latitude,
+            lon: longitude,
+            accuracy,
+            timestamp,
+          });
+          pendingLocationRequests.add(verification);
+          let result;
+          try {
+            result = await verification;
+          } finally {
+            pendingLocationRequests.delete(verification);
+          }
+          if (generation !== locationGeneration) return;
+          if (!result.success) {
+            locationStates.set(stationId, { message: locationResultMessage(result) });
+            return;
+          }
+          locationStates.set(stationId, { loading: true, message: 'Standort bestätigt. Antworten werden geladen …' });
+          updateStationProgress(stationId, { locationVerified: true }, 'location-verified');
+          const station = stationsById.get(stationId);
+          await loadProtectedDetails(station, generation);
+          if (generation !== locationGeneration) {
+            clearProtectedDetails(station);
+            return;
+          }
+          locationStates.set(stationId, { message: 'Standort bestätigt. Die Antworten sind freigegeben.' });
+          announce('Standort bestätigt. Die Antwortmöglichkeiten sind freigegeben.');
+          if (uiState.selectedStationId === stationId) focusTaskTitle();
+        } catch (error) {
+          if (generation !== locationGeneration) return;
+          const progress = getStationProgress(stationId);
+          if (progress.locationVerified) updateStationProgress(stationId, { locationVerified: false }, 'location-check-failed');
+          locationStates.set(stationId, { message: locationFailureMessage(error) });
+          announce(locationFailureMessage(error));
+        } finally {
+          if (generation === locationGeneration) {
+            const state = locationStates.get(stationId) || {};
+            locationStates.set(stationId, { ...state, loading: false });
+            notifyStateChanged('location-finished');
+          }
+        }
+      }
+
+      function markSolved(stationId, selectedOptionIndex) {
+        const station = stationsById.get(stationId);
+        updateStationProgress(stationId, { solved: true, selectedOptionIndex }, 'solved');
+        focusTaskTitle();
+        announce('Station ' + station.number + ' gelöst: ' + station.solutionTitle + (countSolved() === stations.length ? '. Alle Aufgaben sind gelöst.' : ''));
+      }
+
+      function selectOption(stationId, optionIndex) {
+        const station = stationsById.get(stationId);
+        if (isEnabled('location_gate') && !station.protectedDetailsLoaded) return;
+        if (optionIndex === station.correctOptionIndex) {
+          markSolved(stationId, optionIndex);
+          return;
+        }
+        updateStationProgress(stationId, { attempts: getStationProgress(stationId).attempts + 1, selectedOptionIndex: optionIndex }, 'wrong-answer');
+        announce('Noch nicht – probier es nochmal oder nutze den Hinweis.');
+      }
+
+      function toggleHint() {
+        const stationId = uiState.selectedStationId;
+        const progress = getStationProgress(stationId);
+        const hintVisible = !progress.hintVisible;
+        updateStationProgress(stationId, { hintUsed: progress.hintUsed || hintVisible, hintVisible }, 'hint-toggled');
+      }
+
+      const resetDialog = {
+        element: document.getElementById('reset-dialog'),
+        trigger: null,
+        closing: false,
+      };
+
+      function openResetDialog() {
+        if (resetDialog.element.open || resetDialog.closing) return;
+        resetDialog.trigger = document.activeElement;
+        resetDialog.element.showModal();
+        transitionIn(resetDialog.element, 'slide-enter');
+        document.getElementById('reset-cancel').focus();
+      }
+
+      function closeResetDialog(options) {
+        if (!resetDialog.element.open || resetDialog.closing) return;
+        resetDialog.closing = true;
+        const restoreFocus = !options || options.restoreFocus !== false;
+        const afterClose = options && options.afterClose;
+        transitionOut(
+          resetDialog.element,
+          () => {
+            resetDialog.closing = false;
+            if (resetDialog.element.open) resetDialog.element.close();
+            if (restoreFocus && resetDialog.trigger && document.contains(resetDialog.trigger)) resetDialog.trigger.focus();
+            if (afterClose) afterClose();
+          },
+          'slide-exit',
+        );
+      }
+
+      function confirmProgressReset() {
+        locationGeneration += 1;
+        AppStore.resetProgress();
+        playerLocations.clear();
+        locationStates.clear();
+        if (isEnabled('location_gate')) {
+          stations.forEach(clearProtectedDetails);
+        }
+        Promise.all(Array.from(pendingLocationRequests, (request) => request.catch(() => {})))
+          .then(() => StationApiService.resetLocationAccess())
+          .catch(() => {});
+        notifyStateChanged('location-reset');
+        announce('Fortschritt zurückgesetzt.');
+        closeResetDialog({
+          restoreFocus: false,
+          afterClose: () => {
+            window.scrollTo(0, 0);
+            if (uiState.selectedStationId) focusTaskTitle();
+            else elements.pageTitle.focus({ preventScroll: true });
+          },
+        });
+      }
+
+      function resetProgress() {
+        openResetDialog();
+      }
+
+      function initResetDialog() {
+        document.getElementById('reset-confirm').addEventListener('click', confirmProgressReset);
+        document.getElementById('reset-cancel').addEventListener('click', () => closeResetDialog());
+        resetDialog.element.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          closeResetDialog();
+        });
+      }
+
+      function handleTaskListClick(event) {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const stationId = uiState.selectedStationId;
+        switch (button.dataset.action) {
+          case 'verify-location':
+            verifyStationLocation(stationId);
+            break;
+          case 'fake-position': // DEV-FAKE-POSITION (4/4)
+            verifyStationLocation(stationId, true);
+            break;
+          case 'select-option':
+            selectOption(stationId, Number(button.dataset.optionIndex));
+            break;
+          case 'toggle-hint':
+            toggleHint();
+            break;
+          case 'reveal':
+            if (isEnabled('location_gate') && !stationsById.get(stationId).protectedDetailsLoaded) break;
+            updateStationProgress(stationId, { revealed: true });
+            markSolved(stationId, null);
+            break;
+          case 'retry':
+            AppStore.setDetailsError(stationId, false);
+            ensureDetails(stationId);
+            break;
+          case 'next':
+            openStation(button.dataset.nextId);
+            window.scrollTo(0, 0);
+            break;
+        }
+      }
+
+      // Fehler-Ereignisse von <img> bubblen nicht, daher in der Capture-Phase abfangen.
+      function handleImageError(event) {
+        const image = event.target;
+        if (!(image instanceof HTMLImageElement) || !image.dataset.fallback) return;
+        const fallback = document.createElement('div');
+        if (image.dataset.fallback === 'task') {
+          fallback.className = 'photo-fallback';
+          fallback.innerHTML = '📷 Das Foto konnte nicht geladen werden.';
+        } else {
+          fallback.className = 'solution-photo-fallback';
+          fallback.innerHTML = '📷 Das Lösungsfoto konnte nicht geladen werden.';
+        }
+        image.replaceWith(fallback);
+      }
+
+      function handleImageLoad(event) {
+        const image = event.target;
+        if (image instanceof HTMLImageElement && image.dataset.fallback) image.classList.add('is-loaded');
+      }
+
+      /* ==========================================================
+         8b. Farbmodus-Schalter (Roadmap 2.3) – Logik liegt im ThemeController im <head>
+         ========================================================== */
+      function initThemeControls() {
+        const controller = window.ThemeController;
+        if (!elements.themeToggle || !elements.themeIcon) return;
+        if (!controller) {
+          elements.themeToggle.remove();
+          return;
+        }
+        let initialized = false;
+        controller.subscribe(({ mode }) => {
+          const dark = mode === 'dark';
+          uiState.colorMode = mode;
+          elements.themeToggle.setAttribute('aria-pressed', String(dark));
+          elements.themeIcon.textContent = dark ? '☀️' : '🌙';
+          elements.themeToggle.setAttribute('aria-label', dark ? 'Heller Modus' : 'Dunkler Modus');
+          if (initialized) announce(dark ? 'Dunkler Modus an.' : 'Dunkler Modus aus.');
+          initialized = true;
+        });
+        elements.themeToggle.addEventListener('click', () => controller.toggle());
+      }
+
+      function initAccessibilityControls(bindToggle) {
+        const layoutKey = 'muenster-unvermutet:layout';
+        const applyLayout = (accessible) => {
+          document.body.classList.toggle('layout-classic', !accessible);
+          if (!elements.layoutToggle) return;
+          elements.layoutToggle.setAttribute('aria-pressed', String(accessible));
+          elements.layoutToggle.textContent = accessible ? 'Klassisch' : 'Barrierefrei';
+          elements.layoutToggle.setAttribute('aria-label', accessible ? 'Klassisch: Liste und große Pins ausblenden' : 'Barrierefrei: Liste und große Pins anzeigen');
+        };
+        let accessible = false;
+        try {
+          accessible = localStorage.getItem(layoutKey) === 'accessible';
+        } catch (error) {
+          // Speicher blockiert: Standard verwenden.
+        }
+        if (!bindToggle || !elements.layoutToggle) accessible = false;
+        applyLayout(accessible);
+        if (!bindToggle || !elements.layoutToggle) return;
+        elements.layoutToggle.addEventListener('click', () => {
+          accessible = !accessible;
+          applyLayout(accessible);
+          try {
+            localStorage.setItem(layoutKey, accessible ? 'accessible' : 'classic');
+          } catch (error) {
+            // Präferenz gilt nur für diese Sitzung.
+          }
+          announce(accessible ? 'Barrierefrei: Liste und große Pins.' : 'Klassisch: ohne Liste, kleine Pins.');
+        });
+      }
+
+      /* ==========================================================
+         8c. Station vorschlagen (Roadmap 6)
+         Aufbau: Validierung (rein, ohne DOM) → Formular-Rendering → Dialog-Steuerung → Versand.
+         ========================================================== */
+      const suggest = {
+        dialog: document.getElementById('suggest-dialog'),
+        form: document.getElementById('suggest-form'),
+        openButton: document.getElementById('suggest-open'),
+        status: document.getElementById('suggest-status'),
+        submitButton: document.querySelector('#suggest-form button[type="submit"]'),
+        result: document.getElementById('suggest-result'),
+        success: document.getElementById('suggest-success'),
+        category: document.getElementById('suggest-category'),
+        pickButton: document.getElementById('suggest-pick'),
+        pickBanner: document.getElementById('pick-banner'),
+        fields: {
+          name: { input: document.getElementById('suggest-name'), error: document.getElementById('suggest-name-error') },
+          category: { input: document.getElementById('suggest-category'), error: document.getElementById('suggest-category-error') },
+          description: { input: document.getElementById('suggest-description'), error: document.getElementById('suggest-description-error') },
+          latitude: { input: document.getElementById('suggest-lat'), error: document.getElementById('suggest-location-error') },
+          longitude: { input: document.getElementById('suggest-lon'), error: document.getElementById('suggest-location-error') },
+          hint: { input: document.getElementById('suggest-hint'), error: document.getElementById('suggest-hint-error') },
+          question: { input: document.getElementById('suggest-question'), error: document.getElementById('suggest-editorial-error') },
+        },
+        editorialError: document.getElementById('suggest-editorial-error'),
+        editorialInfo: document.getElementById('suggest-info'),
+        trigger: null,
+        closing: false,
+        submitting: false,
+      };
+      const SUGGEST_LIMITS = { name: 100, description: 1000, hint: 1000, question: 500, option: 500, info: 1000 };
+
+      function parseCoordinate(text) {
+        const normalized = text.trim().replace(',', '.');
+        return /^[-+]?\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+      }
+
+      // Reine Validierung: gibt Fehler je Feld sowie bei Erfolg das fertige JSON-Objekt zurück.
+      // raw ist das flache Objekt aus Object.fromEntries(new FormData(form)). Keine DOM-Zugriffe.
+      function validateSuggestion(raw) {
+        const errors = {};
+        const text = (key) => String(raw[key] == null ? '' : raw[key]).trim();
+        const name = text('name');
+        const description = text('description');
+        const category = text('category');
+        const hint = text('hint');
+        const question = text('question');
+        const rawOptions = [0, 1, 2, 3].map((index) => text('option-' + index));
+        const options = rawOptions.filter(Boolean);
+        const correctText = text('correct-option'); // Radio ohne Auswahl fehlt in FormData
+        const correctOptionIndex = correctText === '' ? null : Number(correctText);
+        const normalizedCorrectIndex = correctOptionIndex === null ? null : rawOptions.slice(0, correctOptionIndex + 1).filter(Boolean).length - 1;
+        const editorialInfo = text('editorial-info');
+        const latText = text('latitude');
+        const lonText = text('longitude');
+
+        if (!name) errors.name = 'Bitte gib einen Stationsnamen an.';
+        else if (name.length > SUGGEST_LIMITS.name) errors.name = 'Der Name darf höchstens ' + SUGGEST_LIMITS.name + ' Zeichen lang sein.';
+        if (!category) errors.category = 'Bitte wähle eine Kategorie.';
+        if (!description) errors.description = 'Bitte beschreibe die Station.';
+        else if (description.length > SUGGEST_LIMITS.description) errors.description = 'Die Beschreibung darf höchstens ' + SUGGEST_LIMITS.description + ' Zeichen lang sein.';
+        if (hint.length > SUGGEST_LIMITS.hint) errors.hint = 'Der Hinweis darf höchstens ' + SUGGEST_LIMITS.hint + ' Zeichen lang sein.';
+        if (question.length > SUGGEST_LIMITS.question) errors.question = 'Die Frage darf höchstens ' + SUGGEST_LIMITS.question + ' Zeichen lang sein.';
+        if (editorialInfo.length > SUGGEST_LIMITS.info) errors.editorial = 'Die Hintergrundinformationen dürfen höchstens ' + SUGGEST_LIMITS.info + ' Zeichen lang sein.';
+        const hasEditorial = hint || question || options.length || correctOptionIndex !== null || editorialInfo;
+        if (hasEditorial && (question || options.length || correctOptionIndex !== null)) {
+          if (!question) errors.editorial = 'Bitte ergänze eine Frage.';
+          if (options.length < 2 || options.length > 4) errors.editorial = 'Bitte ergänze zwei bis vier Antwortoptionen.';
+          if (correctOptionIndex === null || !rawOptions[correctOptionIndex]) errors.editorial = 'Bitte markiere eine ausgefüllte Antwort als richtig.';
+          options.forEach((option) => {
+            if (option.length > SUGGEST_LIMITS.option) errors.editorial = 'Eine Antwort darf höchstens ' + SUGGEST_LIMITS.option + ' Zeichen lang sein.';
+          });
+        }
+
+        let location = null;
+        if (latText || lonText) {
+          const latitude = parseCoordinate(latText);
+          const longitude = parseCoordinate(lonText);
+          if (!latText || !lonText) {
+            errors[latText ? 'longitude' : 'latitude'] = 'Bitte gib beide Koordinaten an oder lasse beide Felder leer.';
+          } else if (Number.isNaN(latitude)) {
+            errors.latitude = 'Der Breitengrad muss eine Zahl sein, z. B. 51.9607.';
+          } else if (Number.isNaN(longitude)) {
+            errors.longitude = 'Der Längengrad muss eine Zahl sein, z. B. 7.6261.';
+          } else if (latitude < -90 || latitude > 90) {
+            errors.latitude = 'Der Breitengrad muss zwischen -90 und 90 liegen.';
+          } else if (longitude < -180 || longitude > 180) {
+            errors.longitude = 'Der Längengrad muss zwischen -180 und 180 liegen.';
+          } else {
+            location = { latitude, longitude };
+          }
+        }
+
+        if (Object.keys(errors).length) return { errors, value: null };
+        const value = { version: 1, name, description, categoryId: category };
+        if (location) value.location = location;
+        if (hasEditorial) {
+          value.editorial = { hint, question, options, correctOptionIndex: normalizedCorrectIndex, info: editorialInfo };
+        }
+        return { errors: {}, value };
+      }
+
+      function readSuggestionForm() {
+        return Object.fromEntries(new FormData(suggest.form));
+      }
+
+      function showFieldErrors(errors) {
+        const shownMessages = new Set();
+        const editorialMessage = errors.editorial || '';
+        suggest.editorialError.textContent = editorialMessage;
+        suggest.editorialError.hidden = !editorialMessage;
+        Object.entries(suggest.fields).forEach(([key, { input, error }]) => {
+          const message = errors[key];
+          input.setAttribute('aria-invalid', message ? 'true' : 'false');
+          if (message) {
+            error.textContent = message;
+            error.hidden = false;
+            shownMessages.add(error);
+          } else if (!shownMessages.has(error) && !(key === 'question' && editorialMessage)) {
+            error.textContent = '';
+            error.hidden = true;
+          }
+        });
+      }
+
+      function setSuggestStatus(kind, message) {
+        suggest.status.dataset.kind = kind;
+        suggest.status.textContent = message;
+        suggest.status.hidden = !message;
+      }
+
+      function populateSuggestCategories() {
+        const select = suggest.category;
+        const previous = select.value;
+        const categories = Array.from(categoriesById.values());
+        select.replaceChildren(new Option('Bitte wählen …', ''), ...categories.map((category) => new Option(category.name, category.id)));
+        if (categories.some((category) => category.id === previous)) select.value = previous;
+      }
+
+      function resetSuggestionForm() {
+        suggest.form.reset();
+        showFieldErrors({});
+        setSuggestStatus('', '');
+        uiState.suggestion.submitted = false;
+        suggest.form.hidden = false;
+        suggest.result.hidden = true;
+      }
+
+      // Öffentliche Schnittstelle: Das JSON wird zusätzlich als Hook-Ereignis
+      // veröffentlicht, damit Integrationen und Animationen unabhängig bleiben.
+      async function sendSuggestion(payload) {
+        document.dispatchEvent(new CustomEvent('ms:stationSuggested', { detail: payload }));
+        let response;
+        const preview = new URLSearchParams(window.location.search).get('preview');
+        const previewQuery = preview === null ? '' : '?preview=' + encodeURIComponent(preview);
+        try {
+          response = await fetch(StationApiService.urls.submit + previewQuery, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch (error) {
+          throw new Error('Keine Verbindung zum Server. Bitte prüfe deine Internetverbindung und sende den Vorschlag erneut ab.');
+        }
+        let body = {};
+        try {
+          body = await response.json();
+        } catch (error) {
+          body = {};
+        }
+        if (!response.ok) {
+          const serverMessage = body.error && body.error.message;
+          if (response.status === 422 && body.error && body.error.code === 'validation_failed') {
+            throw new Error('Der Vorschlag wurde nicht akzeptiert: ' + serverMessage + ' Bitte korrigiere die Angaben und sende erneut ab.');
+          }
+          if (response.status === 429) {
+            throw new Error('Du hast in kurzer Zeit zu viele Vorschläge gesendet. Bitte warte etwa eine Stunde und versuche es dann erneut.');
+          }
+          if (response.status === 403 && body.error && body.error.code === 'suggestions_disabled') {
+            throw new Error('Vorschläge sind derzeit nicht verfügbar.');
+          }
+          throw new Error('Der Server konnte den Vorschlag gerade nicht verarbeiten (Fehler ' + response.status + '). Deine Eingaben bleiben erhalten – bitte versuche es in ein paar Minuten erneut.');
+        }
+        return { ok: true, data: body.data };
+      }
+
+      async function handleSuggestSubmit(event) {
+        event.preventDefault();
+        if (suggest.submitting) return;
+        const { errors, value } = validateSuggestion(readSuggestionForm());
+        showFieldErrors(errors);
+        const invalidKeys = Object.keys(errors);
+        if (invalidKeys.length) {
+          setSuggestStatus('error', 'Bitte korrigiere die markierten Felder (' + invalidKeys.length + ').');
+          const firstField = suggest.fields[invalidKeys[0]] || suggest.fields.question;
+          firstField.input.focus();
+          return;
+        }
+        suggest.submitting = true;
+        suggest.submitButton.disabled = true;
+        suggest.form.setAttribute('aria-busy', 'true');
+        setSuggestStatus('', 'Wird gesendet ...');
+        let outcome;
+        try {
+          outcome = await sendSuggestion(value);
+        } catch (error) {
+          outcome = { ok: false, message: error.message };
+        } finally {
+          suggest.submitting = false;
+          suggest.submitButton.disabled = false;
+          suggest.form.removeAttribute('aria-busy');
+        }
+        if (!outcome.ok) {
+          setSuggestStatus('error', outcome.message || 'Der Vorschlag konnte nicht verarbeitet werden. Bitte versuche es erneut.');
+          return;
+        }
+        uiState.suggestion.submitted = true;
+        suggest.form.hidden = true;
+        suggest.result.hidden = false;
+        suggest.success.focus();
+        announce('Vorschlag erfolgreich übermittelt.');
+      }
+
+      function openSuggestDialog(options) {
+        const resume = Boolean(options && options.resume);
+        if (suggest.dialog.open) return;
+        emitHook('beforeDialogOpen', { name: 'suggest' });
+        if (!resume) {
+          suggest.trigger = (options && options.trigger) || document.activeElement;
+          resetSuggestionForm();
+        }
+        populateSuggestCategories();
+        uiState.suggestion.open = true;
+        suggest.dialog.showModal();
+        transitionIn(suggest.dialog, 'slide-enter');
+        suggest.fields[resume ? 'latitude' : 'name'].input.focus();
+        emitHook('afterDialogOpen', { name: 'suggest' });
+      }
+
+      function closeSuggestDialog(options) {
+        if (!suggest.dialog.open || suggest.closing) return;
+        suggest.closing = true;
+        const restoreFocus = !options || options.restoreFocus !== false;
+        const afterClose = options && options.afterClose;
+        emitHook('beforeDialogClose', { name: 'suggest' });
+        transitionOut(
+          suggest.dialog,
+          () => {
+            suggest.closing = false;
+            if (suggest.dialog.open) suggest.dialog.close();
+            uiState.suggestion.open = false;
+            if (restoreFocus && suggest.trigger && document.contains(suggest.trigger)) suggest.trigger.focus();
+            emitHook('afterDialogClose', { name: 'suggest' });
+            if (afterClose) afterClose();
+          },
+          'slide-exit',
+        );
+      }
+
+      // Standortübernahme per Kartenklick: Dialog schließt vorübergehend, die Karte wird freigegeben.
+      function startLocationPick() {
+        if (!map) {
+          setSuggestStatus('error', 'Die Karte ist nicht verfügbar. Bitte gib die Koordinaten manuell ein.');
+          return;
+        }
+        uiState.suggestion.picking = true;
+        closeSuggestDialog({
+          restoreFocus: false,
+          afterClose: () => {
+            if (uiState.selectedStationId) showPlan();
+            suggest.pickBanner.hidden = false;
+            document.getElementById('map').classList.add('is-picking');
+            map.once('click', handleMapPick);
+            document.addEventListener('keydown', handlePickKeydown);
+            document.getElementById('map').scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
+            document.getElementById('pick-cancel').focus({ preventScroll: true });
+            announce('Klicke auf die Karte, um den Standort zu wählen. Escape bricht ab.');
+          },
+        });
+      }
+
+      function endLocationPick() {
+        uiState.suggestion.picking = false;
+        suggest.pickBanner.hidden = true;
+        document.getElementById('map').classList.remove('is-picking');
+        document.removeEventListener('keydown', handlePickKeydown);
+        if (map) map.off('click', handleMapPick);
+      }
+
+      function handleMapPick(event) {
+        if (!uiState.suggestion.picking) return;
+        endLocationPick();
+        suggest.fields.latitude.input.value = event.latlng.lat.toFixed(5);
+        suggest.fields.longitude.input.value = event.latlng.lng.toFixed(5);
+        showFieldErrors({ ...validateSuggestion(readSuggestionForm()).errors, name: undefined, category: undefined, description: undefined });
+        openSuggestDialog({ resume: true });
+        announce('Standort übernommen: ' + suggest.fields.latitude.input.value + ', ' + suggest.fields.longitude.input.value + '.');
+      }
+
+      function cancelLocationPick() {
+        endLocationPick();
+        openSuggestDialog({ resume: true });
+        announce('Standortwahl abgebrochen.');
+      }
+
+      function handlePickKeydown(event) {
+        if (event.key === 'Escape') cancelLocationPick();
+      }
+
+      function initSuggestion() {
+        suggest.openButton.addEventListener('click', () => openSuggestDialog({ trigger: suggest.openButton }));
+        suggest.form.addEventListener('submit', handleSuggestSubmit);
+        document.getElementById('suggest-close').addEventListener('click', () => closeSuggestDialog());
+        document.getElementById('suggest-cancel').addEventListener('click', () => closeSuggestDialog());
+        document.getElementById('suggest-done').addEventListener('click', () => closeSuggestDialog());
+        document.getElementById('suggest-another').addEventListener('click', () => {
+          resetSuggestionForm();
+          suggest.fields.name.input.focus();
+        });
+        suggest.pickButton.addEventListener('click', startLocationPick);
+        document.getElementById('pick-cancel').addEventListener('click', cancelLocationPick);
+        // Escape: eigenes Schließen, damit Ausblend-Animation und Fokusrückgabe greifen.
+        suggest.dialog.addEventListener('keydown', (event) => {
+          if (event.key !== 'Escape') return;
+          event.preventDefault();
+          closeSuggestDialog();
+        });
+        suggest.dialog.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          closeSuggestDialog();
+        });
+        suggest.dialog.addEventListener('close', () => {
+          uiState.suggestion.open = false;
+        });
+      }
+
+      /* ==========================================================
+         9. Start
+         ========================================================== */
+      let initialized = false;
+      function initializeUi() {
+        if (initialized) return;
+        initialized = true;
+        document.addEventListener('ms:stateChanged', () => render());
+        initThemeControls();
+        initAccessibilityControls(true);
+        if (isEnabled('suggest')) initSuggestion();
+        initResetDialog();
+        elements.legend.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-category-id]');
+          if (button) setCategoryFilter(button.dataset.categoryId);
+        });
+        elements.taskList.addEventListener('click', handleTaskListClick);
+        elements.taskList.addEventListener('load', handleImageLoad, true);
+        elements.taskList.addEventListener('error', handleImageError, true);
+        elements.backButton.addEventListener('click', showPlan);
+        elements.stationList.addEventListener('click', (event) => {
+          const item = event.target.closest('[data-station-id]');
+          if (item) openStation(item.dataset.stationId);
+        });
+        document.getElementById('completion-map').addEventListener('click', () => {
+          showPlan();
+          document.getElementById('map').scrollIntoView({ behavior: 'smooth' });
+        });
+        document.getElementById('completion-restart').addEventListener('click', () => resetProgress());
+        setHowTo(loadIntroState(), false);
+        document.getElementById('help-toggle').addEventListener('click', () => setHowTo(elements.howTo.classList.contains('is-closed')));
+        elements.resetButton.addEventListener('click', resetProgress);
+        elements.loadRetry.addEventListener('click', loadStations);
+        window.addEventListener('popstate', () => handleStationUrlChange());
+        initMap();
+      }
+
+      loadStations();
+    </script>
+  </body>
+</html>
