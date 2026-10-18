@@ -1,0 +1,66 @@
+# Auswertung: Anmerkungen von Bettina (Stand [app.html](./app.html))
+
+Legende: ✅ nachvollziehbar & trifft zu · ⚠️ teilweise · ❓ nicht im Code prüfbar
+
+## 1. Prüfung der Anmerkungen
+
+| #   | Anmerkung                                                                           | Befund im Code                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Urteil                                             |
+| --- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| 1   | Name und Ideengeber fehlen                                                          | Im Tab „Mehr“ steht nur der OSM-Hinweis (Fußzeile). Kein Name, keine Credits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ✅                                                  |
+| 2   | „So funktioniert's“ ist unter „Mehr“ zu versteckt                                   | Nur über `#openHelp` in „Mehr“ erreichbar (Intro erscheint nur beim ersten Start, `shouldShowIntro`). Auf der Karte gibt es keinen Einstieg.                                                                                                                                                                                                                                                                                                                                                                                                                                               | ✅                                                  |
+| 3   | Text der 3 Hilfe-Schritte                                                           | `HELP` (3 Slides): „Pin antippen“, „Ort finden“, „Frage beantworten“. Der Hinweis auf die Standortprüfung („in der Nähe tauchen 3 Fragen auf“) fehlt – das ist aber die reale Spielmechanik (`location_gate`). Bettinas Text ist präziser.                                                                                                                                                                                                                                                                                                                                                 | ✅                                                  |
+| 4   | Untere Leiste deutlicher/fett                                                       | `.tab`: `font-weight:600`, 11 px, Farbe `--muted`. Tatsächlich zurückhaltend.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | ✅                                                  |
+| 5   | Fortschritt 2× oben, 1× unten                                                       | Oben: Ring `#ringTxt` **und** Untertitel `#subtitle` („n von N gelöst“); unten: Tab „Fortschritt“ mit eigenem Panel. Doppelt ist also oben (Ring + Untertitel).                                                                                                                                                                                                                                                                                                                                                                                                                            | ✅ (Doppelung real, Quelle ist der Header)          |
+| 6   | „Look“ nur Day/Night                                                                | Aktuell 3 Looks: Clean, Münsterland, Night (`#lookSeg`). Ersatz durch Tag/Nacht ist machbar.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | ✅                                                  |
+| 7   | Vorschlagsformular auf 2 Felder reduzieren                                          | Formular hat 3 Schritte mit ~12 Feldern (Name, Kategorie, Beschreibung, Hinweis, Frage, 4 Antworten, Hintergrund, Koordinaten). Es ist deutlich komplexer als gewünscht. Der Wunschtext fehlt (aktuell: „Kennst du einen besonderen Ort…“).                                                                                                                                                                                                                                                                                                                                                | ✅                                                  |
+| 8   | Fotos zu stark vergrößert/abgeschnitten                                             | `.hero{height:280px}` + `.hero-img{object-fit:cover}` → Bilder werden zugeschnitten, besonders Hochformat/Panorama. Die Nennung konkreter Stationen/Lösungen ist plausibel, nicht im Code prüfbar (hängt von den Bildformaten ab).                                                                                                                                                                                                                                                                                                                                                         | ✅ Ursache bestätigt                                |
+| 9   | Hinweis erst mit den Fragen anklicken                                               | `renderActionBar`: Hinweis-Button erscheint bei `has && !solved`, **auch wenn `gated`** (Standort noch nicht bestätigt). Zudem wird `st.hint` schon vor der Standortfreigabe geladen/gerendert (`renderUnsolved`).                                                                                                                                                                                                                                                                                                                                                                         | ✅                                                  |
+| 10  | Admin: keine neuen Punkte, Bearbeitungen werden nicht gespeichert, kein Bild-Upload | Code ([admin/station-save.php](./admin/station-save.php), [includes/uploads.php](./includes/uploads.php)) ist unauffällig: Formular hat `enctype=multipart/form-data`, Transaktion, Upload mit `move_uploaded_file`. Typische Ursache ist daher die Umgebung: Schreibrechte auf `data/game.sqlite` **und** das Verzeichnis `data/` (SQLite braucht Schreibrecht für Journal), Schreibrechte auf `uploads/`, `upload_max_filesize`/`post_max_size` (Handyfotos > 2 MB), Limit `upload_max_bytes`. Die Fehlermeldung „Speichern fehlgeschlagen.“ ist generisch und verschleiert die Ursache. | ❓ Nicht reproduzierbar im Code, Server-Check nötig |
+
+**Gesamteindruck:** Alle Punkte sind nachvollziehbar und (soweit prüfbar) zutreffend. Nur Punkt 10 braucht eine Diagnose auf dem Server.
+
+## 2. Umsetzungsplan
+
+Aufwand: S = klein, M = mittel.
+
+### Phase 1 – Schnelle Textänderungen & UI (S)
+1. **Credits (#1):** In „Mehr“ einen Block „Idee: *Name Ideengeber* · Umsetzung: *Bettina …*“ ergänzen (Namen bei Bettina erfragen). Evtl. als Admin-Setting.
+2. **Hilfe sichtbar (#2):** „So funktioniert's“ als Button/Karte oberhalb der Karte (z. B. „?“ im Header oder kleiner Banner), bleibt zusätzlich in „Mehr“.
+3. **Hilfetexte (#3):** `HELP` anpassen:
+   - 1 unverändert
+   - 2 „Suche den Ort auf dem Foto. Nutze die Karte. Sobald du in der Nähe bist, tauchen 3 Fragen/Themen auf.“
+   - 3 „Beantworte die Frage. Bei Bedarf hilft der Hinweis. Die richtige Antwort verrät die Geschichte dahinter.“
+4. **Tab-Leiste (#4):** `.tab` auf `font-weight:700`, Schrift 12 px, Farbe kontrastreicher (`--ink` statt `--muted` für inaktiv).
+5. **Fortschritt doppelt (#5):** `#subtitle` mit „n von N gelöst“ entfernen (Ring im Header bleibt); Ladezustand nur noch am Ring. Alternativ Ring entfernen – Rückfrage bei Bettina, „einmal oben“ = Ring.
+6. **Look (#6):** `#lookSeg` auf „Tag“ (clean) und „Nacht“ (night); `muensterland` aus UI und Look-Validierung entfernen, gespeicherten Wert `muensterland` auf `clean` mappen (inline-Skript im `<head>` und `LOOK_KEY`-Logik).
+
+### Phase 2 – Spielablauf (S–M)
+7. **Hinweis erst nach Freigabe (#9):** In `renderActionBar` Hinweis-Button nur bei `!gated`; in `renderUnsolved` Hinweistext nur befüllen, wenn nicht `gated`. Besser serverseitig: `hint` in [api/get_details.php](./api/get_details.php) erst im geschützten Teil ausliefern (analog zu Fragen/Optionen), sonst ist der Hinweis per DevTools weiter sichtbar. Nach Änderung `p.hintVisible` beim Wechsel zurücksetzen/prüfen.
+
+### Phase 3 – Bilder (M)
+8. **Bildausschnitt (#8):** Für `.hero-img` `object-fit:contain` (bzw. `cover` nur bei passendem Seitenverhältnis) mit Hintergrund-Blur/Farbfläche; Höhe variabel (`aspect-ratio` aus Bild, max. ca. 60 vh) statt fix 280 px. Aufgaben- und Lösungsbild müssen dasselbe Format zeigen (Überblendung `clip-path`). Optional Tap-to-zoom (Vollbild). Mit den genannten Stationen (Station 4, 5, 6, 7, 12; Lösung 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 15) auf Smartphone testen.
+
+### Phase 4 – Vorschlagsformular (M)
+9. **Vereinfachung (#7):** Formular auf einen Schritt mit 2 Pflichtfeldern: „Ort“ und „Kurze Beschreibung“. Einleitungstext: „Kennst du einen besonderen Ort in Münster, dann schlage ihn hier vor. Ich brauche den Ort und eine kurze Beschreibung. Vielleicht findest du dann bald deinen Vorschlag im Spiel.“ Kategorie, Hinweis, Frage, Antworten, Hintergrund, Koordinaten entfallen (Redaktion ergänzt im Admin). Abgleich nötig mit [api/submit_station.php](./api/submit_station.php), [includes/validation.php](./includes/validation.php) und [setup/schema.sql](./setup/schema.sql): Pflichtfelder (Kategorie/Position) optional machen bzw. Standardwerte setzen, Pick-Banner/Kartenwahl entfernen oder optional lassen.
+
+### Phase 5 – Admin-Fehler (S–M, zuerst diagnostizieren)
+10. **Server prüfen (#10):**
+    - Rechte: `data/` und `data/game.sqlite` vom Webserver-Nutzer beschreibbar, `uploads/` beschreibbar.
+    - PHP: `upload_max_filesize`, `post_max_size`, `file_uploads`; Vergleich mit `upload_max_bytes` in [includes/config.php](./includes/config.php).
+    - PHP-Error-Log nach `[muenster-admin]`-Einträgen durchsuchen (dort steht die echte Ursache).
+    - CSRF/Session: Session-Cookie/-Pfad prüfen (abgelaufene Sitzung → Speichern scheitert).
+    - Code-Verbesserung: Fehlermeldung differenzieren (Datenbank nicht schreibbar / Upload zu groß / Token ungültig), Hinweis bei überschrittenem `post_max_size` (dann ist `$_POST` leer).
+    - Nach Fix mit Bettina erneut testen: Station anlegen, bearbeiten, Bild hochladen, Vorschlag bearbeiten/freigeben.
+
+### Reihenfolge
+Phase 5 (Diagnose, blockiert Bettina) → Phase 1 → Phase 2 → Phase 3 → Phase 4.
+
+### Offene Fragen an Bettina
+- Namen/Wortlaut für Credits?
+- „Einmal Fortschritt oben“: Ring oder Textzeile behalten?
+- Bilder: komplett sichtbar (mit Rand) oder weiter randlos, aber besser zugeschnitten?
+
+### Antworten von Bettina
+- Nein, keine Credits.
+- Ring.
+- Weiter randlos, aber beim antippen vollständig anzeigen. Aber mit Hintergrund-Blur und Animation (transformation und Skalierung).
