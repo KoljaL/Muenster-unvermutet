@@ -116,7 +116,8 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     <textarea id="info" name="info" required maxlength="8000" style="min-height:12rem"><?= h($st['info']) ?></textarea>
   </fieldset>
 
-  <fieldset class="task-card"><legend>Bilder (JPEG/PNG, max. <?= (int) (config('upload_max_bytes') / 1048576) ?> MB, <?= (int) config('upload_max_edge') ?> px)</legend>
+  <fieldset class="task-card"><legend>Bilder (JPEG/PNG, Anwendungs-Limit <?= (int) (config('upload_max_bytes') / 1048576) ?> MB pro Datei, <?= (int) config('upload_max_edge') ?> px)</legend>
+    <p class="muted">Zusätzliche PHP-Limits: <?= h(ini_get('upload_max_filesize')) ?> pro Datei und <?= h(ini_get('post_max_size')) ?> für das gesamte Formular.</p>
     <div class="admin-media-grid">
       <div class="admin-media-item">
         <label for="task_image">Aufgabenfoto</label>

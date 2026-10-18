@@ -25,7 +25,33 @@ function require_post(): void
         http_response_code(405);
         exit('Methode nicht erlaubt.');
     }
+    if (post_body_exceeds_limit()) {
+        http_response_code(413);
+        exit('Die Anfrage ist größer als das Serverlimit. Bitte kleinere Bilder verwenden oder den Serveradministrator um Erhöhung von post_max_size bitten.');
+    }
     csrf_verify();
+}
+
+function post_body_exceeds_limit(): bool
+{
+    $contentLength = $_SERVER['CONTENT_LENGTH'] ?? null;
+    $postMaxSize = trim((string) ini_get('post_max_size'));
+    if (!is_string($contentLength) || !ctype_digit($contentLength) || $postMaxSize === '' || $postMaxSize === '0') {
+        return false;
+    }
+    if (!preg_match('/^(\d+)\s*([KMG])?$/i', $postMaxSize, $matches)) {
+        return false;
+    }
+
+    $limit = (float) $matches[1];
+    $unit = strtoupper($matches[2] ?? '');
+    $limit *= match ($unit) {
+        'K' => 1024,
+        'M' => 1024 ** 2,
+        'G' => 1024 ** 3,
+        default => 1,
+    };
+    return (float) $contentLength > $limit;
 }
 
 function redirect(string $url): void

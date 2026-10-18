@@ -132,7 +132,16 @@ try {
     }
     array_map('delete_upload', $newFiles);
     error_log('[muenster-admin] ' . $e);
-    fail(['Speichern fehlgeschlagen.'], $back);
+    $message = 'Speichern fehlgeschlagen.';
+    $databasePath = (string) config('db_path');
+    if (!is_writable(dirname($databasePath)) || (is_file($databasePath) && !is_writable($databasePath))) {
+        $message = 'Die Datenbank oder ihr Verzeichnis ist für den Webserver nicht beschreibbar.';
+    } elseif ($e instanceof PDOException && (int) ($e->errorInfo[1] ?? 0) === 8) {
+        $message = 'Die Datenbank hat den Schreibzugriff verweigert. Bitte Schreibrechte auf data/ und data/game.sqlite prüfen.';
+    } elseif ($e instanceof PDOException && (int) ($e->errorInfo[1] ?? 0) === 13) {
+        $message = 'Die Datenbank konnte wegen fehlenden Speicherplatzes nicht geschrieben werden.';
+    }
+    fail([$message], $back);
 }
 
 // Ersetzte Bilder erst nach erfolgreichem Speichern entfernen.

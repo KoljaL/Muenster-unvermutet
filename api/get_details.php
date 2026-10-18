@@ -37,7 +37,6 @@ $data = [
     'lat' => (float) $s['lat'],
     'lon' => (float) $s['lon'],
     'category' => $s['category'],
-    'hint' => $s['hint'],
     'taskImage' => $s['task_image'],
 ];
 if (!$locationGate || $protected) {
@@ -50,6 +49,7 @@ if (!$locationGate || $protected) {
     $links = $stmt->fetchAll();
 
     $data = array_merge($data, [
+        'hint' => $s['hint'],
         'options' => $options,
         'correctOptionIndex' => (int) $s['correct_option_index'],
         'solutionTitle' => $s['solution_title'],

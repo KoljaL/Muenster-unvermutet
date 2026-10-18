@@ -46,7 +46,7 @@ admin_header($isNew ? 'Neue Kategorie' : 'Kategorie bearbeiten', $admin);
       <span class="ico" aria-hidden="true"><?= category_ico($cat) ?></span>
       <div>
         <input type="file" id="icon" name="icon" accept="image/jpeg,image/png" aria-label="Symbol hochladen">
-        <p class="muted">JPEG/PNG, quadratisch empfohlen, max. <?= (int) (config('upload_max_bytes') / 1048576) ?> MB.
+        <p class="muted">JPEG/PNG, quadratisch empfohlen, Anwendungs-Limit <?= (int) (config('upload_max_bytes') / 1048576) ?> MB. PHP-Limits: <?= h(ini_get('upload_max_filesize')) ?> pro Datei, <?= h(ini_get('post_max_size')) ?> pro Formular.
           <?= $isNew ? '' : 'Ein neues Bild ersetzt das bisherige.' ?></p>
         <?php if ($hasIcon): ?>
           <label><input type="checkbox" name="remove_icon" value="1"> Symbol entfernen</label>

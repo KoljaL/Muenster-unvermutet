@@ -9,7 +9,11 @@
   (function () {
     var look = null;
     try { look = localStorage.getItem('muenster-unvermutet:look'); } catch (e) {}
-    if (look !== 'clean' && look !== 'muensterland' && look !== 'night') {
+    if (look === 'muensterland') {
+      look = 'clean';
+      try { localStorage.setItem('muenster-unvermutet:look', look); } catch (e) {}
+    }
+    if (look !== 'clean' && look !== 'night') {
       look = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'clean';
     }
     document.documentElement.dataset.look = look;
@@ -17,7 +21,7 @@
 </script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
 <style>
-/* ===== Design tokens: drei Looks ===== */
+/* ===== Design tokens: zwei Looks ===== */
 :root{
   --ease:cubic-bezier(.22,1,.36,1); --spring:cubic-bezier(.34,1.56,.64,1);
   --tab-h:72px; --peek:176px;
@@ -29,12 +33,6 @@
   --accent:#0066d6; --accent-ink:#fff; --ok:#1f8a54; --bad:#d63a3f; --line:rgba(60,60,67,.16);
   --radius:22px; --blur:saturate(180%) blur(22px); --shadow:0 10px 40px rgba(0,0,0,.14);
   --tiles:saturate(.8) brightness(1.02); --map-bg:#e9ecef;
-}
-[data-look="muensterland"]{
-  --bg:#f0f8ea; --surface:rgba(247,253,243,.88); --solid:#fff; --text:#16301b; --muted:#587a5d;
-  --accent:#2b8a3e; --accent-ink:#fff; --ok:#1f7a35; --bad:#c2410c; --line:rgba(22,48,27,.14);
-  --radius:26px; --blur:saturate(150%) blur(16px); --shadow:0 10px 34px rgba(34,94,48,.2);
-  --tiles:hue-rotate(28deg) saturate(.95) brightness(1.04); --map-bg:#e3f1d8;
 }
 [data-look="night"]{
   --bg:#0b0f17; --surface:rgba(20,26,38,.86); --solid:#161d2b; --text:#eaf0ff; --muted:#9aa7c4;
@@ -66,7 +64,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #map .leaflet-control-attribution a{color:var(--muted)}
 #map .leaflet-bar{border:0;box-shadow:var(--shadow);border-radius:14px;overflow:hidden}
 #map .leaflet-bar a{background:var(--surface);color:var(--text);width:40px;height:40px;line-height:40px;border-color:var(--line);backdrop-filter:var(--blur)}
-#map.is-picking{cursor:crosshair}
 .map-fallback{position:absolute;inset:0;z-index:1;display:grid;place-items:center;text-align:center;padding:30px;color:var(--muted)}
 .leaflet-marker-icon{background:none;border:0}
 .map-pin{position:relative;width:46px;height:46px;border-radius:50%;background:var(--pin);color:var(--pin-text);border:3px solid #fff;box-shadow:0 6px 14px #0005;display:grid;place-items:center;
@@ -89,7 +86,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .top{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 12px);z-index:10;display:flex;align-items:center;gap:10px;
   padding:8px 10px 8px 16px;border-radius:calc(var(--radius) + 2px);background:var(--surface);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:var(--shadow);transition:transform .5s var(--ease),opacity .4s}
 .top h1{font-size:17px;line-height:1.15;flex:1;letter-spacing:-.01em}
-.top h1 small{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.help-shortcut{width:40px;height:40px;flex:none;border-radius:50%;background:var(--solid);box-shadow:0 2px 8px #0002;color:var(--accent);font-size:22px;font-weight:800;line-height:1}
 .ring{position:relative;width:46px;height:46px}
 .ring svg{width:46px;height:46px;transform:rotate(-90deg)}
 .ring circle{fill:none;stroke-width:5;stroke-linecap:round}
@@ -136,7 +133,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 /* ===== Tab bar ===== */
 .tabs{position:absolute;left:0;right:0;bottom:0;z-index:20;height:var(--tab-h);padding:8px 8px calc(env(safe-area-inset-bottom) + 6px);display:grid;grid-auto-flow:column;grid-auto-columns:1fr;
   background:var(--surface);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-top:1px solid var(--line)}
-.tab{display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--muted);border-radius:16px;position:relative;transition:color .2s}
+.tab{display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--text);border-radius:16px;position:relative;transition:color .2s}
 .tab svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .35s var(--spring)}
 .tab[aria-selected="true"]{color:var(--accent)}.tab[aria-selected="true"] svg{transform:translateY(-2px) scale(1.12)}
 .tab[aria-selected="true"]::before{content:"";position:absolute;top:-9px;width:26px;height:4px;border-radius:0 0 6px 6px;background:var(--accent)}
@@ -174,6 +171,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .hero{height:280px;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--cat,#888),color-mix(in srgb,var(--cat,#888) 45%,#000))}
 .hero-fallback{position:absolute;inset:0;display:grid;place-items:center;padding:30px;text-align:center;color:#fff;font-weight:600}
 .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:clip-path .9s .3s var(--ease),filter .9s .3s,opacity .5s}
+.hero-img[role="button"]{cursor:zoom-in}
+.hero-img[role="button"]:focus-visible{outline:3px solid #fff;outline-offset:-5px}
+.hero-zoom-hint{position:absolute;right:14px;bottom:16px;z-index:2;width:38px;height:38px;display:grid;place-items:center;border-radius:50%;background:rgba(12,16,22,.48);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 10px #0003;pointer-events:none}
+.hero-zoom-hint svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .hero-img.sol{clip-path:inset(0 0 100% 0);filter:blur(14px)}
 .station.solved .hero-img.sol{clip-path:inset(0);filter:none}
 .hero::after{content:"";position:absolute;inset:auto 0 0;height:80px;background:linear-gradient(transparent,var(--bg));pointer-events:none}
@@ -282,6 +283,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @keyframes bob{50%{transform:translateY(-12px) rotate(4deg)}}
 .finale .stats{margin:16px 0}.finale .stats span{color:inherit;opacity:.85}
 .finale .btn{background:#fff;color:#111;margin:6px}
+.image-viewer{position:absolute;inset:0;z-index:70;display:grid;grid-template-rows:1fr auto;place-items:center;padding:calc(env(safe-area-inset-top) + 68px) 16px calc(env(safe-area-inset-bottom) + 24px);overflow:hidden;background:rgba(8,10,16,.72);opacity:0;visibility:hidden;transition:opacity .35s,visibility 0s .35s}
+.image-viewer.on{opacity:1;visibility:visible;transition:opacity .35s}
+.image-viewer-bg{position:absolute;inset:-24px;width:calc(100% + 48px);height:calc(100% + 48px);object-fit:cover;filter:blur(24px) brightness(.55);transform:scale(1.08);opacity:.8}
+.image-viewer-img{position:relative;z-index:1;display:block;width:100%;height:100%;min-height:0;object-fit:contain;border-radius:12px;box-shadow:0 12px 48px #0008;transform:scale(.88);opacity:.7;transition:transform .45s var(--spring),opacity .3s}
+.image-viewer.on .image-viewer-img{transform:scale(1);opacity:1}
+.image-viewer-caption{position:relative;z-index:1;color:#fff;text-align:center;font-size:14px;font-weight:600;padding-top:12px}
+.image-viewer-close{position:absolute;z-index:2;top:calc(env(safe-area-inset-top) + 12px);right:14px;width:44px;height:44px;border-radius:50%;background:rgba(20,22,28,.72);color:#fff;font-size:28px;line-height:1;box-shadow:0 2px 12px #0006}
 .conf{position:absolute;top:-20px;width:10px;height:16px;border-radius:2px;animation:fall linear forwards}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 .toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 16px);z-index:60;transform:translate(-50%,-150%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:99px;font-weight:600;font-size:14px;transition:transform .5s var(--spring);max-width:90%;text-align:center}
@@ -300,7 +308,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <div class="map-fallback" id="mapFallback" hidden>🗺️ Die Karte konnte nicht geladen werden. Nutze die Liste, um Stationen zu öffnen.</div>
 
   <header class="top" id="top">
-    <h1 id="pageTitle" tabindex="-1">Münster unvermutet<small id="subtitle">Stationen werden geladen …</small></h1>
+    <h1 id="pageTitle" tabindex="-1">Münster unvermutet</h1>
+    <button type="button" class="help-shortcut" id="openHelpMap" aria-label="So funktioniert's" aria-haspopup="dialog">?</button>
     <button type="button" class="ring" id="ring" aria-label="Fortschritt anzeigen">
       <svg viewBox="0 0 46 46" aria-hidden="true"><circle class="bg" cx="23" cy="23" r="18"/><circle class="fg" id="ringFg" cx="23" cy="23" r="18"/></svg>
       <b id="ringTxt">–</b>
@@ -309,8 +318,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <div class="chips chips--map" id="chipsMap" data-ui-option="legend" role="group" aria-label="Kategorien – zum Filtern auswählen"></div>
 
   <div class="banner" id="loadError" role="alert" hidden><p id="loadErrorText"></p><button type="button" class="btn" id="loadRetry">Erneut versuchen</button></div>
-  <div class="banner pick-banner" id="pickBanner" data-ui-option="suggest" hidden><p>📍 Tippe auf die Karte, um den Standort zu wählen.</p><button type="button" class="btn ghost" id="pickCancel">Abbrechen</button></div>
-
   <section class="sheet" id="sheet" data-ui-option="station_list" data-snap="hidden" aria-label="Alle Stationen">
     <div class="sheet-head" id="sheetHead"><h2>Stationen</h2><span id="sheetCount"></span></div>
     <div class="chips chips--sheet" id="chipsSheet" data-ui-option="legend" role="group" aria-label="Kategorien – zum Filtern auswählen"></div>
@@ -330,9 +337,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <div class="card">
       <div class="set"><span>Look</span>
         <div class="seg" id="lookSeg" role="group" aria-label="Look wählen">
-          <button type="button" data-look="clean" aria-pressed="false">Clean</button>
-          <button type="button" data-look="muensterland" aria-pressed="false">Münsterland</button>
-          <button type="button" data-look="night" aria-pressed="false">Night</button>
+          <button type="button" data-look="clean" aria-pressed="false">Tag</button>
+          <button type="button" data-look="night" aria-pressed="false">Nacht</button>
         </div></div>
       <button type="button" class="set" id="setA11y" role="switch" aria-checked="false"><span>Barrierefrei<small>Größere Pins und Schrift</small></span><i class="sw" aria-hidden="true"></i></button>
     </div>
@@ -351,6 +357,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         <div class="hero-fallback" id="heroFb"></div>
         <img class="hero-img" id="imgTask" alt="" hidden>
         <img class="hero-img sol" id="imgSol" alt="" hidden>
+        <span class="hero-zoom-hint" id="heroZoomHint" aria-hidden="true" title="Foto antippen zum Vergrößern" hidden><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg></span>
         <span class="pill" id="sNum"></span><span class="pill ok">✓ gelöst</span>
       </div>
       <div class="body stagger">
@@ -381,6 +388,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <div class="action" id="action"></div>
   </section>
 
+  <div class="image-viewer" id="imageViewer" role="dialog" aria-modal="true" aria-labelledby="imageViewerCaption" aria-hidden="true" inert>
+    <img class="image-viewer-bg" id="imageViewerBg" alt="" aria-hidden="true">
+    <button type="button" class="image-viewer-close" id="imageViewerClose" aria-label="Foto schließen">×</button>
+    <img class="image-viewer-img" id="imageViewerImg" alt="">
+    <p class="image-viewer-caption" id="imageViewerCaption"></p>
+  </div>
+
   <nav class="tabs" id="tabs" role="tablist" aria-label="Hauptnavigation">
     <button type="button" class="tab" role="tab" data-t="map" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Karte</button>
     <button type="button" class="tab" role="tab" data-t="list" data-ui-option="station_list" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Liste</button>
@@ -391,36 +405,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <div class="scrim" id="scrim"></div>
 
   <div class="modal" id="m-suggest" data-ui-option="suggest" role="dialog" aria-modal="true" aria-labelledby="sgT">
-    <div class="steps" id="sgSteps" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
     <h3 id="sgT" tabindex="-1">Station vorschlagen</h3>
     <form id="sgForm" novalidate>
-      <div class="pane" id="sg1"><p class="sub">Schritt 1 von 3: Kennst du einen besonderen Ort in Münster? Pflichtfelder sind mit * markiert.</p>
-        <div class="field"><label for="sgName">Stationsname *</label><input type="text" id="sgName" name="name" maxlength="100" required aria-required="true" autocomplete="off"><p class="field-error" id="sgNameErr" hidden></p></div>
-        <div class="field"><label for="sgCat">Kategorie *</label><select id="sgCat" name="category" required aria-required="true"><option value="">Bitte wählen …</option></select><p class="field-error" id="sgCatErr" hidden></p></div>
-        <div class="field"><label for="sgDesc">Beschreibung / Besonderheiten *</label><textarea id="sgDesc" name="description" maxlength="1000" required aria-required="true"></textarea><p class="field-hint">Was ist dort zu entdecken? Maximal 1000 Zeichen.</p><p class="field-error" id="sgDescErr" hidden></p></div>
-      </div>
-      <div class="pane" id="sg2" hidden><p class="sub">Schritt 2 von 3: Optionale Angaben für die redaktionelle Prüfung.</p>
-        <div class="field"><label for="sgHint">Hinweis</label><textarea id="sgHint" name="hint" maxlength="1000"></textarea><p class="field-error" id="sgHintErr" hidden></p></div>
-        <div class="field"><label for="sgQ">Frage</label><input type="text" id="sgQ" name="question" maxlength="500"></div>
-        <fieldset class="field"><legend>Antwortoptionen</legend><p class="field-hint">Wenn du eine Frage einträgst: zwei bis vier Antworten und die richtige markieren.</p>
-          <div class="answer-row"><input type="radio" name="correct-option" value="0" aria-label="Erste Antwort ist richtig"><input type="text" name="option-0" maxlength="500" placeholder="Antwort 1" aria-label="Antwort 1"></div>
-          <div class="answer-row"><input type="radio" name="correct-option" value="1" aria-label="Zweite Antwort ist richtig"><input type="text" name="option-1" maxlength="500" placeholder="Antwort 2" aria-label="Antwort 2"></div>
-          <div class="answer-row"><input type="radio" name="correct-option" value="2" aria-label="Dritte Antwort ist richtig"><input type="text" name="option-2" maxlength="500" placeholder="Antwort 3 (optional)" aria-label="Antwort 3"></div>
-          <div class="answer-row"><input type="radio" name="correct-option" value="3" aria-label="Vierte Antwort ist richtig"><input type="text" name="option-3" maxlength="500" placeholder="Antwort 4 (optional)" aria-label="Antwort 4"></div>
-          <p class="field-error" id="sgEditErr" hidden></p></fieldset>
-        <div class="field"><label for="sgInfo">Hintergrundinformationen</label><textarea id="sgInfo" name="editorial-info" maxlength="1000"></textarea></div>
-      </div>
-      <div class="pane" id="sg3" hidden><p class="sub">Schritt 3 von 3: Standort (optional).</p>
-        <button type="button" class="btn ghost wide" id="sgPick" style="margin-bottom:12px">📍 Auf der Karte wählen</button>
-        <p class="field-hint">Oder Koordinaten als Dezimalgrad eingeben (z. B. 51.9607 und 7.6261).</p>
-        <div class="coord-grid">
-          <div class="field"><label for="sgLat">Breitengrad</label><input type="text" inputmode="decimal" id="sgLat" name="latitude" autocomplete="off"></div>
-          <div class="field"><label for="sgLon">Längengrad</label><input type="text" inputmode="decimal" id="sgLon" name="longitude" autocomplete="off"></div>
-        </div>
-        <p class="field-error" id="sgLocErr" hidden></p>
-      </div>
+      <p class="sub">Kennst du einen besonderen Ort in Münster, dann schlage ihn hier vor. Ich brauche den Ort und eine kurze Beschreibung. Vielleicht findest du dann bald deinen Vorschlag im Spiel.</p>
+      <div class="field"><label for="sgName">Ort *</label><input type="text" id="sgName" name="name" maxlength="100" required aria-required="true" autocomplete="off"><p class="field-error" id="sgNameErr" hidden></p></div>
+      <div class="field"><label for="sgDesc">Kurze Beschreibung *</label><textarea id="sgDesc" name="description" maxlength="1000" required aria-required="true"></textarea><p class="field-error" id="sgDescErr" hidden></p></div>
       <p class="form-status" id="sgStatus" role="status" data-kind="" hidden></p>
-      <div class="form-actions"><button type="button" class="btn ghost" id="sgBack">Abbrechen</button><button type="submit" class="btn main" id="sgNext">Weiter</button></div>
+      <div class="form-actions"><button type="button" class="btn ghost" id="sgBack">Abbrechen</button><button type="submit" class="btn main" id="sgNext">Absenden</button></div>
     </form>
     <div id="sgDone" class="center" hidden>
       <div class="trophy" style="font-size:64px;animation:none" aria-hidden="true">🎉</div>
@@ -576,7 +567,7 @@ const Store = {
 const isSolved = (id) => Store.get(id).solved;
 const countSolved = () => stations.filter((s) => isSolved(s.id)).length;
 
-const U = { selectedId: null, loading: true, active: new Set(), tab: 'map', snap: 'hidden', picking: false, lastTrigger: null, optionsKey: '', orientKey: '' };
+const U = { selectedId: null, loading: true, active: new Set(), tab: 'map', snap: 'hidden', lastTrigger: null, optionsKey: '', orientKey: '' };
 
 /* ==========================================================
    4. Hilfsfunktionen
@@ -620,10 +611,11 @@ const catImg = (c, size) => (c.icon ? '<img src="' + esc(c.icon) + '" alt="">' :
 const isValidPin = (p) => p && typeof p.id === 'string' && p.id !== '' && Number.isFinite(p.number) && typeof p.title === 'string' && typeof p.category === 'string' && Number.isFinite(p.lat) && Number.isFinite(p.lon);
 const isValidCategory = (c) => c && typeof c.id === 'string' && c.id !== '' && typeof c.name === 'string' && (c.icon === null || typeof c.icon === 'string') && typeof c.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(c.color);
 function isValidDetails(d, publicOnly = false) {
-  const ok = d && typeof d.id === 'string' && typeof d.title === 'string' && Number.isFinite(d.lat) && Number.isFinite(d.lon) && typeof d.hint === 'string' && typeof d.taskImage === 'string';
+  const hasHint = d && Object.prototype.hasOwnProperty.call(d, 'hint');
+  const ok = d && typeof d.id === 'string' && typeof d.title === 'string' && Number.isFinite(d.lat) && Number.isFinite(d.lon) && typeof d.taskImage === 'string';
   if (!ok) return false;
-  if (publicOnly) return !Object.prototype.hasOwnProperty.call(d, 'options');
-  return Array.isArray(d.options) && d.options.length >= 2 && Number.isInteger(d.correctOptionIndex) && d.correctOptionIndex >= 0 && d.correctOptionIndex < d.options.length && typeof d.solutionTitle === 'string' && typeof d.info === 'string' && Array.isArray(d.links) && d.links.every((l) => l && typeof l.title === 'string' && isValidExternalUrl(l.url));
+  if (publicOnly) return !hasHint && !Object.prototype.hasOwnProperty.call(d, 'options');
+  return typeof d.hint === 'string' && Array.isArray(d.options) && d.options.length >= 2 && Number.isInteger(d.correctOptionIndex) && d.correctOptionIndex >= 0 && d.correctOptionIndex < d.options.length && typeof d.solutionTitle === 'string' && typeof d.info === 'string' && Array.isArray(d.links) && d.links.every((l) => l && typeof l.title === 'string' && isValidExternalUrl(l.url));
 }
 
 /* ==========================================================
@@ -642,7 +634,6 @@ function pinHtml(station) {
   return '<div class="map-pin' + (c.icon ? '' : ' no-icon') + '" style="--pin:' + esc(c.color) + ';--pin-text:' + categoryTextColor(c.color) + '" aria-hidden="true">' + catImg(c) + '<span class="pin-number">' + station.number + '</span><span class="pin-check">✓</span></div>';
 }
 function handleMarkerActivate(station, el) {
-  if (U.picking) { finishPick({ lat: station.lat, lng: station.lon }); return; }
   openStation(station.id, { trigger: el });
 }
 function addMarkers() {
@@ -732,8 +723,7 @@ function renderProgress() {
   const n = countSolved(), N = stations.length, all = !U.loading && N > 0 && n === N;
   $('#ringFg').style.strokeDashoffset = String(113.1 * (1 - (N ? n / N : 0)));
   $('#ringTxt').textContent = U.loading ? '–' : n + '/' + N;
-  $('#subtitle').textContent = U.loading ? 'Stationen werden geladen …' : all ? 'Alles entdeckt! 🎉' : n + ' von ' + N + ' gelöst';
-  $('#ring').setAttribute('aria-label', 'Fortschritt: ' + n + ' von ' + N + ' gelöst. Fortschritt anzeigen');
+  $('#ring').setAttribute('aria-label', U.loading ? 'Fortschritt wird geladen.' : 'Fortschritt: ' + n + ' von ' + N + ' gelöst. Fortschritt anzeigen');
   $('#bigCount').textContent = U.loading ? '–' : n + '/' + N;
   $('#bigBar').style.width = (N ? Math.round((n / N) * 100) : 0) + '%';
   const track = $('#bigTrack');
@@ -814,7 +804,7 @@ function instant(fn) {
   st.classList.remove('instant');
 }
 function openStation(id, opts = {}) {
-  if (U.picking || !stationsById.has(id)) return;
+  if (!stationsById.has(id)) return;
   const source = opts.source || 'user';
   if (source === 'user') { updateStationUrl(id, 'push'); markIntroSeen(); }
   U.selectedId = id;
@@ -833,6 +823,7 @@ function openStation(id, opts = {}) {
 function closeStation(opts = {}) {
   const prev = U.selectedId;
   if (!prev) return;
+  if ($('#imageViewer').classList.contains('on')) closeImageViewer(false);
   if (opts.updateUrl !== false) updateStationUrl(null, 'push');
   U.selectedId = null;
   $('#station').classList.remove('on');
@@ -850,7 +841,57 @@ function setImage(img, src, alt) {
   if (img.dataset.src === (src || '')) return;
   img.dataset.src = src || '';
   img.hidden = !src;
-  if (src) { img.onerror = () => { img.hidden = true; $('#heroFb').textContent = '📷 Das Foto konnte nicht geladen werden.'; }; img.alt = alt; img.src = src; }
+  if (src) {
+    img.onerror = () => {
+      img.hidden = true;
+      $('#heroFb').textContent = '📷 Das Foto konnte nicht geladen werden.';
+      updateHeroZoomHint();
+    };
+    img.alt = alt;
+    img.setAttribute('role', 'button');
+    img.tabIndex = 0;
+    img.setAttribute('aria-label', alt + ', vollständig anzeigen');
+    img.setAttribute('aria-haspopup', 'dialog');
+    img.setAttribute('aria-controls', 'imageViewer');
+    img.src = src;
+  } else {
+    img.removeAttribute('role');
+    img.removeAttribute('tabindex');
+    img.removeAttribute('aria-label');
+    img.removeAttribute('aria-haspopup');
+    img.removeAttribute('aria-controls');
+  }
+}
+function updateHeroZoomHint() {
+  $('#heroZoomHint').hidden = ![$('#imgTask'), $('#imgSol')].some((img) => !img.hidden);
+}
+let imageViewerTrigger = null;
+function openImageViewer(img) {
+  if (!img || img.hidden || (!img.currentSrc && !img.src)) return;
+  const viewer = $('#imageViewer'), src = img.currentSrc || img.src;
+  imageViewerTrigger = img;
+  $('#imageViewerBg').src = src;
+  $('#imageViewerImg').src = src;
+  $('#imageViewerImg').alt = img.alt;
+  $('#imageViewerCaption').textContent = img.alt;
+  viewer.inert = false;
+  viewer.setAttribute('aria-hidden', 'false');
+  viewer.classList.add('on');
+  $('#station').inert = true;
+  $('#imageViewerClose').focus({ preventScroll: true });
+}
+function closeImageViewer(restoreFocus = true) {
+  const viewer = $('#imageViewer');
+  if (!viewer.classList.contains('on')) return;
+  viewer.classList.remove('on');
+  viewer.inert = true;
+  viewer.setAttribute('aria-hidden', 'true');
+  $('#station').inert = false;
+  if (restoreFocus) {
+    const target = imageViewerTrigger && !imageViewerTrigger.hidden ? imageViewerTrigger : $('#sTitle');
+    target.focus({ preventScroll: true });
+  }
+  imageViewerTrigger = null;
 }
 function renderStation() {
   const st = stationsById.get(U.selectedId);
@@ -868,6 +909,7 @@ function renderStation() {
   $('#heroFb').textContent = has && !st.taskImage ? '📷 Für diese Station liegt noch kein Foto vor.' : '';
   setImage($('#imgTask'), has ? st.taskImage : '', 'Rätselfoto zu Station ' + st.number);
   setImage($('#imgSol'), has && solved ? st.solutionImage : (has && st.solutionImage && p.solved ? st.solutionImage : ''), has ? 'Lösungsfoto: ' + (st.solutionTitle || '') : '');
+  updateHeroZoomHint();
   // Lade- und Fehlerzustand
   const status = $('#sStatus'), failed = Store.detailsErrors.has(st.id);
   status.hidden = has;
@@ -883,9 +925,9 @@ function renderStation() {
   renderActionBar(st, p, has, gated, solved);
 }
 function renderUnsolved(st, p, gated, solved) {
-  const hintOn = isEnabled('hint_button') ? p.hintVisible : false;
-  $('#hintText').textContent = '💡 ' + st.hint;
-  $('#hintBox').classList.toggle('is-visible', p.hintVisible && isEnabled('hint_button'));
+  const hintAvailable = !gated && isEnabled('hint_button') && typeof st.hint === 'string';
+  $('#hintText').textContent = hintAvailable ? '💡 ' + st.hint : '';
+  $('#hintBox').classList.toggle('is-visible', hintAvailable && p.hintVisible);
   const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + st.lat + ',' + st.lon;
   const coords = $('#sCoords');
   coords.href = mapsUrl; coords.textContent = '📍 ' + formatCoordinates(st);
@@ -935,7 +977,7 @@ function renderActionBar(st, p, has, gated, solved) {
     else if (isEnabled('completion')) html += '<button type="button" class="btn" data-act="finale">🏆 Zum Finale</button>';
     else html += '<button type="button" class="btn" data-act="map">Zum Stadtplan</button>';
   } else if (has) {
-    if (isEnabled('hint_button')) html += '<button type="button" class="btn ghost" data-act="hint" aria-expanded="' + String(p.hintVisible) + '" aria-controls="hintBox">💡 Hinweis</button>';
+    if (!gated && isEnabled('hint_button')) html += '<button type="button" class="btn ghost" data-act="hint" aria-expanded="' + String(p.hintVisible) + '" aria-controls="hintBox">💡 Hinweis</button>';
     if (!gated && isEnabled('reveal_button')) html += '<button type="button" class="btn ghost" data-act="reveal">Lösung anzeigen</button>';
   }
   if (bar.dataset.html !== html) { bar.innerHTML = html; bar.dataset.html = html; }
@@ -1015,7 +1057,7 @@ async function loadProtectedDetails(station, generation = locationGeneration) {
 }
 function clearProtectedDetails(station) {
   station.protectedDetailsLoaded = false;
-  ['options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links'].forEach((k) => delete station[k]);
+  ['hint', 'options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links'].forEach((k) => delete station[k]);
 }
 function locationFailureMessage(error) {
   if (error && error.code === 1) return 'Der Zugriff auf den Standort wurde verweigert.';
@@ -1115,7 +1157,9 @@ function selectOption(id, index, btn) {
   announce('Noch nicht – probier es nochmal oder nutze den Hinweis.');
 }
 function toggleHint() {
-  const id = U.selectedId, p = Store.get(id), visible = !p.hintVisible;
+  const id = U.selectedId, station = stationsById.get(id);
+  if (isEnabled('location_gate') && (!station || !station.protectedDetailsLoaded)) return;
+  const p = Store.get(id), visible = !p.hintVisible;
   Store.update(id, { hintUsed: p.hintUsed || visible, hintVisible: visible });
   renderStation();
   renderProgress();
@@ -1177,7 +1221,7 @@ function closeModal(restore = true) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (U.picking) { cancelPick(); return; }
+    if ($('#imageViewer').classList.contains('on')) { closeImageViewer(); return; }
     if ($('#finale').classList.contains('on')) { hideFinale(); return; }
     if (openModalEl) { closeModal(); return; }
     if (U.selectedId) closeStation();
@@ -1194,8 +1238,8 @@ $('#scrim').addEventListener('click', () => closeModal());
 
 const HELP = [
   ['📍', 'Pin antippen', 'Wähle eine Station auf der Karte oder in der Liste.'],
-  ['🔍', 'Ort finden', 'Erkenne das Detail auf dem Foto – bei Bedarf hilft ein Hinweis.'],
-  ['💡', 'Frage beantworten', 'Die richtige Antwort verrät die Geschichte dahinter.'],
+  ['🔍', 'Ort finden', 'Suche den Ort auf dem Foto. Nutze die Karte. Sobald du in der Nähe bist, tauchen 3 Fragen/Themen auf.'],
+  ['💡', 'Frage beantworten', 'Beantworte die Frage. Bei Bedarf hilft der Hinweis. Die richtige Antwort verrät die Geschichte dahinter.'],
 ];
 let helpIndex = 0;
 function renderHelp() {
@@ -1243,73 +1287,35 @@ function showFinale() {
 function hideFinale() { $('#finale').classList.remove('on'); }
 
 /* ==========================================================
-   12. Station vorschlagen (mehrstufig)
+   12. Station vorschlagen
    ========================================================== */
-const SUGGEST_LIMITS = { name: 100, description: 1000, hint: 1000, question: 500, option: 500, info: 1000 };
-const parseCoordinate = (text) => { const n = text.trim().replace(',', '.'); return /^[-+]?\d+(\.\d+)?$/.test(n) ? Number(n) : NaN; };
+const SUGGEST_LIMITS = { name: 100, description: 1000 };
 function validateSuggestion(raw) {
   const errors = {};
   const text = (k) => String(raw[k] == null ? '' : raw[k]).trim();
-  const name = text('name'), description = text('description'), category = text('category'), hint = text('hint'), question = text('question');
-  const rawOptions = [0, 1, 2, 3].map((i) => text('option-' + i));
-  const options = rawOptions.filter(Boolean);
-  const correctText = text('correct-option');
-  const correctIdx = correctText === '' ? null : Number(correctText);
-  const normalizedCorrect = correctIdx === null ? null : rawOptions.slice(0, correctIdx + 1).filter(Boolean).length - 1;
-  const editorialInfo = text('editorial-info'), latText = text('latitude'), lonText = text('longitude');
-  if (!name) errors.name = 'Bitte gib einen Stationsnamen an.';
-  else if (name.length > SUGGEST_LIMITS.name) errors.name = 'Der Name darf höchstens ' + SUGGEST_LIMITS.name + ' Zeichen lang sein.';
-  if (!category) errors.category = 'Bitte wähle eine Kategorie.';
-  if (!description) errors.description = 'Bitte beschreibe die Station.';
+  const name = text('name'), description = text('description');
+  if (!name) errors.name = 'Bitte gib einen Ort an.';
+  else if (name.length > SUGGEST_LIMITS.name) errors.name = 'Der Ort darf höchstens ' + SUGGEST_LIMITS.name + ' Zeichen lang sein.';
+  if (!description) errors.description = 'Bitte gib eine kurze Beschreibung an.';
   else if (description.length > SUGGEST_LIMITS.description) errors.description = 'Die Beschreibung darf höchstens ' + SUGGEST_LIMITS.description + ' Zeichen lang sein.';
-  if (hint.length > SUGGEST_LIMITS.hint) errors.hint = 'Der Hinweis darf höchstens ' + SUGGEST_LIMITS.hint + ' Zeichen lang sein.';
-  if (question.length > SUGGEST_LIMITS.question) errors.editorial = 'Die Frage darf höchstens ' + SUGGEST_LIMITS.question + ' Zeichen lang sein.';
-  if (editorialInfo.length > SUGGEST_LIMITS.info) errors.editorial = 'Die Hintergrundinformationen dürfen höchstens ' + SUGGEST_LIMITS.info + ' Zeichen lang sein.';
-  const hasEditorial = Boolean(hint || question || options.length || editorialInfo || correctIdx !== null);
-  if (hasEditorial && (question || options.length || correctIdx !== null)) {
-    if (!question) errors.editorial = 'Bitte ergänze eine Frage.';
-    if (options.length < 2 || options.length > 4) errors.editorial = 'Bitte ergänze zwei bis vier Antwortoptionen.';
-    if (correctIdx === null || !rawOptions[correctIdx]) errors.editorial = 'Bitte markiere eine ausgefüllte Antwort als richtig.';
-    options.forEach((o) => { if (o.length > SUGGEST_LIMITS.option) errors.editorial = 'Eine Antwort darf höchstens ' + SUGGEST_LIMITS.option + ' Zeichen lang sein.'; });
-  }
-  let location = null;
-  if (latText || lonText) {
-    const lat = parseCoordinate(latText), lon = parseCoordinate(lonText);
-    if (!latText || !lonText) errors.location = 'Bitte gib beide Koordinaten an oder lasse beide Felder leer.';
-    else if (Number.isNaN(lat)) errors.location = 'Der Breitengrad muss eine Zahl sein, z. B. 51.9607.';
-    else if (Number.isNaN(lon)) errors.location = 'Der Längengrad muss eine Zahl sein, z. B. 7.6261.';
-    else if (lat < -90 || lat > 90) errors.location = 'Der Breitengrad muss zwischen -90 und 90 liegen.';
-    else if (lon < -180 || lon > 180) errors.location = 'Der Längengrad muss zwischen -180 und 180 liegen.';
-    else location = { latitude: lat, longitude: lon };
-  }
   if (Object.keys(errors).length) return { errors, value: null };
-  const value = { version: 1, name, description, categoryId: category };
-  if (location) value.location = location;
-  if (hasEditorial) value.editorial = { hint, question, options, correctOptionIndex: normalizedCorrect, info: editorialInfo };
-  return { errors: {}, value };
+  return { errors: {}, value: { version: 1, name, description } };
 }
-const SG = { step: 1, submitting: false, errMap: { name: '#sgNameErr', category: '#sgCatErr', description: '#sgDescErr', hint: '#sgHintErr', editorial: '#sgEditErr', location: '#sgLocErr' }, stepOf: { name: 1, category: 1, description: 1, hint: 2, editorial: 2, location: 3 } };
+const SG = { submitting: false, errMap: { name: '#sgNameErr', description: '#sgDescErr' }, fieldMap: { name: '#sgName', description: '#sgDesc' } };
 const sgRaw = () => Object.fromEntries(new FormData($('#sgForm')));
-function sgShowErrors(errors, onlySteps) {
+function sgShowErrors(errors) {
   Object.entries(SG.errMap).forEach(([key, sel]) => {
     const el = $(sel);
-    const msg = errors[key] && (!onlySteps || onlySteps.includes(SG.stepOf[key])) ? errors[key] : '';
+    const msg = errors[key] || '';
     el.textContent = msg; el.hidden = !msg;
   });
-  [['name', '#sgName'], ['category', '#sgCat'], ['description', '#sgDesc'], ['hint', '#sgHint']].forEach(([key, sel]) => $(sel).setAttribute('aria-invalid', errors[key] ? 'true' : 'false'));
+  [['name', '#sgName'], ['description', '#sgDesc']].forEach(([key, sel]) => $(sel).setAttribute('aria-invalid', errors[key] ? 'true' : 'false'));
 }
 function sgStatus(kind, msg) { const s = $('#sgStatus'); s.dataset.kind = kind; s.textContent = msg; s.hidden = !msg; }
-function sgRender() {
-  [1, 2, 3].forEach((i) => { $('#sg' + i).hidden = i !== SG.step; });
-  $$('#sgSteps i').forEach((d, i) => d.classList.toggle('on', i < SG.step));
-  $('#sgNext').textContent = SG.step === 3 ? 'Absenden' : 'Weiter';
-  $('#sgBack').textContent = SG.step === 1 ? 'Abbrechen' : 'Zurück';
-}
 function sgReset() {
   $('#sgForm').reset(); sgShowErrors({}); sgStatus('', '');
-  SG.step = 1; $('#sgForm').hidden = false; $('#sgDone').hidden = true; $('#sgSteps').hidden = false; sgRender();
-  const sel = $('#sgCat'), cats = Array.from(categoriesById.values());
-  sel.replaceChildren(new Option('Bitte wählen …', ''), ...cats.map((c) => new Option(c.name, c.id)));
+  SG.submitting = false;
+  $('#sgForm').hidden = false; $('#sgDone').hidden = true;
 }
 async function sendSuggestion(payload) {
   document.dispatchEvent(new CustomEvent('ms:stationSuggested', { detail: payload }));
@@ -1333,18 +1339,11 @@ async function sgSubmit(event) {
   event.preventDefault();
   if (SG.submitting) return;
   const { errors, value } = validateSuggestion(sgRaw());
-  if (SG.step < 3) {
-    const here = Object.keys(errors).filter((k) => SG.stepOf[k] === SG.step);
-    sgShowErrors(errors, [SG.step]);
-    if (here.length) { sgStatus('error', 'Bitte korrigiere die markierten Felder.'); const f = { name: '#sgName', category: '#sgCat', description: '#sgDesc', hint: '#sgHint', editorial: '#sgQ' }[here[0]]; if (f) $(f).focus(); return; }
-    sgStatus('', ''); SG.step += 1; sgRender();
-    return;
-  }
   const keys = Object.keys(errors);
   sgShowErrors(errors);
   if (keys.length) {
-    SG.step = Math.min(...keys.map((k) => SG.stepOf[k])); sgRender();
-    sgStatus('error', 'Bitte korrigiere die markierten Felder (' + keys.length + ').');
+    sgStatus('error', 'Bitte korrigiere die markierten Felder.');
+    $(SG.fieldMap[keys[0]]).focus();
     return;
   }
   SG.submitting = true;
@@ -1352,7 +1351,7 @@ async function sgSubmit(event) {
   sgStatus('', 'Wird gesendet ...');
   try {
     await sendSuggestion(value);
-    $('#sgForm').hidden = true; $('#sgDone').hidden = false; $('#sgSteps').hidden = true;
+    $('#sgForm').hidden = true; $('#sgDone').hidden = false;
     $('#sgSuccess').focus();
     announce('Vorschlag erfolgreich übermittelt.');
   } catch (error) {
@@ -1362,46 +1361,12 @@ async function sgSubmit(event) {
     $('#sgNext').disabled = false;
   }
 }
-function startPick() {
-  if (!map) { sgStatus('error', 'Die Karte ist nicht verfügbar. Bitte gib die Koordinaten manuell ein.'); return; }
-  U.picking = true;
-  closeModal(false);
-  if (U.selectedId) closeStation();
-  go('map');
-  $('#pickBanner').hidden = false;
-  $('#map').classList.add('is-picking');
-  map.once('click', onMapPick);
-  $('#pickCancel').focus({ preventScroll: true });
-  announce('Tippe auf die Karte, um den Standort zu wählen. Escape bricht ab.');
-}
-function endPick() {
-  U.picking = false;
-  $('#pickBanner').hidden = true;
-  $('#map').classList.remove('is-picking');
-  if (map) map.off('click', onMapPick);
-  go('map');
-}
-const onMapPick = (e) => finishPick(e.latlng);
-function finishPick(latlng) {
-  if (!U.picking) return;
-  endPick();
-  $('#sgLat').value = latlng.lat.toFixed(5);
-  $('#sgLon').value = latlng.lng.toFixed(5);
-  SG.step = 3; sgRender();
-  showModal('#m-suggest', $('#openSuggest'));
-  announce('Standort übernommen: ' + $('#sgLat').value + ', ' + $('#sgLon').value + '.');
-}
-function cancelPick() {
-  endPick();
-  showModal('#m-suggest', $('#openSuggest'));
-  SG.step = 3; sgRender();
-  announce('Standortwahl abgebrochen.');
-}
 
 /* ==========================================================
    13. Look & Barrierefreiheit
    ========================================================== */
 function setLook(look, persist = true) {
+  look = look === 'night' ? 'night' : 'clean';
   document.documentElement.dataset.look = look;
   $$('#lookSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.look === look)));
   if (persist) { try { localStorage.setItem(LOOK_KEY, look); } catch (e) { /* nur Sitzung */ } }
@@ -1446,6 +1411,16 @@ function initializeUi() {
   });
   $('#list').addEventListener('click', (e) => { const row = e.target.closest('[data-station-id]'); if (row) openStation(row.dataset.stationId, { trigger: row }); });
   $('#station').addEventListener('click', handleStationClick);
+  $('#station').addEventListener('click', (e) => {
+    const img = e.target.closest('.hero-img[role="button"]');
+    if (img) openImageViewer(img);
+  });
+  $('#station').addEventListener('keydown', (e) => {
+    const img = e.target.closest('.hero-img[role="button"]');
+    if (img && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openImageViewer(img); }
+  });
+  $('#imageViewerClose').addEventListener('click', () => closeImageViewer());
+  $('#imageViewer').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeImageViewer(); });
   $('#back').addEventListener('click', () => closeStation());
   (() => {
     let x0 = 0, y0 = 0;
@@ -1457,6 +1432,7 @@ function initializeUi() {
   $('#lookSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setLook(b.dataset.look); });
   $('#setA11y').addEventListener('click', () => { const on = $('#setA11y').getAttribute('aria-checked') !== 'true'; setAccessible(on); announce(on ? 'Barrierefrei: größere Pins und Schrift.' : 'Barrierefrei aus.'); });
   $('#openHelp').addEventListener('click', (e) => openHelp(e.currentTarget));
+  $('#openHelpMap').addEventListener('click', (e) => openHelp(e.currentTarget));
   $('#hlNext').addEventListener('click', () => { if (helpIndex === HELP.length - 1) { markIntroSeen(); closeModal(); } else { helpIndex += 1; renderHelp(); } });
   $('#openReset').addEventListener('click', (e) => showModal('#m-reset', e.currentTarget));
   $('#rsNo').addEventListener('click', () => closeModal());
@@ -1469,9 +1445,7 @@ function initializeUi() {
   if (isEnabled('suggest')) {
     $('#openSuggest').addEventListener('click', (e) => { sgReset(); showModal('#m-suggest', e.currentTarget); });
     $('#sgForm').addEventListener('submit', sgSubmit);
-    $('#sgBack').addEventListener('click', () => { if (SG.step > 1) { SG.step -= 1; sgRender(); sgStatus('', ''); } else closeModal(); });
-    $('#sgPick').addEventListener('click', startPick);
-    $('#pickCancel').addEventListener('click', cancelPick);
+    $('#sgBack').addEventListener('click', () => closeModal());
     $('#sgClose').addEventListener('click', () => closeModal());
     $('#sgAnother').addEventListener('click', () => { sgReset(); $('#sgName').focus(); });
   }

@@ -59,14 +59,22 @@ function validate_basic_suggestion(array $input): array
         $errors[] = 'Nicht unterstützte Vorschlagsversion.';
     }
 
-    $title = clean_text($input['name'] ?? '', 200);
-    $info = clean_text($input['description'] ?? '', 8000, true);
-    $category = is_string($input['categoryId'] ?? null) ? trim($input['categoryId']) : '';
+    $titleInput = clean_text($input['name'] ?? '', 8000);
+    $infoInput = clean_text($input['description'] ?? '', 8000, true);
+    $title = mb_substr($titleInput, 0, 100);
+    $info = mb_substr($infoInput, 0, 1000);
+    $category = !array_key_exists('categoryId', $input)
+        ? 'detail'
+        : (is_string($input['categoryId']) ? trim($input['categoryId']) : '');
     if ($title === '') {
-        $errors[] = 'Stationsname ist erforderlich.';
+        $errors[] = 'Ort ist erforderlich.';
+    } elseif (mb_strlen($titleInput) > 100) {
+        $errors[] = 'Der Ort darf höchstens 100 Zeichen lang sein.';
     }
     if ($info === '') {
-        $errors[] = 'Beschreibung ist erforderlich.';
+        $errors[] = 'Kurze Beschreibung ist erforderlich.';
+    } elseif (mb_strlen($infoInput) > 1000) {
+        $errors[] = 'Die kurze Beschreibung darf höchstens 1000 Zeichen lang sein.';
     }
     if (!category_exists($category)) {
         $errors[] = 'Ungültige Kategorie.';
