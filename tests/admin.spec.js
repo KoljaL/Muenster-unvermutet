@@ -1,0 +1,114 @@
+// @ts-check
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { test, expect, IS_LIVE } from './fixtures.js';
+
+const projectRoot = process.cwd();
+const testUsername = 'playwright-test';
+const testPassword = 'Playwright-Test-2026!';
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=',
+  'base64',
+);
+
+test.describe('Admin (lokale Testdatenbank)', () => {
+  test.skip(IS_LIVE, 'Admin-Aktionen dürfen keine Live-Daten ändern');
+
+  test.beforeAll(() => {
+    const databasePath = resolve(projectRoot, '.playwright-data/game.sqlite');
+    const seedAdmin = `
+      $db = new PDO('sqlite:' . $argv[1]);
+      $hash = password_hash('${testPassword}', PASSWORD_DEFAULT);
+      $db->prepare('INSERT OR IGNORE INTO admins (username, password_hash, active, created_at) VALUES (?, ?, 1, ?)')
+        ->execute(['${testUsername}', $hash, date(DATE_ATOM)]);
+    `;
+    execFileSync('php', ['-r', seedAdmin, databasePath], { cwd: projectRoot, stdio: 'pipe' });
+  });
+
+  test('Login, Stationen bearbeiten und archivieren, Vorschläge annehmen und ablehnen', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'Mobile Chrome', 'Admin-Workflow läuft einmal gegen die gemeinsame Testdatenbank');
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const stationTitle = `PW Station ${suffix}`;
+    const editedStationTitle = `${stationTitle} bearbeitet`;
+    const rejectedTitle = `PW Vorschlag abgelehnt ${suffix}`;
+    const acceptedTitle = `PW Vorschlag angenommen ${suffix}`;
+
+    await page.goto('admin/login.php');
+    await page.locator('#username').fill(testUsername);
+    await page.locator('#password').fill(testPassword);
+    await page.getByRole('button', { name: 'Anmelden' }).click();
+    await expect(page.locator('h1')).toHaveText('Stationen');
+
+    await page.getByRole('link', { name: '+ Neue Station' }).click();
+    await page.locator('#title').fill(stationTitle);
+    await page.locator('#hint').fill('Playwright-Hinweis');
+    await page.locator('#lat').fill('51.9622');
+    await page.locator('#lon').fill('7.6278');
+    await page.locator('[name="options[0]"]').fill('Richtige Antwort');
+    await page.locator('[name="options[1]"]').fill('Falsche Antwort');
+    await page.locator('#solution_title').fill('Playwright-Lösung');
+    await page.locator('#info').fill('Playwright-Information');
+    await page.locator('#task_image').setInputFiles({
+      name: 'test.png',
+      mimeType: 'image/png',
+      buffer: png,
+    });
+    await page.locator('form[action="station-save.php"]').evaluate((form) => form.requestSubmit());
+
+    let stationRow = page.locator('.station-item').filter({ hasText: stationTitle });
+    await expect(stationRow).toBeVisible();
+    const editHref = await stationRow.getByRole('link', { name: 'Bearbeiten' }).getAttribute('href');
+    const editUrl = new URL(editHref, page.url()).toString();
+    await page.goto(editUrl);
+    await page.locator('#title').fill(editedStationTitle);
+    await page.locator('form[action="station-save.php"]').evaluate((form) => form.requestSubmit());
+    stationRow = page.locator('.station-item').filter({ hasText: editedStationTitle });
+    await expect(stationRow).toBeVisible();
+
+    const editLink = stationRow.getByRole('link', { name: 'Bearbeiten' });
+    await page.goto(new URL(await editLink.getAttribute('href'), page.url()).toString());
+    const stationId = await page.locator('[name="orig_id"]').inputValue();
+    const csrf = await page.locator('main [name="csrf"]').inputValue();
+    const archiveResponse = await page.request.post('admin/station-delete.php', {
+      form: { id: stationId, status: 'archived', csrf },
+    });
+    expect(archiveResponse.ok()).toBeTruthy();
+    await page.goto('admin/index.php');
+    await expect(page.locator('.station-item').filter({ hasText: editedStationTitle })).toHaveClass(/station-item--archived/);
+
+    for (const title of [rejectedTitle, acceptedTitle]) {
+      const response = await page.request.post('api/submit_station.php', {
+        data: { version: 1, name: title, description: 'Playwright-Testbeschreibung' },
+      });
+      expect(response.status()).toBe(201);
+    }
+
+    await page.goto('admin/suggestions.php');
+    const rejectCard = page.locator('fieldset.task-card').filter({ hasText: rejectedTitle });
+    page.on('dialog', (dialog) => dialog.accept());
+    await rejectCard.getByRole('button', { name: 'Ablehnen' }).click();
+    await expect(page.locator('fieldset.task-card').filter({ hasText: rejectedTitle })).toHaveCount(0);
+
+    const acceptCard = page.locator('fieldset.task-card').filter({ hasText: acceptedTitle });
+    const acceptHref = await acceptCard.getByRole('link', { name: /Prüfen & freigeben/ }).getAttribute('href');
+    const acceptUrl = new URL(acceptHref, page.url()).toString();
+    const acceptResponse = await page.goto(acceptUrl);
+    expect(acceptResponse?.status()).toBe(200);
+    await page.locator('#hint').fill('Playwright-Hinweis');
+    await page.locator('#lat').fill('51.9622');
+    await page.locator('#lon').fill('7.6278');
+    await page.locator('[name="options[0]"]').fill('Richtige Antwort');
+    await page.locator('[name="options[1]"]').fill('Falsche Antwort');
+    await page.locator('#solution_title').fill(`${acceptedTitle} Lösung`);
+    await page.locator('#task_image').setInputFiles({
+      name: 'test.png',
+      mimeType: 'image/png',
+      buffer: png,
+    });
+    await page.locator('form[action="station-save.php"]').evaluate((form) => form.requestSubmit());
+
+    await expect(page.locator('.station-item').filter({ hasText: acceptedTitle })).toBeVisible();
+    await page.goto('admin/suggestions.php');
+    await expect(page.locator('fieldset.task-card').filter({ hasText: acceptedTitle })).toHaveCount(0);
+  });
+});

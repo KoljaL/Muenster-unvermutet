@@ -9,6 +9,26 @@ test.beforeAll(async ({ playwright }, testInfo) => {
 });
 
 test.describe('Start und Übersicht', () => {
+  test('korrupter Speicher stürzt nicht ab und migriert alte Fortschrittsdaten', async ({ page }) => {
+    await page.addInitScript(({ progressKey, introKey }) => {
+      if (sessionStorage.getItem('pw-corrupt-progress')) return;
+      sessionStorage.setItem('pw-corrupt-progress', '1');
+      localStorage.setItem(progressKey, '{kaputt');
+      localStorage.setItem(introKey, 'closed');
+    }, { progressKey: KEYS.progress, introKey: KEYS.intro });
+    await page.goto('index.html');
+    await expect(page.locator('#ringTxt')).toHaveText(`0/${stations.length}`);
+
+    await page.evaluate(({ progressKey, legacyKey, stationId }) => {
+      localStorage.removeItem(progressKey);
+      localStorage.setItem(legacyKey, JSON.stringify([stationId]));
+    }, { progressKey: KEYS.progress, legacyKey: 'ms-suchspiel', stationId: stations[0].id });
+    await page.reload();
+    await expect(page.locator('#ringTxt')).toHaveText(`1/${stations.length}`);
+    await page.locator('.tab[data-t="list"]').tap();
+    await expect(page.locator(`#list [data-station-id="${stations[0].id}"]`)).toHaveClass(/solved/);
+  });
+
   test('lädt Titel, Fortschritt und Stationsliste', async ({ page }) => {
     await openGame(page);
     await expect(page.locator('#pageTitle')).toHaveText('Münster unvermutet');
@@ -50,6 +70,28 @@ test.describe('Start und Übersicht', () => {
     await expect(page.locator('#list .row')).toHaveCount(stations.length);
   });
 
+  test('Textfarbe der Kategorie ist auf hellen und dunklen Hintergründen lesbar', async ({ page }) => {
+    const lightStation = stations[0];
+    const darkStation = stations.find((station) => station.category !== lightStation.category);
+    expect(darkStation).toBeTruthy();
+    await page.route('**/api/categories.php', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.data = body.data.map((category) => ({
+        ...category,
+        color: category.id === lightStation.category ? '#ffffff'
+          : category.id === darkStation.category ? '#000000'
+            : category.color,
+      }));
+      await route.fulfill({ response, json: body });
+    });
+
+    await openGame(page);
+    await openListTab(page);
+    await expect(page.locator(`#list [data-station-id="${lightStation.id}"] .thumb`)).toHaveCSS('color', 'rgb(28, 25, 23)');
+    await expect(page.locator(`#list [data-station-id="${darkStation.id}"] .thumb`)).toHaveCSS('color', 'rgb(255, 255, 255)');
+  });
+
   test('Karten-Pin öffnet Station (wenn Karte geladen)', async ({ page }) => {
     await openGame(page);
     const pin = page.locator('#map .leaflet-marker-icon[aria-label^="Station 1,"]');
@@ -76,16 +118,55 @@ test.describe('Station spielen', () => {
     await expect(page).not.toHaveURL(/station=/);
   });
 
+  test('Browser-Zurück und -Vor wechseln zwischen Stationen', async ({ page }) => {
+    await openGame(page);
+    await openListTab(page);
+    await page.locator(`#list [data-station-id="${first().id}"]`).tap();
+    await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
+    const next = page.locator('#action [data-act="next"]');
+    const nextId = await next.getAttribute('data-next-id');
+    expect(nextId).toBeTruthy();
+    await next.tap();
+    await expect(page).toHaveURL(new RegExp(`station=${nextId}`));
+
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`station=${first().id}`));
+    await expect(page.locator('#sNum')).toHaveText(`Station ${first().number}`);
+    await page.goForward();
+    await expect(page).toHaveURL(new RegExp(`station=${nextId}`));
+    await expect(page.locator('#sOptions .option').first()).toBeVisible();
+  });
+
   test('Direktlink ?station=ID öffnet Station, ungültige ID bleibt in der Übersicht', async ({ page }) => {
     await openGame(page, { path: `index.html?station=${first().id}` });
     await expect(page.locator('#sOptions .option').first()).toBeVisible();
     await expect(page.locator('#ringTxt')).toHaveText(`0/${stations.length}`);
   });
 
+  test('Bild-Fallback erscheint bei einem 404', async ({ page }) => {
+    await page.route('**/api/get_details.php**', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      if (body.data.id === first().id) body.data.taskImage = '/uploads/pw-missing-image.jpg';
+      await route.fulfill({ response, json: body });
+    });
+    await page.route('**/uploads/pw-missing-image.jpg', (route) => route.fulfill({ status: 404 }));
+
+    await openGame(page, { path: `index.html?station=${first().id}` });
+    await expect(page.locator('#heroFb')).toContainText('Das Foto konnte nicht geladen werden.');
+    await expect(page.locator('#imgTask')).toBeHidden();
+  });
+
   test('ungültiger Stationslink zeigt die Übersicht', async ({ page }) => {
     await openGame(page, { path: 'index.html?station=gibt-es-nicht' });
     await expect(page.locator('#sOptions .option')).toHaveCount(0);
     await expect(page.locator('#pageTitle')).toBeVisible();
+  });
+
+  test('Distanzberechnung stimmt für bekannte Koordinaten', async ({ page }) => {
+    await openGame(page);
+    const distance = await page.evaluate(() => distanceBetween(0, 0, 0, 1));
+    expect(distance).toBeCloseTo(111194.9, 1);
   });
 
   test('falsche Antwort zeigt Fehlermeldung, Fehlversuch wird gezählt', async ({ page }) => {
@@ -172,6 +253,26 @@ test.describe('Fortschritt, Finale und Zurücksetzen', () => {
     await expect(page.locator('#finale')).not.toHaveClass(/on/);
   });
 
+  test('zeigt alle drei Rangtexte abhängig von Fehlversuchen und aufgedeckten Lösungen', async ({ page }) => {
+    await openGame(page);
+    const cases = [
+      [{ attempts: 0, revealed: false }, '🏅 Münster-Meister:in'],
+      [{ attempts: 1, revealed: false }, '🥈 Spürnase'],
+      [{ attempts: 0, revealed: true }, '🧭 Stadtentdecker:in'],
+    ];
+    for (const [stats, rank] of cases) {
+      const progress = solvedProgress(stations.length);
+      Object.assign(progress.stations[stations[0].id], stats);
+      await page.evaluate(({ key, value }) => localStorage.setItem(key, JSON.stringify(value)), { key: KEYS.progress, value: progress });
+      await page.reload();
+      await expect(page.locator('#ringTxt')).toHaveText(`${stations.length}/${stations.length}`);
+      await page.locator('.tab[data-t="progress"]').tap();
+      await page.locator('#openFinale').tap();
+      await expect(page.locator('#finRank')).toHaveText(rank);
+      await page.locator('#finMap').tap();
+    }
+  });
+
   test('Zurücksetzen: Abbrechen behält, Bestätigen löscht den Fortschritt', async ({ page }) => {
     await openGame(page, { progress: solvedProgress(2) });
     await page.locator('.tab[data-t="more"]').tap();
@@ -186,6 +287,35 @@ test.describe('Fortschritt, Finale und Zurücksetzen', () => {
 });
 
 test.describe('Einstellungen und Hilfe', () => {
+  test('Hilfe-Dialog blättert durch alle drei Seiten', async ({ page }) => {
+    await openGame(page);
+    await page.locator('.tab[data-t="more"]').tap();
+    await page.locator('#openHelp').tap();
+    await expect(page.locator('#hlBody')).toContainText('1. Pin antippen');
+    await page.locator('#hlNext').tap();
+    await expect(page.locator('#hlBody')).toContainText('2. Ort finden');
+    await page.locator('#hlNext').tap();
+    await expect(page.locator('#hlBody')).toContainText('3. Frage beantworten');
+  });
+
+  test('Escape schließt den Hilfe-Dialog und gibt den Fokus zurück', async ({ page }) => {
+    await openGame(page);
+    await page.locator('.tab[data-t="more"]').tap();
+    const trigger = page.locator('#openHelp');
+    await trigger.tap();
+    await expect(page.locator('#m-help')).toHaveClass(/on/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#m-help')).not.toHaveClass(/on/);
+    await expect(trigger).toBeFocused();
+  });
+
+  test('Toast und Screenreader-Ansage werden bei ungültigem Stationslink gesetzt', async ({ page }) => {
+    await openGame(page, { path: 'index.html?station=gibt-es-nicht' });
+    await expect(page.locator('#toast')).toHaveClass(/on/);
+    await expect(page.locator('#toast')).toHaveText('Der Link verweist auf eine unbekannte Station.');
+    await expect(page.locator('#statusMessage')).toHaveText('Der Link verweist auf eine unbekannte Station.');
+  });
+
   test('Intro erscheint beim ersten Besuch und wird nach dem Durchklicken gemerkt', async ({ page }) => {
     await openGame(page, { skipIntro: false });
     await expect(page.locator('#m-help')).toHaveClass(/on/);
@@ -277,6 +407,18 @@ test.describe('Station vorschlagen', () => {
 });
 
 test.describe('Backend-API', () => {
+  const fullSuggestion = {
+    title: 'Playwright Upload-Test',
+    hint: 'Testhinweis',
+    lat: '51.9622',
+    lon: '7.6278',
+    question: 'Testfrage?',
+    options: ['Antwort A', 'Antwort B'],
+    correct: '0',
+    info: 'Testbeschreibung',
+    category: 'detail',
+  };
+
   test('liefert Kategorien, Pins und Details', async ({ request }) => {
     const cats = await (await request.get('api/categories.php')).json();
     expect(cats.data.length).toBeGreaterThan(0);
@@ -296,6 +438,55 @@ test.describe('Backend-API', () => {
     const res = await request.post('api/verify_location.php', { data: {} });
     expect([400, 403, 422]).toContain(res.status());
   });
+
+  test('Vorschlags-API lehnt ungültiges JSON und unvollständige Daten ab', async ({ request }) => {
+    const malformed = await request.post('api/submit_station.php', {
+      data: '{',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(malformed.status()).toBe(400);
+
+    const invalid = await request.post('api/submit_station.php', {
+      data: { version: 1, name: '', description: '' },
+    });
+    expect(invalid.status()).toBe(422);
+    expect((await invalid.json()).error.code).toBe('validation_failed');
+  });
+
+  test('Vorschlags-API lehnt ungültige und zu große Fotos ab', async ({ request }) => {
+    const multipartSuggestion = (fileName, buffer, mimeType) => {
+      const form = new FormData();
+      for (const [key, value] of Object.entries(fullSuggestion)) {
+        if (key === 'options') value.forEach((option, index) => form.append(`options[${index}]`, option));
+        else form.append(key, value);
+      }
+      form.append('task_image', new Blob([buffer], { type: mimeType }), fileName);
+      return form;
+    };
+    const invalidImage = await request.post('api/submit_station.php', {
+      multipart: multipartSuggestion('not-an-image.jpg', Buffer.from('kein Bild'), 'image/jpeg'),
+    });
+    expect(invalidImage.status()).toBe(422);
+    expect((await invalidImage.json()).error.code).toBe('suggestion_not_saved');
+
+    const oversizedImage = await request.post('api/submit_station.php', {
+      multipart: multipartSuggestion('too-large.jpg', Buffer.alloc(3 * 1024 * 1024), 'image/jpeg'),
+    });
+    expect(oversizedImage.status()).toBe(422);
+    expect((await oversizedImage.json()).error.code).toBe('suggestion_not_saved');
+  });
+
+  test('liefert ohne Standortfreigabe keine geschützten Stationsdetails', async ({ request }) => {
+    test.skip(IS_LIVE, 'Die Standortfreigabe-Vorschau existiert nur lokal');
+    const station = stations[0];
+    const response = await request.get(`api/get_details.php?id=${station.id}&preview=ui.location_gate`);
+    expect(response.ok()).toBeTruthy();
+    const { data } = await response.json();
+    for (const field of ['hint', 'options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links']) {
+      expect(data).not.toHaveProperty(field);
+    }
+    expect((await request.get(`api/get_details.php?id=${station.id}&protected=1&preview=ui.location_gate`)).status()).toBe(403);
+  });
 });
 
 test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
@@ -304,12 +495,6 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
 
   test('Antworten sind zunächst gesperrt und erscheinen nach der Freigabe', async ({ page, request }) => {
     const station = stations[0];
-
-    // Ohne Freigabe liefert die API keine geschützten Inhalte.
-    const pub = await (await request.get(`api/get_details.php?id=${station.id}&preview=ui.location_gate`)).json();
-    expect(pub.data.options).toBeUndefined();
-    expect(pub.data.correctOptionIndex).toBeUndefined();
-    expect((await request.get(`api/get_details.php?id=${station.id}&protected=1&preview=ui.location_gate`)).status()).toBe(403);
 
     await openGame(page, { path: gated(station.id) });
     await expect(page.locator('#sOptions [data-act="verify"]')).toBeVisible();
@@ -360,5 +545,50 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     await page.evaluate((p) => { window.__fakePos = p; }, { latitude: station.lat, longitude: station.lon, accuracy: 10 });
     await page.locator('#sOptions [data-act="verify"]').tap();
     await expect(page.locator('#sOptions .option')).toHaveCount(station.options.length);
+  });
+
+  test('GPS-Fehler und ungenaue Position zeigen Hinweise und lassen Antworten gesperrt', async ({ page }) => {
+    const station = stations[0];
+    await page.addInitScript(() => {
+      window.__geoErrorCode = 1;
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: {
+          getCurrentPosition(success, failure) {
+            if (window.__geoErrorCode) failure({ code: window.__geoErrorCode });
+            else success({
+              coords: { latitude: window.__stationLat, longitude: window.__stationLon, accuracy: 10 },
+              timestamp: Date.now(),
+            });
+          },
+        },
+      });
+    });
+    await page.route('**/api/verify_location.php*', (route) => route.fulfill({
+      contentType: 'application/json',
+      json: { data: { success: false, reason: 'poor_accuracy' } },
+    }));
+    await openGame(page, { path: gated(station.id) });
+
+    const verify = page.locator('#sOptions [data-act="verify"]');
+    const message = page.locator('#sOptions .loc p');
+    for (const [code, expectedMessage] of [
+      [1, 'Der Zugriff auf den Standort wurde verweigert.'],
+      [3, 'Die Standortabfrage dauerte zu lange. Bitte erneut versuchen.'],
+    ]) {
+      await page.evaluate((errorCode) => { window.__geoErrorCode = errorCode; }, code);
+      await verify.tap();
+      await expect(message).toHaveText(expectedMessage);
+      await expect(page.locator('#sOptions .option')).toHaveCount(0);
+    }
+
+    await page.evaluate(({ lat, lon }) => {
+      window.__geoErrorCode = 0;
+      window.__stationLat = lat;
+      window.__stationLon = lon;
+    }, { lat: station.lat, lon: station.lon });
+    await verify.tap();
+    await expect(message).toContainText('Standortgenauigkeit ist derzeit zu gering');
+    await expect(page.locator('#sOptions .option')).toHaveCount(0);
   });
 });
