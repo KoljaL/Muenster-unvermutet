@@ -1,0 +1,53 @@
+# Testabdeckung – Münster unvermutet
+
+Sortiert nach Wichtigkeit (wichtigste zuerst). Basis: [tests/game.spec.js](tests/game.spec.js) (Playwright).
+
+**Wichtigkeit:** 🔴 kritisch · 🟠 hoch · 🟡 mittel · 🟢 niedrig
+**Status:** ✅ Test vorhanden · 🟣 teilweise · ❌ fehlt
+
+| Wichtigkeit | Status | Funktion | Test / Anmerkung |
+|---|---|---|---|
+| 🔴 | ✅ | Antwort prüfen: richtig löst Station, Persistenz nach Reload (`selectOption`, `markSolved`, `loadProgress`) | „richtige Antwort löst die Station und persistiert nach Reload" |
+| 🔴 | ✅ | Falsche Antwort / Fehlversuche zählen | „falsche Antwort zeigt Fehlermeldung…" |
+| 🔴 | ✅ | Standortfreigabe, Antworten gesperrt bis Freigabe (`verifyStationLocation`, `devFakePosition`) | Block „Standortfreigabe" (3 Tests) |
+| 🔴 | ✅ | Backend: `verify_location`, Stations-IDs validieren | „Standortprüfung verlangt gültige Daten", „ungültige IDs" |
+| 🔴 | ❌ | Backend: Antworten/Lösung dürfen vor Freigabe nicht in `get_details` ausgeliefert werden (Datenleck) | neu: API-Test ohne Freigabe prüft fehlende Lösung |
+| 🔴 | ❌ | Standort-Fehlerfälle: GPS verweigert, Timeout, ungenau (`locationFailureMessage`, `locationResultMessage`) | neu: Geolocation-Permission denied/Timeout mocken |
+| 🟠 | ✅ | Stationen laden, Liste, Fortschritt (`loadStations`, `renderList`, `renderProgress`) | „lädt Titel, Fortschritt und Stationsliste" |
+| 🟠 | ✅ | Ladefehler mit Retry (`showLoadError`) | „API-Fehler zeigt Hinweis mit Retry" |
+| 🟠 | ✅ | Station öffnen, Direktlink, Zurück (`openStation`, `closeStation`, `handleStationUrlChange`) | 3 Tests im Block „Station spielen" |
+| 🟠 | ✅ | Finale + Statistik (`showFinale`, `computeStats`) | „letzte Station lösen zeigt das Finale" |
+| 🟠 | ✅ | Fortschritt zurücksetzen (`confirmProgressReset`) | „Zurücksetzen: Abbrechen/Bestätigen" |
+| 🟠 | ✅ | Station vorschlagen: Validierung, Serverfehler, Payload (`validateSuggestion`, `sendSuggestion`) | 4 Tests Block „Station vorschlagen" |
+| 🟠 | ❌ | Fortschritt: korrupte/alte localStorage-Version (Migration, `loadProgress`) | neu: manipulierten Speicher laden → kein Absturz |
+| 🟠 | ❌ | Backend: Foto-Upload bei Vorschlag (Typ, Größe, `uploads.php`) | neu: ungültige Datei/zu groß wird abgelehnt |
+| 🟠 | ❌ | Backend: Rate-Limit / CSRF / Validierung bei `submit_station` | neu: API-Test |
+| 🟠 | ❌ | Admin: Login, Station anlegen/bearbeiten/löschen, Vorschläge annehmen/ablehnen | neu: eigene Admin-Spec |
+| 🟡 | ✅ | Hinweis ein-/ausklappen, „Lösung anzeigen" (`toggleHint`) | 2 Tests |
+| 🟡 | ✅ | Nächste Station (`goToNext`) | „Nächste Station führt zu offener Station" |
+| 🟡 | ✅ | Kategorienfilter (`setCategoryFilter`, `renderChips`) | „Kategorienfilter…" |
+| 🟡 | ✅ | Tab-Navigation (`go`) | „Tab-Navigation wechselt die Bereiche" |
+| 🟡 | 🟣 | Karte & Pins (`initMap`, `addMarkers`, `updateMapPins`) | nur Pin-Klick; fehlt: Marker-Status gelöst/offen, Filter wirkt auf Karte |
+| 🟡 | ✅ | Backend: Kategorien, Pins, Details | „liefert Kategorien, Pins und Details" |
+| 🟡 | ❌ | Orientierungskarte in Station (`setupOrientMap`) | neu |
+| 🟡 | ❌ | Bild-Fallback bei Ladefehler (`setImage`) | neu: Bild-URL 404 |
+| 🟡 | ❌ | Externe Links validieren (`isValidExternalUrl`, `externalLink`) | neu: `javascript:`-URL wird nicht verlinkt |
+| 🟡 | ❌ | Detail-Validierung (`isValidDetails`) bei defekter API-Antwort | neu |
+| 🟡 | ❌ | Browser-Zurück/Vor zwischen Stationen (`popstate`) | neu |
+| 🟡 | ❌ | Rang-Text (`rankText`) je Fortschritt | neu: Unit-artiger Test |
+| 🟡 | ❌ | Distanzberechnung (`distanceBetween`) | neu: Unit-Test mit bekannten Koordinaten |
+| 🟢 | ✅ | Foto vergrößern/schließen (`openImageViewer`) | „Foto lässt sich vergrößern…" |
+| 🟢 | ✅ | Intro beim ersten Besuch (`shouldShowIntro`) | „Intro erscheint beim ersten Besuch" |
+| 🟢 | ✅ | Nacht-Look (`setLook`) | „Nacht-Look wird gespeichert" |
+| 🟢 | ✅ | Barrierefrei-Schalter (`setAccessible`) | „Barrierefrei-Schalter…" |
+| 🟢 | ❌ | Hilfe-Dialog blättern (`renderHelp`, `openHelp`) | neu |
+| 🟢 | ❌ | Bottom-Sheet Snap (`setSnap`, `initSheet`) | neu |
+| 🟢 | ❌ | Toast / Screenreader-Ansage (`toast`, `announce`) | neu |
+| 🟢 | ❌ | Modal: Escape, Fokus-Rückgabe (`showModal`, `closeModal`) | neu |
+| 🟢 | ❌ | Kontrastfarbe Kategorie (`categoryTextColor`) | neu: Unit-Test |
+| 🟢 | ❌ | Tastaturbedienung / Fokus-Reihenfolge | neu |
+
+## Zusammenfassung
+
+- ✅ vorhanden: 21 · 🟣 teilweise: 1 · ❌ fehlt: 20
+- Zuerst ergänzen: alle 🔴/🟠 mit ❌ (Datenleck-Test, Standort-Fehler, Upload/CSRF, Admin, Speicher-Korruption).

@@ -341,18 +341,23 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     await expect(page.locator('#sOptions .option')).toHaveCount(0);
   });
 
-  test('echte Standortprüfung: zu weit entfernt bleibt gesperrt, am Ziel wird freigegeben', async ({ page, context, browserName }) => {
-    test.skip(browserName === 'webkit', 'Playwright-WebKit liefert für gemockte Positionen veraltete Zeitstempel');
+  test('echte Standortprüfung: zu weit entfernt bleibt gesperrt, am Ziel wird freigegeben', async ({ page }) => {
     const station = stations[0];
-    await context.grantPermissions(['geolocation']);
+    // Eigener Geolocation-Mock mit aktuellem Zeitstempel: WebKit liefert bei setGeolocation veraltete Zeitstempel.
+    await page.addInitScript(() => {
+      window.__fakePos = null;
+      const getCurrentPosition = (ok) => ok({ coords: { ...window.__fakePos }, timestamp: Date.now() });
+      Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    });
     await openGame(page, { path: gated(station.id) });
 
-    await context.setGeolocation({ latitude: station.lat + 0.01, longitude: station.lon, accuracy: 10 });
+    await page.evaluate((p) => { window.__fakePos = p; }, { latitude: station.lat + 0.01, longitude: station.lon, accuracy: 10 });
     await page.locator('#sOptions [data-act="verify"]').tap();
-    await expect(page.locator('#sOptions .loc')).toContainText(/entfernt|Meter|m /);
+    await expect(page.locator('#sOptions .loc.fail')).toBeVisible();
+    await expect(page.locator('#sOptions .loc')).not.toContainText('veraltet');
     await expect(page.locator('#sOptions .option')).toHaveCount(0);
 
-    await context.setGeolocation({ latitude: station.lat, longitude: station.lon, accuracy: 10 });
+    await page.evaluate((p) => { window.__fakePos = p; }, { latitude: station.lat, longitude: station.lon, accuracy: 10 });
     await page.locator('#sOptions [data-act="verify"]').tap();
     await expect(page.locator('#sOptions .option')).toHaveCount(station.options.length);
   });
