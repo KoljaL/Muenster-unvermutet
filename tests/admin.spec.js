@@ -26,7 +26,7 @@ test.describe('Admin (lokale Testdatenbank)', () => {
   });
 
   test('Login, Stationen bearbeiten und archivieren, Vorschläge annehmen und ablehnen', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'Mobile Chrome', 'Admin-Workflow läuft einmal gegen die gemeinsame Testdatenbank');
+    test.skip(testInfo.project.name !== 'Admin', 'Admin-Workflow läuft einmal gegen die gemeinsame Testdatenbank');
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const stationTitle = `PW Station ${suffix}`;
     const editedStationTitle = `${stationTitle} bearbeitet`;

@@ -54,8 +54,15 @@ export default defineConfig({
   /* Configure projects for major browsers */
   /* Das Spiel wird überwiegend auf Smartphones gespielt: iOS (WebKit) und Android (Chromium). */
   projects: [
-    { name: 'Mobile Safari', use: { ...devices['iPhone 13'] } },
-    { name: 'Mobile Chrome', use: { ...devices['Pixel 7'] } },
+    { name: 'Mobile Safari', testIgnore: /admin\.spec/, use: { ...devices['iPhone 13'] } },
+    { name: 'Mobile Chrome', testIgnore: /admin\.spec/, use: { ...devices['Pixel 7'] } },
+    // Der Admin-Test verändert die Test-DB und läuft deshalb erst nach den Spieltests.
+    {
+      name: 'Admin',
+      testMatch: /admin\.spec/,
+      dependencies: ['Mobile Safari', 'Mobile Chrome'],
+      use: { ...devices['iPhone 13'] },
+    },
     // Optional für Desktop-Stichproben:
     // { name: 'Desktop Chrome', use: { ...devices['Desktop Chrome'] } },
   ],
