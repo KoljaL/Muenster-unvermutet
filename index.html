@@ -736,7 +736,6 @@ function renderProgress() {
   }).join('');
   $('#stats').innerHTML = statsHtml(st);
   const fin = $('#openFinale'); if (fin) fin.hidden = !all;
-  const reset = $('#openReset'); if (reset) reset.hidden = n === 0;
 }
 function renderAll() { updateMapPins(); renderChips(); renderList(); renderProgress(); }
 
