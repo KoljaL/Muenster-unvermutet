@@ -158,6 +158,7 @@ INSERT INTO categories VALUES('legend','Sagen','Sagen und Legenden aus Münster.
 INSERT INTO categories VALUES('faith','Glaube','Kirchen und religiöse Orte.',NULL,'#1d4ed8','2026-10-15 16:02:37','2026-10-15 16:02:37');
 INSERT INTO categories VALUES('detail','Details','Kleine Besonderheiten am Wegesrand.',NULL,'#065f46','2026-10-15 16:02:37','2026-10-15 16:02:37');
 INSERT INTO categories VALUES('culture','Kultur','Kultur, Brauchtum und Kuriositäten.',NULL,'#b45309','2026-10-15 16:02:37','2026-10-15 16:02:37');
+INSERT INTO settings VALUES('ui.location_gate','on','2026-10-19 17:44:00');
 INSERT INTO sqlite_sequence VALUES('admins',3);
 INSERT INTO sqlite_sequence VALUES('options',42);
 INSERT INTO sqlite_sequence VALUES('links',8);

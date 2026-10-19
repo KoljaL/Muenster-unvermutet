@@ -44,7 +44,7 @@ const UI_REGISTRY = [
         'label' => 'Standortabhängige Antwortfreigabe',
         'group' => 'Aufgaben',
         'description' => 'Besucher sehen Antworten und Lösung erst, wenn ihr Handy bestätigt, dass sie vor Ort sind. Siehe auch „Standortprüfung“ unten.',
-        'default' => 'off',
+        'default' => 'on',
         'requires' => [],
         'server_enforced' => true,
     ],
