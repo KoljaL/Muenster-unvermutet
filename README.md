@@ -275,6 +275,17 @@ Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
 - Ohne Reset wird die Datenbank beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`).
 - Abweichende Einstellungen (z. B. DB-Pfad außerhalb des Webroots) in `includes/config.local.php` als `return [...]` ablegen.
 
+### Automatisierte Tests (Playwright)
+
+```bash
+pnpm exec playwright install chromium webkit   # einmalig
+pnpm test              # lokal: startet PHP-Server auf 127.0.0.1:8123 mit Kopie der DB (.playwright-data/)
+pnpm test:live         # gegen die Live-URL aus playwright.config.js (TEST_ENV=live)
+pnpm test:ui           # interaktiver Modus
+```
+
+Getestet wird mit mobilen Profilen (iPhone 13 / WebKit und Pixel 7 / Chromium). Die Tests verändern `data/game.sqlite` nicht, da der Server über `MS_DB_PATH` eine Kopie verwendet. Das Live-Setup erwartet, dass `index.html` und die API unter der dort eingetragenen URL erreichbar sind.
+
 ### Struktur
 
 | Pfad                | Inhalt                                                                                                                          |

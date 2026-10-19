@@ -7,8 +7,13 @@ import { defineConfig, devices } from '@playwright/test';
  * Standardmäßig wird lokal getestet und der PHP-Server automatisch gestartet.
  */
 const IS_LIVE = process.env.TEST_ENV === 'live';
-const LIVE_URL = 'https://stina-ms.de/muenster-unvermutet'; // <--- Hier deine Online-URL eintragen
-const LOCAL_URL = 'http://localhost:8000';
+// Der abschließende Slash ist nötig, damit relative Pfade (z. B. 'index.html') unter dem Unterordner aufgelöst werden.
+const LIVE_URL = 'https://stina-ms.de/muenster-unvermutet/';
+const LOCAL_PORT = 8123;
+const LOCAL_URL = `http://127.0.0.1:${LOCAL_PORT}/`;
+// Die Standortfreigabe steht in der Test-DB auf 'test' und wird nur mit ?preview=ui.location_gate aktiv.
+// Tests laufen gegen eine Kopie der Datenbank, damit data/game.sqlite unverändert bleibt.
+const TEST_DB_DIR = '.playwright-data';
 
 /**
  * Read environment variables from file.
@@ -32,7 +37,7 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: [['list'], ['html', { open: 'never' }]],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
@@ -40,53 +45,30 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    // Das Spiel respektiert prefers-reduced-motion; das macht Tests stabil (keine Konfetti-/Übergangsanimationen).
+    reducedMotion: 'reduce',
+    locale: 'de-DE',
+    timezoneId: 'Europe/Berlin',
   },
 
   /* Configure projects for major browsers */
+  /* Das Spiel wird überwiegend auf Smartphones gespielt: iOS (WebKit) und Android (Chromium). */
   projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+    { name: 'Mobile Safari', use: { ...devices['iPhone 13'] } },
+    { name: 'Mobile Chrome', use: { ...devices['Pixel 7'] } },
+    // Optional für Desktop-Stichproben:
+    // { name: 'Desktop Chrome', use: { ...devices['Desktop Chrome'] } },
   ],
 
   /* Starte den lokalen PHP Dev Server NUR, wenn nicht im Live-Modus getestet wird */
   webServer: IS_LIVE
     ? undefined
     : {
-        command: 'php -S localhost:8000',
-        url: LOCAL_URL,
-        reuseExistingServer: !process.env.CI,
-        timeout: 120 * 1000,
+        command: `mkdir -p ${TEST_DB_DIR} && rm -f ${TEST_DB_DIR}/game.sqlite* && (cp data/game.sqlite ${TEST_DB_DIR}/game.sqlite 2>/dev/null || true) && sqlite3 ${TEST_DB_DIR}/game.sqlite "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('ui.location_gate', 'test', datetime('now'))" && MS_DB_PATH="$PWD/${TEST_DB_DIR}/game.sqlite" php -S 127.0.0.1:${LOCAL_PORT}`,
+        url: `${LOCAL_URL}api/categories.php`,
+        reuseExistingServer: false,
+        stdout: 'ignore',
+        stderr: 'ignore',
+        timeout: 60 * 1000,
       },
 });

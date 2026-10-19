@@ -32,6 +32,10 @@ function config(string $key = null)
         if (is_file($local)) {
             $config = array_merge($config, (array) require $local);
         }
+        $testDb = getenv('MS_DB_PATH');
+        if (is_string($testDb) && $testDb !== '') {
+            $config['db_path'] = $testDb;
+        }
         date_default_timezone_set($config['timezone']);
     }
     return $key === null ? $config : $config[$key];
