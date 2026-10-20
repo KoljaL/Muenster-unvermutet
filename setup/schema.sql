@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS stations (
     id TEXT PRIMARY KEY,
     number INTEGER NOT NULL,
     title TEXT NOT NULL,
+    teaser_text TEXT,
     hint TEXT NOT NULL,
     lat NUMERIC NOT NULL,
     lon NUMERIC NOT NULL,

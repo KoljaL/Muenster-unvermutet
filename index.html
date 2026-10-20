@@ -111,7 +111,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
 /* ===== Bottom Sheet ===== */
 .sheet{position:absolute;left:0;right:0;bottom:0;top:96px;z-index:12;background:var(--surface);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
-  border-radius:28px 28px 0 0;box-shadow:0 -8px 40px #0003;display:flex;flex-direction:column;transition:transform .55s var(--ease);will-change:transform;transform:translateY(110%)}
+  border-radius:28px 28px 0 0;box-shadow:0 -8px 40px #0003;display:flex;flex-direction:column;transition:transform .5s var(--ease);will-change:transform;transform:translateY(110%)}
 .sheet-head{padding:18px 20px 8px;display:flex;justify-content:space-between;align-items:baseline}
 .sheet-head h2{font-size:20px;letter-spacing:-.01em}.sheet-head span{color:var(--muted);font-size:14px}
 .list{list-style:none;padding:4px 14px calc(var(--tab-h) + 24px);overflow-y:auto;flex:1;touch-action:pan-y;display:grid;gap:10px;align-content:start}
@@ -182,10 +182,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .pill.ok{color:var(--ok);display:none}.station.solved .pill.ok{display:block;top:calc(env(safe-area-inset-top) + 58px);animation:pop .6s var(--spring)}
 .back{position:absolute;left:14px;top:calc(env(safe-area-inset-top) + 14px);z-index:3;width:44px;height:44px;border-radius:50%;background:var(--surface);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:0 3px 12px #0003;display:grid;place-items:center}
 .back svg{width:22px;height:22px;stroke:var(--text);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-.body{padding:0 20px;position:relative;z-index:2;margin-top:-22px}
+.body{padding:0 20px;position:relative;z-index:2}
 .tag{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;background:var(--cat,#888);color:var(--tag-ink,#fff);font-size:13px;font-weight:700}
 .tag img{width:16px;height:16px;object-fit:contain}
 .body h2{font-size:28px;letter-spacing:-.02em;margin:10px 0 8px;line-height:1.15;transition:opacity .3s}
+.teaser{margin:0 0 14px}
+.teaser p{margin:0 0 6px;color:var(--muted);white-space:pre-line}
+.teaser:not(.expanded) p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.teaser-toggle{padding:4px 0;border:0;background:none;color:var(--accent);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .stagger>*{opacity:0;transform:translateY(18px)}
 .station.on .stagger>*{animation:rowin .6s var(--ease) forwards;animation-delay:calc(.2s + var(--i)*70ms)}
 .collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows .7s var(--ease),opacity .4s}
@@ -233,8 +237,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .status-card{background:var(--solid);border-radius:var(--radius);padding:16px;margin:8px 0}
 .status-card.loading{background:linear-gradient(100deg,var(--solid) 30%,var(--bg) 50%,var(--solid) 70%);background-size:300% 100%;animation:shimmer 1.4s infinite}
 /* gelöst */
-.caption{font-size:13px;color:var(--muted);margin:6px 0 12px}
-.solved-row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;font-size:14px;margin-bottom:12px}
+.caption{font-size:13px;color:var(--muted);margin:8px 20px 12px;overflow-wrap:anywhere}
 .info{margin-bottom:12px}
 .sources{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
 .verdict{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:var(--radius);background:color-mix(in srgb,var(--ok) 16%,var(--solid));margin:4px 0 8px;font-weight:700}
@@ -360,24 +363,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         <span class="hero-zoom-hint" id="heroZoomHint" aria-hidden="true" title="Foto antippen zum Vergrößern" hidden><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg></span>
         <span class="pill" id="sNum"></span><span class="pill ok">✓ gelöst</span>
       </div>
+      <p class="caption" id="sCaption" hidden></p>
       <div class="body stagger">
         <div style="--i:0"><span class="tag" id="sTag"></span></div>
         <h2 id="sTitle" tabindex="-1" style="--i:1"></h2>
+        <div class="teaser" id="sTeaser" style="--i:1" hidden>
+          <p id="sTeaserText"></p>
+          <button type="button" class="teaser-toggle" data-act="teaser" aria-controls="sTeaserText" aria-expanded="false">Mehr anzeigen</button>
+        </div>
         <div style="--i:2" id="sMain">
           <div id="sStatus" hidden></div>
           <div id="sContent" hidden>
             <div class="collapse" id="sUnsolved"><div>
-              <p class="intro" id="sIntro">Suche den Ort und beantworte dann, worum es geht.</p>
               <div class="collapse hint-box" id="hintBox"><div><p id="hintText"></p></div></div>
-              <a class="coords" id="sCoords" target="_blank" rel="noopener noreferrer"></a>
-              <details class="orient" id="orient" open data-ui-option="station_map"><summary>OpenStreetMap-Orientierungskarte</summary><div id="orientMap" role="region" aria-label="Karte mit Stationsziel und eigener Position"></div><p id="orientDist"></p></details>
+              <p class="intro" id="sIntro">Suche den Ort und beantworte dann, worum es geht.</p>
               <div id="sOptions" role="group" aria-labelledby="sIntro"></div>
               <p class="err" id="errMsg" role="status" hidden>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>
             </div></div>
+            <details class="orient" id="orient" data-ui-option="station_map"><summary>OpenStreetMap-Orientierungskarte</summary><div id="orientMap" role="region" aria-label="Karte mit Stationsziel und eigener Position"></div><p id="orientDist"></p></details>
             <div class="collapse" id="sSolved"><div>
               <div class="verdict"><span class="check" aria-hidden="true">✓</span><span>Richtig – gut gesehen!</span></div>
-              <p class="caption" id="sCaption"></p>
-              <div class="solved-row" id="sSolvedRow"></div>
               <p class="info" id="sInfo"></p>
               <div class="sources" id="sSources"></div>
             </div></div>
@@ -567,7 +572,7 @@ const Store = {
 const isSolved = (id) => Store.get(id).solved;
 const countSolved = () => stations.filter((s) => isSolved(s.id)).length;
 
-const U = { selectedId: null, loading: true, active: new Set(), tab: 'map', snap: 'hidden', lastTrigger: null, optionsKey: '', orientKey: '' };
+const U = { selectedId: null, loading: true, active: new Set(), tab: 'map', snap: 'hidden', lastTrigger: null, optionsKey: '', orientKey: '', teaserExpanded: false };
 
 /* ==========================================================
    4. Hilfsfunktionen
@@ -614,6 +619,7 @@ function isValidDetails(d, publicOnly = false) {
   const hasHint = d && Object.prototype.hasOwnProperty.call(d, 'hint');
   const ok = d && typeof d.id === 'string' && typeof d.title === 'string' && Number.isFinite(d.lat) && Number.isFinite(d.lon) && typeof d.taskImage === 'string';
   if (!ok) return false;
+  if (typeof d.teaserText !== 'string') return false;
   if (publicOnly) return !hasHint && !Object.prototype.hasOwnProperty.call(d, 'options');
   return typeof d.hint === 'string' && Array.isArray(d.options) && d.options.length >= 2 && Number.isInteger(d.correctOptionIndex) && d.correctOptionIndex >= 0 && d.correctOptionIndex < d.options.length && typeof d.solutionTitle === 'string' && typeof d.info === 'string' && Array.isArray(d.links) && d.links.every((l) => l && typeof l.title === 'string' && isValidExternalUrl(l.url));
 }
@@ -753,7 +759,8 @@ function initSheet() {
   if (!sheet) return;
   app.style.setProperty('--peek', PEEK + 'px');
 }
-function go(tab) {
+function go(tab, toggleCurrent = true) {
+  if (toggleCurrent && tab !== 'map' && U.tab === tab) tab = 'map';
   U.tab = tab;
   $$('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.t === tab)));
   const mapLike = tab === 'map' || tab === 'list';
@@ -808,7 +815,7 @@ function openStation(id, opts = {}) {
   if (source === 'user') { updateStationUrl(id, 'push'); markIntroSeen(); }
   U.selectedId = id;
   U.lastTrigger = opts.trigger || null;
-  U.optionsKey = ''; U.orientKey = '';
+  U.optionsKey = ''; U.orientKey = ''; U.teaserExpanded = false;
   destroyOrientMap();
   const st = $('#station');
   setOrigin(opts.trigger);
@@ -899,12 +906,15 @@ function renderStation() {
   const gate = isEnabled('location_gate');
   const gated = gate && !st.protectedDetailsLoaded;
   const solved = has && p.solved && (!gate || st.protectedDetailsLoaded);
+  $('#sCaption').hidden = !solved || !st.solutionImage;
+  $('#sCaption').textContent = st.solutionCaption || 'Lösungsfoto';
   root.style.setProperty('--cat', c.color);
   root.style.setProperty('--tag-ink', categoryTextColor(c.color));
   root.classList.toggle('solved', solved);
   $('#sNum').textContent = 'Station ' + st.number;
   $('#sTag').innerHTML = catImg(c) + esc(c.name);
   $('#sTitle').textContent = solved ? st.solutionTitle : has ? st.title : 'Station ' + st.number;
+  renderTeaser(st, has);
   $('#heroFb').textContent = has && !st.taskImage ? '📷 Für diese Station liegt noch kein Foto vor.' : '';
   setImage($('#imgTask'), has ? st.taskImage : '', 'Rätselfoto zu Station ' + st.number);
   setImage($('#imgSol'), has && solved ? st.solutionImage : (has && st.solutionImage && p.solved ? st.solutionImage : ''), has ? 'Lösungsfoto: ' + (st.solutionTitle || '') : '');
@@ -923,19 +933,25 @@ function renderStation() {
   }
   renderActionBar(st, p, has, gated, solved);
 }
+function renderTeaser(st, has) {
+  const teaser = $('#sTeaser'), toggle = teaser.querySelector('[data-act="teaser"]');
+  const text = has && typeof st.teaserText === 'string' ? st.teaserText : '';
+  teaser.hidden = text === '';
+  $('#sTeaserText').textContent = text;
+  teaser.classList.toggle('expanded', U.teaserExpanded);
+  toggle.setAttribute('aria-expanded', String(U.teaserExpanded));
+  toggle.textContent = U.teaserExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen';
+}
 function renderUnsolved(st, p, gated, solved) {
   const hintAvailable = !gated && isEnabled('hint_button') && typeof st.hint === 'string';
   $('#hintText').textContent = hintAvailable ? '💡 ' + st.hint : '';
   $('#hintBox').classList.toggle('is-visible', hintAvailable && p.hintVisible);
-  const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + st.lat + ',' + st.lon;
-  const coords = $('#sCoords');
-  coords.href = mapsUrl; coords.textContent = '📍 ' + formatCoordinates(st);
-  coords.setAttribute('aria-label', 'Koordinaten ' + formatCoordinates(st) + ' in Google Maps öffnen (neuer Tab)');
   const orient = $('#orient');
   if (orient) {
+    orient.hidden = !isEnabled('station_map') || typeof L === 'undefined';
     const player = playerLocations.get(st.id);
     $('#orientDist').textContent = player ? Math.round(distanceBetween(player.lat, player.lon, st.lat, st.lon)) + ' m bis zum Ziel' : 'Der eigene Standort erscheint nach einer Standortaktualisierung.';
-    if (!solved) setupOrientMap(st);
+    if (!orient.hidden) setupOrientMap(st);
   }
   const key = st.id + (gated ? ':gate' : ':opts');
   const animate = key !== U.optionsKey;
@@ -959,12 +975,8 @@ function renderUnsolved(st, p, gated, solved) {
 }
 function renderSolved(st, solved) {
   if (!solved) return;
-  const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + st.lat + ',' + st.lon;
-  const osmUrl = 'https://www.openstreetmap.org/?mlat=' + st.lat + '&mlon=' + st.lon + '#map=18/' + st.lat + '/' + st.lon;
-  $('#sCaption').textContent = st.solutionCaption || 'Lösungsfoto';
-  $('#sSolvedRow').innerHTML = '<span class="coords" style="margin:0">' + formatCoordinates(st) + '</span>' + externalLink(mapsUrl, 'Google Maps ↗') + externalLink(osmUrl, 'OpenStreetMap ↗');
   $('#sInfo').textContent = st.info;
-  $('#sSources').innerHTML = '<span>Foto: Aufgabenfoto zu Station ' + st.number + '</span>' + st.links.map((l) => externalLink(l.url, esc(l.title) + ' ↗')).join('');
+  $('#sSources').innerHTML = st.links.map((l) => externalLink(l.url, esc(l.title) + ' ↗')).join('');
 }
 function renderActionBar(st, p, has, gated, solved) {
   const bar = $('#action');
@@ -987,6 +999,13 @@ function setupOrientMap(st) {
   if (!isEnabled('station_map') || typeof L === 'undefined') return;
   const container = $('#orientMap');
   if (!container) return;
+  const orient = $('#orient');
+  if (!container.dataset.resizeBound) {
+    orient.addEventListener('toggle', () => {
+      if (orient.open && stationMap) requestAnimationFrame(() => stationMap && stationMap.invalidateSize());
+    });
+    container.dataset.resizeBound = 'true';
+  }
   if (!stationMap) {
     stationMap = L.map(container).setView([st.lat, st.lon], 17);
     L.tileLayer(MAP_TILE_URL, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>' }).addTo(stationMap);
@@ -1182,6 +1201,10 @@ function handleStationClick(event) {
   if (!btn) return;
   const id = U.selectedId;
   switch (btn.dataset.act) {
+    case 'teaser':
+      U.teaserExpanded = !U.teaserExpanded;
+      renderTeaser(stationsById.get(id), hasDetails(stationsById.get(id)));
+      break;
     case 'verify': verifyStationLocation(id); break;
     case 'fake': verifyStationLocation(id, true); break; // DEV-FAKE-POSITION
     case 'option': selectOption(id, Number(btn.dataset.i), btn); break;
@@ -1403,7 +1426,7 @@ function initializeUi() {
   applyUiSettings();
   initSheet();
   $('#tabs').addEventListener('click', (e) => { const t = e.target.closest('.tab'); if (t) go(t.dataset.t); });
-  $('#ring').addEventListener('click', () => go('progress'));
+  $('#ring').addEventListener('click', () => go('progress', false));
   document.addEventListener('click', (e) => {
     const chip = e.target.closest('.chip');
     if (chip) setCategoryFilter(chip.dataset.c || null);

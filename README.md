@@ -272,7 +272,7 @@ Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
 - Host und Port lassen sich über `PHP_SERVER_HOST` und `PHP_SERVER_PORT` ändern.
 - Die Bilder in `uploads/` werden vom Reset nicht angefasst.
 - Die Import- und Migrationsskripte (`create_admins.php`, `migrate_*.php`), Seed-JSONs und Beispielbilder liegen archiviert in `setup/OLD/`. Ein einzelnes Admin-Passwort lässt sich weiterhin mit `php setup/OLD/create_admins.php <benutzer> <passwort>` setzen (mind. 12 Zeichen).
-- Ohne Reset wird die Datenbank beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`).
+- Ohne Reset wird die Datenbank beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`); additive Schemaänderungen wie `teaser_text` werden bei bestehenden Datenbanken idempotent nachgezogen.
 - Abweichende Einstellungen (z. B. DB-Pfad außerhalb des Webroots) in `includes/config.local.php` als `return [...]` ablegen.
 
 ### Automatisierte Tests (Playwright)

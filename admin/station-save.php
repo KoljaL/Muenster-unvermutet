@@ -98,20 +98,20 @@ if ($errors) {
 try {
     $pdo->beginTransaction();
     $ts = now();
-    $values = [$number, $s['title'], $s['hint'], $s['lat'], $s['lon'], $s['correct'], $s['solution_title'],
+    $values = [$number, $s['title'], $s['teaser_text'], $s['hint'], $s['lat'], $s['lon'], $s['correct'], $s['solution_title'],
         $s['solution_caption'] ?: null, $s['info'], $final['task_image'], $final['solution_image'] ?: null,
         $s['category'], $s['status']];
     if ($mode === 'update') {
         $pdo->prepare(
-            'UPDATE stations SET number=?, title=?, hint=?, lat=?, lon=?, correct_option_index=?, solution_title=?, solution_caption=?,
+            'UPDATE stations SET number=?, title=?, teaser_text=?, hint=?, lat=?, lon=?, correct_option_index=?, solution_title=?, solution_caption=?,
              info=?, task_image=?, solution_image=?, category=?, status=?, updated_at=? WHERE id=?'
         )->execute(array_merge($values, [$ts, $id]));
         $pdo->prepare('DELETE FROM options WHERE station_id = ?')->execute([$id]);
         $pdo->prepare('DELETE FROM links WHERE station_id = ?')->execute([$id]);
     } else {
         $pdo->prepare(
-            'INSERT INTO stations (number, title, hint, lat, lon, correct_option_index, solution_title, solution_caption,
-             info, task_image, solution_image, category, status, id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            'INSERT INTO stations (number, title, teaser_text, hint, lat, lon, correct_option_index, solution_title, solution_caption,
+             info, task_image, solution_image, category, status, id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         )->execute(array_merge($values, [$id, $ts, $ts]));
     }
     $opt = $pdo->prepare('INSERT INTO options (station_id, option_index, option_text) VALUES (?, ?, ?)');

@@ -34,6 +34,7 @@ $data = [
     'id' => $s['id'],
     'number' => (int) $s['number'],
     'title' => $s['title'],
+    'teaserText' => (string) ($s['teaser_text'] ?? ''),
     'lat' => (float) $s['lat'],
     'lon' => (float) $s['lon'],
     'category' => $s['category'],

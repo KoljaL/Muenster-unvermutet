@@ -41,6 +41,7 @@ test.describe('Admin (lokale Testdatenbank)', () => {
 
     await page.getByRole('link', { name: '+ Neue Station' }).click();
     await page.locator('#title').fill(stationTitle);
+    await page.locator('#teaser_text').fill('Ein kurzer Anreißer für die Station.');
     await page.locator('#hint').fill('Playwright-Hinweis');
     await page.locator('#lat').fill('51.9622');
     await page.locator('#lon').fill('7.6278');
@@ -60,6 +61,8 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     const editHref = await stationRow.getByRole('link', { name: 'Bearbeiten' }).getAttribute('href');
     const editUrl = new URL(editHref, page.url()).toString();
     await page.goto(editUrl);
+    await expect(page.locator('#teaser_text')).toHaveValue('Ein kurzer Anreißer für die Station.');
+    await page.locator('#teaser_text').fill('Geänderter Anreißer mit <Klartext>.');
     await page.locator('#title').fill(editedStationTitle);
     await page.locator('form[action="station-save.php"]').evaluate((form) => form.requestSubmit());
     stationRow = page.locator('.station-item').filter({ hasText: editedStationTitle });
@@ -67,6 +70,7 @@ test.describe('Admin (lokale Testdatenbank)', () => {
 
     const editLink = stationRow.getByRole('link', { name: 'Bearbeiten' });
     await page.goto(new URL(await editLink.getAttribute('href'), page.url()).toString());
+    await expect(page.locator('#teaser_text')).toHaveValue('Geänderter Anreißer mit <Klartext>.');
     const stationId = await page.locator('[name="orig_id"]').inputValue();
     const csrf = await page.locator('main [name="csrf"]').inputValue();
     const archiveResponse = await page.request.post('admin/station-delete.php', {

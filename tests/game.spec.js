@@ -51,11 +51,61 @@ test.describe('Start und Übersicht', () => {
 
   test('Tab-Navigation wechselt die Bereiche', async ({ page }) => {
     await openGame(page);
-    for (const [tab, panel] of [['progress', '#p-progress'], ['more', '#p-more']]) {
+    const expectTab = async (selected) => {
+      await expect(page.locator('.tab[aria-selected="true"]')).toHaveCount(1);
+      await expect(page.locator(`.tab[data-t="${selected}"]`)).toHaveAttribute('aria-selected', 'true');
+
+      for (const [tab, panel] of [['progress', '#p-progress'], ['more', '#p-more']]) {
+        const active = tab === selected;
+        if (active) await expect(page.locator(panel)).toBeVisible();
+        else await expect(page.locator(panel)).toBeHidden();
+        await expect(page.locator(panel)).toHaveJSProperty('inert', !active);
+      }
+
+      const listActive = selected === 'list';
+      await expect(page.locator('#sheet')).toHaveAttribute('data-snap', listActive ? 'full' : 'hidden');
+      await expect(page.locator('#sheet')).toHaveJSProperty('inert', !listActive);
+    };
+
+    for (const [tab, nextTab] of [['list', 'progress'], ['progress', 'more'], ['more', 'list']]) {
       await page.locator(`.tab[data-t="${tab}"]`).tap();
-      await expect(page.locator(`.tab[data-t="${tab}"]`)).toHaveAttribute('aria-selected', 'true');
-      await expect(page.locator(panel)).toBeVisible();
+      await expectTab(tab);
+      await page.locator(`.tab[data-t="${nextTab}"]`).tap();
+      await expectTab(nextTab);
+      await page.locator(`.tab[data-t="${nextTab}"]`).tap();
+      await expectTab('map');
     }
+
+    await page.setViewportSize({ width: 320, height: 640 });
+    const tabLayout = await page.evaluate(() => {
+      const appRect = document.querySelector('#app').getBoundingClientRect();
+      const tabs = document.querySelector('#tabs');
+      return {
+        width: tabs.clientWidth,
+        scrollWidth: tabs.scrollWidth,
+        buttons: Array.from(tabs.querySelectorAll('.tab')).map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { left: rect.left, right: rect.right };
+        }),
+      };
+    });
+    expect(tabLayout.scrollWidth).toBeLessThanOrEqual(tabLayout.width);
+    expect(tabLayout.buttons.every((button) => button.left >= 0 && button.right <= 320)).toBe(true);
+
+    for (const tab of ['list', 'progress', 'more']) {
+      await page.locator(`.tab[data-t="${tab}"]`).tap();
+      await expectTab(tab);
+      const surface = tab === 'list' ? '#list' : `#p-${tab}`;
+      const horizontalOverflow = await page.locator(surface).evaluate((element) => element.scrollWidth > element.clientWidth);
+      expect(horizontalOverflow).toBe(false);
+    }
+
+    const sheetMotion = await page.locator('#sheet').evaluate((element) => ({
+      reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      durations: getComputedStyle(element).transitionDuration,
+    }));
+    expect(sheetMotion.reduced).toBe(true);
+    expect(Math.max(...sheetMotion.durations.split(',').map((duration) => Number.parseFloat(duration) * 1000))).toBeLessThanOrEqual(1);
   });
 
   test('Kategorienfilter reduziert die Liste und "Alle" hebt ihn auf', async ({ page }) => {
@@ -113,9 +163,36 @@ test.describe('Station spielen', () => {
     await page.locator(`#list [data-station-id="${first().id}"]`).tap();
     await expect(page.locator('#sNum')).toHaveText(`Station ${first().number}`);
     await expect(page).toHaveURL(new RegExp(`station=${first().id}`));
+    await expect(page.locator('#sTeaser')).toBeHidden();
     await expect(page.locator('#sOptions .option')).toHaveCount(first().options.length);
     await page.locator('#back').tap();
     await expect(page).not.toHaveURL(/station=/);
+    await expect(page.locator('#station')).not.toHaveClass(/\bon\b/);
+    await expect(page.locator('.tab[data-t="list"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#sheet')).toHaveAttribute('data-snap', 'full');
+  });
+
+  test('optional sichtbarer Anreißer ist Klartext und lässt sich auf- und zuklappen', async ({ page }) => {
+    const station = stations[0];
+    const teaser = '<b>Ein langer Anreißer</b> mit genügend Inhalt, damit die Vorschau über mehrere Zeilen läuft. '.repeat(8);
+    await page.route('**/api/get_details.php*', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.data.teaserText = teaser;
+      await route.fulfill({ response, json: body });
+    });
+    await openGame(page, { path: `index.html?station=${station.id}` });
+
+    await expect(page.locator('#sTeaser')).toBeVisible();
+    await expect(page.locator('#sTitle')).toHaveText(station.title);
+    await expect(page.locator('#sTeaserText')).toHaveText(teaser);
+    await expect(page.locator('#sTeaserText b')).toHaveCount(0);
+    await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveAttribute('aria-expanded', 'false');
+    await page.locator('#sTeaser [data-act="teaser"]').tap();
+    await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveText('Weniger anzeigen');
+    await page.locator('#sTeaser [data-act="teaser"]').tap();
+    await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveAttribute('aria-expanded', 'false');
   });
 
   test('Browser-Zurück und -Vor wechseln zwischen Stationen', async ({ page }) => {
@@ -189,12 +266,68 @@ test.describe('Station spielen', () => {
     await expect(page.locator('#station')).toHaveClass(/solved/);
   });
 
+  test('gelöste Ansicht zeigt Bildunterschrift und optionale Orientierungskarte ohne Kartenlinks', async ({ page }) => {
+    const caption = 'Ein Test für die Bildunterschrift';
+    await page.route('**/api/get_details.php*', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.data.solutionCaption = caption;
+      body.data.solutionImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
+      await route.fulfill({ response, json: body });
+    });
+    await openGame(page, { path: `index.html?station=${first().id}` });
+    await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
+
+    await expect(page.locator('#station')).toHaveClass(/solved/);
+    await expect(page.locator('#imgSol')).toBeVisible();
+    await expect(page.locator('#sCaption')).toHaveText(caption);
+    expect(await page.locator('#sCaption').evaluate((captionNode) => (
+      captionNode.previousElementSibling?.id === 'hero' && captionNode.nextElementSibling?.classList.contains('body')
+    ))).toBe(true);
+    await expect(page.locator('#sCaption')).not.toContainText(/^Foto:/);
+    await expect(page.locator('#station .coords')).toHaveCount(0);
+    await expect(page.locator('#sSolved a[href*="google.com/maps"], #sSolved a[href*="openstreetmap.org"]')).toHaveCount(0);
+
+    const orientation = page.locator('#orient');
+    const summary = orientation.locator('summary');
+    await expect(summary).toHaveText('OpenStreetMap-Orientierungskarte');
+    await expect(orientation).toHaveJSProperty('open', false);
+    await summary.focus();
+    await page.keyboard.press('Enter');
+    await expect(orientation).toHaveJSProperty('open', true);
+    await expect(summary).toBeFocused();
+    await expect(page.locator('#orientMap')).toBeVisible();
+    const attribution = page.locator('#orientMap .leaflet-control-attribution');
+    if (await attribution.count()) await expect(attribution).toContainText('OSM');
+    await page.keyboard.press('Space');
+    await expect(orientation).toHaveJSProperty('open', false);
+    expect(await page.locator('#sScroll').evaluate((scroll) => scroll.scrollWidth <= scroll.clientWidth)).toBe(true);
+
+    const transitionDuration = await page.locator('#imgSol').evaluate((image) => getComputedStyle(image).transitionDuration);
+    expect(transitionDuration.split(',').every((duration) => Number.parseFloat(duration) <= 0.001)).toBe(true);
+  });
+
   test('Hinweis lässt sich ein- und ausklappen', async ({ page }) => {
     await openGame(page, { path: `index.html?station=${first().id}` });
+    await expect(page.locator('#sCoords')).toHaveCount(0);
+    await expect(page.locator('#sUnsolved a[href*="google.com/maps"]')).toHaveCount(0);
+    const order = await page.evaluate(() => {
+      const ids = ['sTitle', 'sTeaser', 'hintBox', 'sIntro', 'sOptions'];
+      return ids.map((id) => {
+        const node = document.getElementById(id);
+        return ids.filter((otherId) => {
+          const other = document.getElementById(otherId);
+          return Boolean(node && other && (node.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING));
+        }).length;
+      });
+    });
+    expect(order).toEqual([4, 3, 2, 1, 0]);
+
     const hint = page.locator('#action [data-act="hint"]');
     await hint.tap();
     await expect(hint).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#hintText')).toContainText(first().hint);
+    await expect(page.locator('#sOptions .option')).toHaveCount(first().options.length);
     await hint.tap();
     await expect(hint).toHaveAttribute('aria-expanded', 'false');
   });
@@ -426,6 +559,7 @@ test.describe('Backend-API', () => {
     for (const s of stations) {
       expect(s.options.length).toBeGreaterThanOrEqual(2);
       expect(s.correctOptionIndex).toBeLessThan(s.options.length);
+      expect(typeof s.teaserText).toBe('string');
     }
   });
 
@@ -482,6 +616,7 @@ test.describe('Backend-API', () => {
     const response = await request.get(`api/get_details.php?id=${station.id}&preview=ui.location_gate`);
     expect(response.ok()).toBeTruthy();
     const { data } = await response.json();
+    expect(data.teaserText).toBe('');
     for (const field of ['hint', 'options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links']) {
       expect(data).not.toHaveProperty(field);
     }
@@ -495,12 +630,23 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
 
   test('Antworten sind zunächst gesperrt und erscheinen nach der Freigabe', async ({ page, request }) => {
     const station = stations[0];
+    const teaser = 'Ein öffentlicher Anreißer, während Antworten noch geschützt sind.';
+    await page.route('**/api/get_details.php*', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.data.teaserText = teaser;
+      await route.fulfill({ response, json: body });
+    });
 
     await openGame(page, { path: gated(station.id) });
+    await expect(page.locator('#sTeaserText')).toHaveText(teaser);
+    await expect(page.locator('#sTeaser')).toBeVisible();
     await expect(page.locator('#sOptions [data-act="verify"]')).toBeVisible();
     await expect(page.locator('#sOptions .option')).toHaveCount(0);
     await expect(page.locator('#action [data-act="hint"]')).toHaveCount(0);
     await expect(page.locator('#action [data-act="reveal"]')).toHaveCount(0);
+    await expect(page.locator('#sCoords')).toHaveCount(0);
+    await expect(page.locator('#sUnsolved a[href*="google.com/maps"]')).toHaveCount(0);
 
     await page.locator('#sOptions [data-act="fake"]').tap();
 
@@ -510,6 +656,8 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     }
     await expect(page.locator('#action [data-act="hint"]')).toBeVisible();
     await expect(page.locator('#action [data-act="reveal"]')).toBeVisible();
+    await page.locator('#action [data-act="hint"]').tap();
+    await expect(page.locator('#hintText')).toContainText(station.hint);
 
     await page.locator(`#sOptions .option[data-i="${station.correctOptionIndex}"]`).tap();
     await expect(page.locator('#station')).toHaveClass(/solved/);

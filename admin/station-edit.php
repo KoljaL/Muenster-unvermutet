@@ -8,7 +8,7 @@ $pdo = db();
 $id = isset($_GET['id']) && is_string($_GET['id']) ? $_GET['id'] : null;
 $suggestionId = isset($_GET['suggestion']) && ctype_digit((string) $_GET['suggestion']) ? (int) $_GET['suggestion'] : null;
 
-$st = ['id' => '', 'number' => '', 'title' => '', 'hint' => '', 'lat' => '51.9622', 'lon' => '7.6278', 'category' => 'detail',
+$st = ['id' => '', 'number' => '', 'title' => '', 'teaser_text' => '', 'hint' => '', 'lat' => '51.9622', 'lon' => '7.6278', 'category' => 'detail',
     'status' => 'published', 'solution_title' => '', 'solution_caption' => '', 'info' => '', 'task_image' => '', 'solution_image' => '',
     'options' => ['', '', '', ''], 'correct' => 0, 'links' => []];
 
@@ -84,6 +84,9 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     </div>
     <label for="title">Titel (Rätselüberschrift)</label>
     <input type="text" id="title" name="title" required maxlength="200" value="<?= h($st['title']) ?>">
+    <label for="teaser_text">Anreißer (optional)</label>
+    <textarea id="teaser_text" name="teaser_text" maxlength="10000"><?= h($st['teaser_text']) ?></textarea>
+    <p class="muted">Klartext, höchstens 10.000 Zeichen. In der Station werden zunächst drei Zeilen angezeigt.</p>
     <label for="hint">Hinweis</label>
     <textarea id="hint" name="hint" required maxlength="1000"><?= h($st['hint']) ?></textarea>
   </fieldset>

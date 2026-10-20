@@ -91,8 +91,13 @@ function clean_links($titles, $urls): array
 function validate_station_input(array $in): array
 {
     $errors = [];
+    $teaserText = clean_text($in['teaser_text'] ?? '', 10001, true);
+    if (mb_strlen($teaserText) > 10000) {
+        $errors[] = 'Der Anreißer darf höchstens 10.000 Zeichen enthalten.';
+    }
     $s = [
         'title' => clean_text($in['title'] ?? '', 200),
+        'teaser_text' => mb_substr($teaserText, 0, 10000),
         'hint' => clean_text($in['hint'] ?? '', 1000, true),
         'solution_title' => clean_text($in['solution_title'] ?? '', 300),
         'solution_caption' => clean_text($in['solution_caption'] ?? '', 300),
