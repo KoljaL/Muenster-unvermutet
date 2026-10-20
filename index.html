@@ -190,6 +190,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .teaser p{margin:0 0 6px;color:var(--muted);white-space:pre-line}
 .teaser:not(.expanded) p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .teaser-toggle{padding:4px 0;border:0;background:none;color:var(--accent);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.public-text{white-space:pre-line;overflow-wrap:anywhere}
 .stagger>*{opacity:0;transform:translateY(18px)}
 .station.on .stagger>*{animation:rowin .6s var(--ease) forwards;animation-delay:calc(.2s + var(--i)*70ms)}
 .collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows .7s var(--ease),opacity .4s}
@@ -254,7 +255,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .modal{position:absolute;left:0;right:0;bottom:0;z-index:41;background:var(--bg);border-radius:28px 28px 0 0;padding:12px 20px calc(env(safe-area-inset-bottom) + 22px);max-height:90%;overflow-y:auto;
   transform:translateY(105%);transition:transform .55s var(--ease),visibility 0s .55s;visibility:hidden}
 .modal.on{transform:none;visibility:visible;transition:transform .55s var(--ease)}
-.modal h3{font-size:22px;margin:8px 0 4px}.modal p.sub{color:var(--muted);margin-bottom:14px}
+.privacy{font-size:14px;margin-bottom:14px}.privacy h4{font-size:15px;margin:14px 0 4px}.privacy p{margin-bottom:8px}.modal h3{font-size:22px;margin:8px 0 4px}.modal p.sub{color:var(--muted);margin-bottom:14px}
 .modal h3:focus{outline:none}
 .field{display:block;margin-bottom:12px;font-size:14px;font-weight:600;border:0;padding:0}
 .field input[type=text],.field textarea,.field select{display:block;width:100%;margin-top:6px;padding:13px 14px;border-radius:14px;border:2px solid var(--line);background:var(--solid);color:var(--text);font:inherit;font-weight:400}
@@ -344,12 +345,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <button type="button" data-look="night" aria-pressed="false">Nacht</button>
         </div></div>
       <button type="button" class="set" id="setA11y" role="switch" aria-checked="false"><span>Barrierefrei<small>Größere Pins und Schrift</small></span><i class="sw" aria-hidden="true"></i></button>
+      <button type="button" class="set" id="setStats" role="switch" aria-checked="false"><span>Anonyme Statistik<small>Zufällige Kennung, keine Standortdaten</small></span><i class="sw" aria-hidden="true"></i></button>
     </div>
     <div class="card">
       <button type="button" class="set" id="openSuggest" data-ui-option="suggest" aria-haspopup="dialog"><span>📍 Station vorschlagen</span><span aria-hidden="true">›</span></button>
       <button type="button" class="set" id="openHelp" aria-haspopup="dialog"><span>❓ So funktioniert's</span><span aria-hidden="true">›</span></button>
+      <button type="button" class="set" id="openPrivacy" aria-haspopup="dialog"><span>🔒 Datenschutz</span><span aria-hidden="true">›</span></button>
       <button type="button" class="set" id="openReset" style="color:var(--bad)" aria-haspopup="dialog"><span>↻ Fortschritt zurücksetzen</span><span aria-hidden="true">›</span></button>
     </div>
+    <section class="card" id="publicCredits" hidden><h3>Credits / Mitwirkende</h3><div class="public-text" id="publicCreditsText"></div></section>
+    <section class="card" id="publicImprint" hidden><h3>Impressum</h3><div class="public-text" id="publicImprintText"></div></section>
     <p style="color:var(--muted);font-size:13px;text-align:center">Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>-Mitwirkende</p>
   </section>
 
@@ -430,6 +435,39 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <div style="display:grid;gap:8px"><button type="button" class="btn danger" id="rsYes">Fortschritt löschen</button><button type="button" class="btn ghost" id="rsNo">Abbrechen</button></div>
   </div>
 
+  <div class="modal center-modal center" id="m-consent" role="dialog" aria-modal="true" aria-labelledby="coT" aria-describedby="coD">
+    <h3 id="coT" tabindex="-1">Anonyme Statistik erlauben?</h3>
+    <p class="sub" id="coD">Die Spielleitung möchte wissen, wie viele Menschen das Spiel nutzen. Wenn du zustimmst, wird eine zufällige Kennung (ohne Name, Standort oder IP-Adresse) gespeichert, dazu mit Zeitstempel: welche Stationen du öffnest, erreichst und löst, Fehlversuche sowie ob du Hinweis oder Lösung anzeigst. Ohne Zustimmung wird nichts gesendet. Du kannst das jederzeit in den Einstellungen ändern; bereits gesendete Daten bleiben gespeichert.</p>
+    <div style="display:grid;gap:8px"><button type="button" class="btn" id="coYes">Zustimmen</button><button type="button" class="btn ghost" id="coNo">Nicht zustimmen</button></div>
+  </div>
+
+  <div class="modal" id="m-privacy" role="dialog" aria-modal="true" aria-labelledby="pvT">
+    <h3 id="pvT" tabindex="-1">Datenschutz</h3>
+    <div class="privacy">
+      <h4>Verantwortlich</h4>
+      <p>Die Spielleitung von „Münster unvermutet“ (Name und Kontaktdaten laut Impressum der Webseite).</p>
+      <h4>Was nur auf deinem Gerät bleibt</h4>
+      <p>Dein Spielfortschritt (gelöste Stationen, Fehlversuche, Hinweise), die Anzeigeeinstellungen (Look, Barrierefrei) und deine Auswahl zur Statistik werden ausschließlich im Speicher deines Browsers (<code>localStorage</code>) abgelegt. Sie werden nicht an uns übertragen. „Fortschritt zurücksetzen“ löscht den Spielfortschritt.</p>
+      <h4>Standortprüfung</h4>
+      <p>Ist die Standortprüfung aktiv, sendet dein Gerät den aktuellen Standort einmalig an den Server, der nur die Entfernung zur Station berechnet. Der Standort wird nicht gespeichert. Für die Prüfung wird eine technisch notwendige Sitzung (Cookie <code>muenster_game</code>, bis zu 30 Tage) angelegt, die sich nur merkt, welche Stationen freigeschaltet sind. Zum Schutz vor Missbrauch wird die IP-Adresse kurzzeitig (höchstens 24 Stunden) für Anfragebegrenzungen vorgehalten.</p>
+      <h4>Anonyme Statistik (nur mit deiner Zustimmung)</h4>
+      <p><b>Zweck:</b> Die Spielleitung möchte wissen, wie viele Menschen das Spiel nutzen und wo Stationen zu schwer oder unklar sind.</p>
+      <p><b>Was gespeichert wird:</b> eine zufällig erzeugte Kennung (ohne Bezug zu Name, Gerät oder Konto), die Station, die Art des Ereignisses (Station geöffnet, Standort erreicht, Hinweis genutzt, falsche Antwort, Lösung angezeigt, richtig beantwortet, Spiel abgeschlossen), bei Antworten die Zahl der Versuche und Datum mit Uhrzeit.</p>
+      <p><b>Was nicht gespeichert wird:</b> Standortdaten, IP-Adresse, Name, E-Mail, Geräte- oder Browserdaten, die gewählten Antworten.</p>
+      <p><b>Wer sieht es:</b> Die Daten sind nur im geschützten Admin-Bereich für die Spielleitung als Zahlen und Tageslisten einsehbar. Sie werden nicht an Dritte weitergegeben und nicht für Werbung verwendet.</p>
+      <p><b>Rechtsgrundlage:</b> deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Ohne Zustimmung wird nichts gesendet, das Spiel ist vollständig nutzbar. Es wird dann nur auf deinem Gerät vermerkt, dass du nicht zugestimmt hast.</p>
+      <p><b>Speicherdauer:</b> Die Statistikdaten werden nicht automatisch gelöscht.</p>
+      <p><b>Widerruf:</b> Unter „Mehr“ kannst du die Statistik jederzeit ausschalten. Danach werden keine Ereignisse mehr gesendet und die Kennung wird auf deinem Gerät entfernt. Bereits gespeicherte Ereignisse lassen sich dadurch nicht mehr dir zuordnen, weil die Kennung nicht mehr vorhanden ist. Auch nach „Fortschritt zurücksetzen“ erhältst du eine neue Kennung.</p>
+      <h4>Stationsvorschläge</h4>
+      <p>Wenn du eine Station vorschlägst, werden deine Eingaben (Text, optional Koordinaten und Angaben zur Station) zur Prüfung durch die Spielleitung gespeichert. Gib dabei keine personenbezogenen Daten an.</p>
+      <h4>Karte</h4>
+      <p>Für die Karte werden Kartenkacheln von OpenStreetMap geladen und Leaflet von unpkg.com. Dabei erhalten diese Anbieter technisch bedingt deine IP-Adresse.</p>
+      <h4>Deine Rechte</h4>
+      <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch und Beschwerde bei einer Datenschutzaufsichtsbehörde. Da die Statistik nur eine zufällige Kennung enthält, können wir Daten nur zuordnen, wenn du uns deine Kennung nennst (sie steht im <code>localStorage</code> deines Browsers unter <code>muenster-unvermutet:player-id</code>).</p>
+    </div>
+    <button type="button" class="btn wide" id="pvClose">Schließen</button>
+  </div>
+
   <div class="modal" id="m-help" role="dialog" aria-modal="true" aria-labelledby="hlT">
     <h3 id="hlT" tabindex="-1">So funktioniert's</h3>
     <div id="hlBody" class="help-slide center" aria-live="polite"></div>
@@ -456,6 +494,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 const STORAGE_KEY = 'muenster-unvermutet:progress';
 const LEGACY_STORAGE_KEY = 'ms-suchspiel';
 const INTRO_STATE_KEY = 'muenster-unvermutet:intro-state';
+const CONSENT_KEY = 'muenster-unvermutet:stats-consent';
+const PLAYER_KEY = 'muenster-unvermutet:player-id';
 const LAYOUT_KEY = 'muenster-unvermutet:layout';
 const LOOK_KEY = 'muenster-unvermutet:look';
 const PROGRESS_VERSION = 1;
@@ -481,7 +521,7 @@ function previewQuery(separator = '&') {
   return preview === null ? '' : separator + 'preview=' + encodeURIComponent(preview);
 }
 const Api = {
-  urls: { pins: 'api/map_pins.php', details: 'api/get_details.php', categories: 'api/categories.php', submit: 'api/submit_station.php', settings: 'api/settings.php', verifyLocation: 'api/verify_location.php' },
+  urls: { pins: 'api/map_pins.php', details: 'api/get_details.php', categories: 'api/categories.php', submit: 'api/submit_station.php', settings: 'api/settings.php', verifyLocation: 'api/verify_location.php', track: 'api/track.php' },
   async fetchApi(url, options = {}) {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -510,6 +550,38 @@ const Api = {
     return this.fetchApi(this.urls.verifyLocation + previewQuery('?'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...location }) });
   },
 };
+
+/* Anonyme Statistik: nur nach Einwilligung, mit zufälliger Browser-Kennung, ohne Standortdaten */
+const Stats = {
+  consent() { try { return localStorage.getItem(CONSENT_KEY); } catch (e) { return null; } },
+  enabled() { return this.consent() === 'granted'; },
+  setConsent(granted) {
+    try {
+      localStorage.setItem(CONSENT_KEY, granted ? 'granted' : 'denied');
+      if (!granted) localStorage.removeItem(PLAYER_KEY);
+    } catch (e) { /* nur Sitzung */ }
+  },
+  newPlayer() { try { localStorage.removeItem(PLAYER_KEY); } catch (e) { /* egal */ } },
+  playerId() {
+    try {
+      let id = localStorage.getItem(PLAYER_KEY);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id || '')) {
+        id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+        localStorage.setItem(PLAYER_KEY, id);
+      }
+      return id;
+    } catch (e) { return null; }
+  },
+  track(event, stationId = null, attempts = null) {
+    if (!this.enabled() || new URLSearchParams(window.location.search).has('preview')) return;
+    const playerId = this.playerId();
+    if (!playerId) return;
+    const body = { playerId, event };
+    if (stationId) body.stationId = stationId;
+    if (attempts !== null) body.attempts = attempts;
+    fetch(Api.urls.track, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
+  },
+};
 const UI_DEFAULTS = Object.freeze({ suggest: true, legend: true, station_list: true, hint_button: true, reveal_button: true, location_gate: false, station_map: true, completion: true });
 let ui = UI_DEFAULTS;
 let locationConfig = { radius: 50, maxAccuracy: 50 };
@@ -518,6 +590,14 @@ function resolveUi(settings) {
   const resolved = {};
   Object.keys(UI_DEFAULTS).forEach((key) => { resolved[key] = settings && typeof settings[key] === 'boolean' ? settings[key] : UI_DEFAULTS[key]; });
   return Object.freeze(resolved);
+}
+function renderPublicText(settings) {
+  const credits = typeof settings?.credits === 'string' ? settings.credits : '';
+  const imprint = typeof settings?.imprint === 'string' ? settings.imprint : '';
+  $('#publicCreditsText').innerHTML = credits;
+  $('#publicCredits').hidden = credits.trim() === '';
+  $('#publicImprintText').innerHTML = imprint;
+  $('#publicImprint').hidden = imprint.trim() === '';
 }
 function applyUiSettings() {
   $$('[data-ui-option]').forEach((el) => { if (!isEnabled(el.dataset.uiOption)) el.remove(); });
@@ -813,6 +893,7 @@ function openStation(id, opts = {}) {
   if (!stationsById.has(id)) return;
   const source = opts.source || 'user';
   if (source === 'user') { updateStationUrl(id, 'push'); markIntroSeen(); }
+  if (source !== 'history') Stats.track('opened', id);
   U.selectedId = id;
   U.lastTrigger = opts.trigger || null;
   U.optionsKey = ''; U.orientKey = ''; U.teaserExpanded = false;
@@ -1126,6 +1207,7 @@ async function verifyStationLocation(stationId, devFake = false) {
     try { result = await verification; } finally { pendingLocationRequests.delete(verification); }
     if (generation !== locationGeneration) return;
     if (!result.success) { locationStates.set(stationId, { message: locationResultMessage(result) }); return; }
+    Stats.track('location_verified', stationId);
     locationStates.set(stationId, { loading: true, message: 'Standort bestätigt. Antworten werden geladen …' });
     Store.update(stationId, { locationVerified: true });
     const station = stationsById.get(stationId);
@@ -1153,6 +1235,8 @@ async function verifyStationLocation(stationId, devFake = false) {
 function markSolved(id, selectedOptionIndex) {
   const st = stationsById.get(id);
   Store.update(id, { solved: true, selectedOptionIndex });
+  if (selectedOptionIndex !== null) Stats.track('solved', id, Store.get(id).attempts);
+  if (countSolved() === stations.length) Stats.track('game_completed');
   if (U.selectedId === id) { renderStation(); renderProgress(); renderList(); updateMapPins(); }
   else renderAll();
   announce('Station ' + st.number + ' gelöst: ' + st.solutionTitle + (countSolved() === stations.length ? '. Alle Aufgaben sind gelöst.' : ''));
@@ -1170,6 +1254,7 @@ function selectOption(id, index, btn) {
   }
   U.freshWrong = index;
   Store.update(id, { attempts: Store.get(id).attempts + 1, selectedOptionIndex: index });
+  Stats.track('wrong_answer', id, Store.get(id).attempts);
   buzz(80);
   renderStation();
   announce('Noch nicht – probier es nochmal oder nutze den Hinweis.');
@@ -1178,6 +1263,7 @@ function toggleHint() {
   const id = U.selectedId, station = stationsById.get(id);
   if (isEnabled('location_gate') && (!station || !station.protectedDetailsLoaded)) return;
   const p = Store.get(id), visible = !p.hintVisible;
+  if (visible && !p.hintUsed) Stats.track('hint_used', id);
   Store.update(id, { hintUsed: p.hintUsed || visible, hintVisible: visible });
   renderStation();
   renderProgress();
@@ -1212,6 +1298,7 @@ function handleStationClick(event) {
     case 'reveal':
       if (isEnabled('location_gate') && !stationsById.get(id).protectedDetailsLoaded) break;
       Store.update(id, { revealed: true });
+      Stats.track('solution_shown', id);
       markSolved(id, null);
       break;
     case 'retry': Store.detailsErrors.delete(id); renderStation(); ensureDetails(id); break;
@@ -1277,6 +1364,7 @@ function shouldShowIntro() { try { return localStorage.getItem(INTRO_STATE_KEY) 
 function confirmProgressReset() {
   locationGeneration += 1;
   Store.reset();
+  Stats.newPlayer();
   playerLocations.clear();
   locationStates.clear();
   if (isEnabled('location_gate')) stations.forEach(clearProtectedDetails);
@@ -1453,9 +1541,22 @@ function initializeUi() {
   $('#loadRetry').addEventListener('click', loadStations);
   $('#lookSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setLook(b.dataset.look); });
   $('#setA11y').addEventListener('click', () => { const on = $('#setA11y').getAttribute('aria-checked') !== 'true'; setAccessible(on); announce(on ? 'Barrierefrei: größere Pins und Schrift.' : 'Barrierefrei aus.'); });
+  const renderStatsSwitch = () => $('#setStats').setAttribute('aria-checked', String(Stats.enabled()));
+  renderStatsSwitch();
+  $('#setStats').addEventListener('click', () => { const on = !Stats.enabled(); Stats.setConsent(on); renderStatsSwitch(); announce(on ? 'Anonyme Statistik erlaubt.' : 'Anonyme Statistik nicht erlaubt.'); });
+  const answerConsent = (granted) => {
+    Stats.setConsent(granted);
+    renderStatsSwitch();
+    closeModal(false);
+    if (shouldShowIntro() && !U.selectedId) setTimeout(() => openHelp(null), 400);
+  };
+  $('#coYes').addEventListener('click', () => answerConsent(true));
+  $('#coNo').addEventListener('click', () => answerConsent(false));
   $('#openHelp').addEventListener('click', (e) => openHelp(e.currentTarget));
   $('#openHelpMap').addEventListener('click', (e) => openHelp(e.currentTarget));
   $('#hlNext').addEventListener('click', () => { if (helpIndex === HELP.length - 1) { markIntroSeen(); closeModal(); } else { helpIndex += 1; renderHelp(); } });
+  $('#openPrivacy').addEventListener('click', (e) => showModal('#m-privacy', e.currentTarget));
+  $('#pvClose').addEventListener('click', () => closeModal());
   $('#openReset').addEventListener('click', (e) => showModal('#m-reset', e.currentTarget));
   $('#rsNo').addEventListener('click', () => closeModal());
   $('#rsYes').addEventListener('click', confirmProgressReset);
@@ -1501,6 +1602,7 @@ async function loadStations() {
       ui = resolveUi(settings && settings.ui);
       const lc = settings && settings.location;
       locationConfig = { radius: Number.isFinite(lc && lc.radius) ? lc.radius : 50, maxAccuracy: Number.isFinite(lc && lc.maxAccuracy) ? lc.maxAccuracy : 50 };
+      renderPublicText(settings && settings.publicText);
       initializeUi();
     }
     if (result.error) throw result.error;
@@ -1517,7 +1619,8 @@ async function loadStations() {
     renderAll();
     if (!stations.length) showLoadError('Aktuell sind keine Stationen verfügbar.', false);
     handleStationUrlChange(true);
-    if (!U.selectedId && shouldShowIntro()) setTimeout(() => openHelp(null), 500);
+    if (Stats.consent() === null) setTimeout(() => showModal('#m-consent', null), 500);
+    else if (!U.selectedId && shouldShowIntro()) setTimeout(() => openHelp(null), 500);
   } catch (error) {
     U.loading = false;
     if (!initialized) { initializeUi(); }

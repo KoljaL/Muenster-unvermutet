@@ -4,6 +4,8 @@ import { test as base, expect } from '@playwright/test';
 export const KEYS = {
   progress: 'muenster-unvermutet:progress',
   intro: 'muenster-unvermutet:intro-state',
+  consent: 'muenster-unvermutet:stats-consent',
+  player: 'muenster-unvermutet:player-id',
 };
 
 export const IS_LIVE = process.env.TEST_ENV === 'live';
@@ -17,15 +19,16 @@ export const test = base.extend({
 });
 
 /** Öffnet das Spiel mit übersprungenem Intro und optional vorbelegtem Fortschritt. */
-export async function openGame(page, { path = 'index.html', skipIntro = true, progress = null } = {}) {
+export async function openGame(page, { path = 'index.html', skipIntro = true, progress = null, consent = 'denied' } = {}) {
   await page.addInitScript(
-    ({ keys, skipIntro, progress }) => {
+    ({ keys, skipIntro, progress, consent }) => {
       if (sessionStorage.getItem('pw-init')) return;
       sessionStorage.setItem('pw-init', '1');
       if (skipIntro) localStorage.setItem(keys.intro, 'closed');
+      if (consent) localStorage.setItem(keys.consent, consent);
       if (progress) localStorage.setItem(keys.progress, JSON.stringify(progress));
     },
-    { keys: KEYS, skipIntro, progress },
+    { keys: KEYS, skipIntro, progress, consent },
   );
   await page.goto(path);
   await expect(page.locator('#ringTxt')).not.toHaveText('–');

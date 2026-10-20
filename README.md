@@ -154,6 +154,31 @@ vollständige Formularformat rückwärtskompatibel. Basisdaten werden direkt als
 Standort sind erlaubt. Die Redaktion ergänzt und validiert die vollständigen
 Stationsdaten im Admin-Bereich, bevor ein Vorschlag veröffentlicht wird.
 
+## Anonyme Statistik
+
+Beim ersten Start fragt das Spiel nach der Einwilligung zur anonymen Statistik.
+Die Auswahl steht unter `muenster-unvermutet:stats-consent` (`granted` oder `denied`)
+im `localStorage` und lässt sich in den Einstellungen („Anonyme Statistik“) ändern.
+
+- **Ohne Zustimmung** wird nichts gesendet und keine Kennung angelegt; gespeichert
+  wird nur lokal, dass nicht zugestimmt wurde.
+- **Mit Zustimmung** erzeugt der Browser eine zufällige UUID
+  (`muenster-unvermutet:player-id`) und sendet an `api/track.php` die Ereignisse
+  `opened`, `location_verified`, `hint_used`, `wrong_answer`, `solution_shown`,
+  `solved` und `game_completed`, bei `wrong_answer` und `solved` mit der Zahl der
+  Versuche. Der Server ergänzt den Zeitstempel und speichert alles in `stat_events`.
+  Koordinaten, IP-Adresse, User-Agent und Name werden nicht gespeichert.
+- `location_verified`, `solution_shown`, `solved` und `game_completed` werden pro
+  Kennung und Station nur einmal erfasst.
+- Ein Widerruf stoppt das Senden und entfernt die Kennung im Browser; bereits
+  gespeicherte Ereignisse bleiben erhalten, Rohdaten werden nicht automatisch gelöscht.
+  „Fortschritt zurücksetzen“ vergibt eine neue Kennung.
+- Mit `?preview=…` wird nichts gesendet, damit Tests der Redaktion die Zahlen nicht verfälschen.
+- Das Rate-Limit von `api/track.php` arbeitet pro Kennung statt pro IP-Adresse.
+
+Die Auswertung steht im Admin-Bereich unter **Statistik**: Kennzahlen, Tagesübersicht
+mit allen Ereignistypen, Detailliste je Tag und Zahlen pro Station.
+
 ## Browserunterstützung und bekannte Einschränkungen
 
 - Benötigt werden JavaScript, `fetch`, `localStorage`, `window.matchMedia`,

@@ -44,11 +44,15 @@ function current_admin(): ?array
     return ['id' => (int) $_SESSION['admin_id'], 'username' => (string) $_SESSION['admin_name']];
 }
 
-function require_admin(): array
+function require_admin(bool $allowPasswordChange = false): array
 {
     $admin = current_admin();
     if ($admin === null) {
         header('Location: login.php?expired=1');
+        exit;
+    }
+    if (!$allowPasswordChange && !empty($_SESSION['must_change_password'])) {
+        header('Location: password.php');
         exit;
     }
     return $admin;
@@ -68,7 +72,7 @@ function logout_admin(): void
 /** @return bool true bei Erfolg */
 function attempt_login(string $username, string $password): bool
 {
-    $stmt = db()->prepare('SELECT id, username, password_hash FROM admins WHERE username = ? AND active = 1');
+    $stmt = db()->prepare('SELECT id, username, password_hash, must_change_password FROM admins WHERE username = ? AND active = 1');
     $stmt->execute([$username]);
     $admin = $stmt->fetch();
     // Konstante Rechenzeit auch bei unbekanntem Benutzer.
@@ -80,7 +84,18 @@ function attempt_login(string $username, string $password): bool
     session_regenerate_id(true);
     $_SESSION['admin_id'] = (int) $admin['id'];
     $_SESSION['admin_name'] = $admin['username'];
+    $_SESSION['must_change_password'] = (int) $admin['must_change_password'];
     $_SESSION['last_activity'] = time();
     $_SESSION['csrf'] = bin2hex(random_bytes(32));
     return true;
+}
+
+function generate_temporary_password(): string
+{
+    $alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    $out = '';
+    for ($i = 0; $i < 16; $i++) {
+        $out .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+    }
+    return $out;
 }

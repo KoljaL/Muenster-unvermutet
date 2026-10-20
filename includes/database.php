@@ -24,6 +24,10 @@ function db(): PDO
         if (!in_array('teaser_text', $stationColumns, true)) {
             $pdo->exec('ALTER TABLE stations ADD COLUMN teaser_text TEXT');
         }
+        $adminColumns = $pdo->query('PRAGMA table_info(admins)')->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('must_change_password', $adminColumns, true)) {
+            $pdo->exec('ALTER TABLE admins ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0');
+        }
     }
     return $pdo;
 }

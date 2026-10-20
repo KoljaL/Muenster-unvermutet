@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/settings.php';
 $admin = require_admin();
 $states = ui_setting_states();
 $locationSettings = location_settings();
+$publicTexts = public_text_settings();
 $groups = [];
 foreach (UI_REGISTRY as $key => $definition) {
     $groups[$definition['group']][$key] = $definition;
@@ -46,6 +47,32 @@ admin_header('Einstellungen', $admin);
       </label>
     </fieldset>
   </fieldset>
+  <fieldset class="setting-group">
+    <legend>Credits und Impressum</legend>
+    <p>Diese Texte erscheinen in der Ansicht „Mehr“ oberhalb des OpenStreetMap-Hinweises. HTML für Überschriften, Absätze, Listen und Links wird ausgeführt. Links können mit <code>target="_blank" rel="noopener noreferrer"</code> in einem neuen Tab geöffnet werden. Bearbeite die Inhalte nur als vertrauenswürdiger Administrator.</p>
+    <label for="public-credits">Credits / Mitwirkende</label>
+    <textarea id="public-credits" name="public_text[credits]" maxlength="<?= PUBLIC_TEXT_LIMIT ?>" rows="5"><?= h($publicTexts['credits']) ?></textarea>
+    <label for="public-imprint">Impressum</label>
+    <textarea id="public-imprint" name="public_text[imprint]" maxlength="<?= PUBLIC_TEXT_LIMIT ?>" rows="8"><?= h($publicTexts['imprint']) ?></textarea>
+  </fieldset>
   <div class="admin-toolbar"><button type="submit">Einstellungen speichern</button></div>
 </form>
+<fieldset class="setting-group">
+  <legend>Datenbank sichern</legend>
+  <p>Lade eine Sicherung der Datenbank herunter oder stelle eine zuvor exportierte SQLite-Datei wieder her. Der Export erhält den Dateinamen <code>yyyymmdd-ms-unvermutet.sqlite</code>.</p>
+  <div class="admin-toolbar">
+    <form method="post" action="database-transfer.php">
+      <?= csrf_field() ?>
+      <input type="hidden" name="action" value="export">
+      <button type="submit">Datenbank exportieren</button>
+    </form>
+  </div>
+  <form method="post" action="database-transfer.php" enctype="multipart/form-data" onsubmit="return confirm('Der Import ersetzt die aktuelle Datenbank vollständig. Möchtest du fortfahren?')">
+    <?= csrf_field() ?>
+    <input type="hidden" name="action" value="import">
+    <label for="database-file">SQLite-Sicherungsdatei</label>
+    <input id="database-file" type="file" name="database_file" accept=".sqlite,.sqlite3,application/vnd.sqlite3" required>
+    <div class="admin-toolbar"><button type="submit">Datenbank importieren</button></div>
+  </form>
+</fieldset>
 <?php admin_footer();

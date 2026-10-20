@@ -31,5 +31,6 @@ echo json_encode([
             'radius' => $location['location_radius_m'],
             'maxAccuracy' => $location['location_max_accuracy_m'],
         ],
+        'publicText' => public_text_settings(),
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

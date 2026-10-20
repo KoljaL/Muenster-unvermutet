@@ -160,6 +160,19 @@ INSERT INTO categories VALUES('faith','Glaube','Kirchen und religiöse Orte.',NU
 INSERT INTO categories VALUES('detail','Details','Kleine Besonderheiten am Wegesrand.',NULL,'#065f46','2026-10-15 16:02:37','2026-10-15 16:02:37');
 INSERT INTO categories VALUES('culture','Kultur','Kultur, Brauchtum und Kuriositäten.',NULL,'#b45309','2026-10-15 16:02:37','2026-10-15 16:02:37');
 INSERT INTO settings VALUES('ui.location_gate','on','2026-10-19 17:44:00');
+INSERT INTO settings VALUES('public_credits','<p><strong>Credits &amp; Mitwirkende</strong></p>
+<ul>
+  <li>Idee und Redaktion: <a href="https://redaktion.example.invalid" target="_blank" rel="noopener noreferrer">Beispielredaktion Münster</a></li>
+  <li>Fotos: <a href="https://fotografie.example.invalid" target="_blank" rel="noopener noreferrer">Mara Muster</a></li>
+  <li>Mit Dank an alle, die Münster mit offenen Augen entdecken.</li>
+</ul>','2026-10-21T00:00:00+02:00');
+INSERT INTO settings VALUES('public_imprint','<p><strong>Beispielverein Münster e. V.</strong><br>
+Musterstraße 12<br>
+48143 Münster</p>
+<p>Vertreten durch den Vorstand: Erika Beispiel</p>
+<p>Kontakt: <a href="mailto:kontakt@example.invalid">kontakt@example.invalid</a><br>
+Telefon: <a href="tel:+492511234567">0251 1234567</a></p>
+<p><a href="https://verein.example.invalid" target="_blank" rel="noopener noreferrer">Vereinswebsite</a></p>','2026-10-21T00:00:00+02:00');
 INSERT INTO sqlite_sequence VALUES('admins',3);
 INSERT INTO sqlite_sequence VALUES('options',42);
 INSERT INTO sqlite_sequence VALUES('links',8);

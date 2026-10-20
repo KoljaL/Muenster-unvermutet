@@ -72,7 +72,9 @@ function admin_header(string $title, ?array $admin = null, string $extraHead = '
         'index.php' => ['Stationen', ['index.php', 'station-edit.php']],
         'categories.php' => ['Kategorien', ['categories.php', 'category-edit.php']],
         'suggestions.php' => ['Vorschläge', ['suggestions.php']],
+        'statistics.php' => ['Statistik', ['statistics.php']],
         'settings.php' => ['Einstellungen', ['settings.php']],
+        'admins.php' => ['Admins', ['admins.php', 'password.php']],
         'help.php' => ['Hilfe', ['help.php']],
     ];
     echo '<!doctype html><html lang="de"><head><meta charset="utf-8">',

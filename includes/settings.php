@@ -67,6 +67,64 @@ const UI_REGISTRY = [
 const UI_SETTING_STATES = ['off', 'on', 'test'];
 const LOCATION_SETTING_DEFAULTS = ['location_radius_m' => 50, 'location_max_accuracy_m' => 50];
 const LOCATION_SETTING_LIMITS = ['location_radius_m' => [5, 5000], 'location_max_accuracy_m' => [1, 500]];
+const PUBLIC_TEXT_LIMIT = 10000;
+
+/** @return array{credits: string, imprint: string} */
+function public_text_settings(): array
+{
+    $settings = ['credits' => '', 'imprint' => ''];
+    $rows = db()->query("SELECT key, value FROM settings WHERE key IN ('public_credits', 'public_imprint')")->fetchAll();
+    foreach ($rows as $row) {
+        if ($row['key'] === 'public_credits') {
+            $settings['credits'] = (string) $row['value'];
+        } elseif ($row['key'] === 'public_imprint') {
+            $settings['imprint'] = (string) $row['value'];
+        }
+    }
+    return $settings;
+}
+
+/** @param array<string, mixed> $values
+ *  @return array{credits: string, imprint: string}
+ */
+function validate_public_text_settings(array $values): array
+{
+    if (array_diff(array_keys($values), ['credits', 'imprint']) !== []) {
+        throw new InvalidArgumentException('Ungültiger öffentlicher Text.');
+    }
+
+    $validated = [];
+    foreach (['credits', 'imprint'] as $key) {
+        $value = $values[$key] ?? null;
+        if (!is_string($value) || mb_strlen($value) > PUBLIC_TEXT_LIMIT) {
+            throw new InvalidArgumentException('Öffentlicher Text ist ungültig oder zu lang.');
+        }
+        $validated[$key] = str_replace(["\r\n", "\r"], "\n", $value);
+    }
+    return $validated;
+}
+
+/** @param array{credits: string, imprint: string} $values */
+function save_public_text_settings(array $values): void
+{
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare(
+            'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+        );
+        $timestamp = now();
+        $statement->execute(['public_credits', $values['credits'], $timestamp]);
+        $statement->execute(['public_imprint', $values['imprint'], $timestamp]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
+    }
+}
 
 /** @return array{location_radius_m: int, location_max_accuracy_m: int} */
 function location_settings(): array

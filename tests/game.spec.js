@@ -10,12 +10,13 @@ test.beforeAll(async ({ playwright }, testInfo) => {
 
 test.describe('Start und Übersicht', () => {
   test('korrupter Speicher stürzt nicht ab und migriert alte Fortschrittsdaten', async ({ page }) => {
-    await page.addInitScript(({ progressKey, introKey }) => {
+    await page.addInitScript(({ progressKey, introKey, consentKey }) => {
       if (sessionStorage.getItem('pw-corrupt-progress')) return;
       sessionStorage.setItem('pw-corrupt-progress', '1');
       localStorage.setItem(progressKey, '{kaputt');
       localStorage.setItem(introKey, 'closed');
-    }, { progressKey: KEYS.progress, introKey: KEYS.intro });
+      localStorage.setItem(consentKey, 'denied');
+    }, { progressKey: KEYS.progress, introKey: KEYS.intro, consentKey: KEYS.consent });
     await page.goto('index.html');
     await expect(page.locator('#ringTxt')).toHaveText(`0/${stations.length}`);
 
@@ -40,7 +41,7 @@ test.describe('Start und Übersicht', () => {
 
   test('API-Fehler zeigt Hinweis mit Retry', async ({ page }) => {
     await page.route('**/api/map_pins.php', (route) => route.fulfill({ status: 500, json: { error: { message: 'kaputt' } } }));
-    await page.addInitScript((k) => localStorage.setItem(k, 'closed'), KEYS.intro);
+    await page.addInitScript(({ intro, consent }) => { localStorage.setItem(intro, 'closed'); localStorage.setItem(consent, 'denied'); }, { intro: KEYS.intro, consent: KEYS.consent });
     await page.goto('index.html');
     await expect(page.locator('#loadError')).toBeVisible();
     await page.unroute('**/api/map_pins.php');
@@ -536,6 +537,75 @@ test.describe('Station vorschlagen', () => {
     await page.locator('#sgDesc').fill('Automatisch erzeugt');
     await page.locator('#sgNext').tap();
     await expect(page.locator('#sgDone')).toBeVisible();
+  });
+});
+
+test.describe('Anonyme Statistik', () => {
+  const first = () => stations[0];
+  const wrongIndex = () => (first().correctOptionIndex + 1) % first().options.length;
+
+  async function recordTracking(page) {
+    const sent = [];
+    await page.route('**/api/track.php', (route) => {
+      sent.push(route.request().postDataJSON());
+      return route.fulfill({ status: 201, json: { data: { recorded: true } } });
+    });
+    return sent;
+  }
+
+  test('Ohne Zustimmung wird nichts gesendet und keine Kennung angelegt', async ({ page }) => {
+    const sent = await recordTracking(page);
+    await openGame(page, { skipIntro: false, consent: null, path: `index.html?station=${first().id}` });
+    await expect(page.locator('#m-consent')).toHaveClass(/on/);
+    await page.locator('#coNo').tap();
+    await expect(page.locator('#m-consent')).not.toHaveClass(/on/);
+    await page.locator(`#sOptions .option[data-i="${wrongIndex()}"]`).tap();
+    await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
+    await expect(page.locator('#station')).toHaveClass(/solved/);
+    expect(sent).toEqual([]);
+    expect(await page.evaluate((k) => [localStorage.getItem(k.consent), localStorage.getItem(k.player)], KEYS)).toEqual(['denied', null]);
+  });
+
+  test('Mit Zustimmung werden Ereignisse mit stabiler Kennung gesendet', async ({ page }) => {
+    const sent = await recordTracking(page);
+    await openGame(page, { consent: 'granted', path: `index.html?station=${first().id}` });
+    await page.locator(`#sOptions .option[data-i="${wrongIndex()}"]`).tap();
+    await page.locator('[data-act="hint"]').tap();
+    await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
+    await expect(page.locator('#station')).toHaveClass(/solved/);
+    await expect.poll(() => sent.map((e) => e.event)).toEqual(['opened', 'wrong_answer', 'hint_used', 'solved']);
+    expect(sent.map((e) => e.stationId)).toEqual(Array(4).fill(first().id));
+    expect(sent[1].attempts).toBe(1);
+    expect(sent[3].attempts).toBe(1);
+    expect(new Set(sent.map((e) => e.playerId)).size).toBe(1);
+    expect(sent[0].playerId).toMatch(/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/);
+    expect(JSON.stringify(sent)).not.toMatch(/lat|lon/i);
+  });
+
+  test('Einstellung widerruft die Zustimmung und entfernt die Kennung', async ({ page }) => {
+    const sent = await recordTracking(page);
+    await openGame(page, { consent: 'granted' });
+    await page.locator('.tab[data-t="more"]').tap();
+    await expect(page.locator('#setStats')).toHaveAttribute('aria-checked', 'true');
+    await page.locator('#setStats').tap();
+    await expect(page.locator('#setStats')).toHaveAttribute('aria-checked', 'false');
+    expect(await page.evaluate((k) => [localStorage.getItem(k.consent), localStorage.getItem(k.player)], KEYS)).toEqual(['denied', null]);
+    expect(sent).toEqual([]);
+  });
+
+  test('API nimmt gültige Ereignisse an und lehnt ungültige ab', async ({ request, baseURL }) => {
+    const headers = { Origin: new URL(baseURL).origin };
+    const playerId = crypto.randomUUID();
+    const ok = await request.post('api/track.php', { headers, data: { playerId, event: 'opened', stationId: first().id } });
+    expect(ok.status()).toBe(201);
+    const badEvent = await request.post('api/track.php', { headers, data: { playerId, event: 'nope', stationId: first().id } });
+    expect(badEvent.status()).toBe(422);
+    const badPlayer = await request.post('api/track.php', { headers, data: { playerId: 'x', event: 'opened', stationId: first().id } });
+    expect(badPlayer.status()).toBe(422);
+    const unknownStation = await request.post('api/track.php', { headers, data: { playerId, event: 'opened', stationId: 'gibt-es-nicht' } });
+    expect(unknownStation.status()).toBe(404);
+    const noOrigin = await request.post('api/track.php', { data: { playerId, event: 'opened', stationId: first().id } });
+    expect(noOrigin.status()).toBe(403);
   });
 });
 

@@ -114,5 +114,58 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     await expect(page.locator('.station-item').filter({ hasText: acceptedTitle })).toBeVisible();
     await page.goto('admin/suggestions.php');
     await expect(page.locator('fieldset.task-card').filter({ hasText: acceptedTitle })).toHaveCount(0);
+
+    await page.goto('admin/settings.php');
+    const creditsText = '<p><strong>Mitwirkende</strong></p><p><a href="https://credits.example.invalid" target="_blank" rel="noopener noreferrer">Beispiel-Link</a></p>';
+    const imprintText = '<p><strong>Beispielverein Münster e. V.</strong></p><p>Vertreten durch: Erika Beispiel</p><p><a href="https://impressum.example.invalid" target="_blank" rel="noopener noreferrer">Kontakt</a></p>';
+    await page.locator('#public-credits').fill(creditsText);
+    await page.locator('#public-imprint').fill(imprintText);
+    await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
+    await expect(page.getByRole('status')).toHaveText('Einstellungen gespeichert.');
+    const settingsResponse = await page.request.get('api/settings.php');
+    expect(settingsResponse.ok()).toBeTruthy();
+    const savedSettings = await settingsResponse.json();
+    expect(savedSettings.data.publicText).toEqual({ credits: creditsText, imprint: imprintText });
+
+    await page.locator('#database-file').setInputFiles({
+      name: 'invalid.sqlite',
+      mimeType: 'application/vnd.sqlite3',
+      buffer: Buffer.from('keine SQLite-Datenbank'),
+    });
+    await page.getByRole('button', { name: 'Datenbank importieren' }).click();
+    await expect(page.getByRole('alert')).toHaveText('Die Sicherungsdatei ist ungültig oder die Datenbank konnte nicht ersetzt werden.');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Datenbank exportieren' }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^\d{8}-ms-unvermutet\.sqlite$/);
+    const backupPath = await download.path();
+    expect(backupPath).toBeTruthy();
+    await page.locator('#database-file').setInputFiles(backupPath);
+    await page.getByRole('button', { name: 'Datenbank importieren' }).click();
+    await expect(page.getByRole('status')).toHaveText('Die Datenbank wurde erfolgreich importiert.');
+
+    await page.goto('admin/index.php');
+    await expect(page.locator('.station-item').filter({ hasText: editedStationTitle })).toBeVisible();
+
+    await page.addInitScript(() => {
+      localStorage.setItem('muenster-unvermutet:intro-state', 'closed');
+      localStorage.setItem('muenster-unvermutet:stats-consent', 'denied');
+    });
+    await page.goto('index.html');
+    await page.locator('.tab[data-t="more"]').tap();
+    await expect(page.locator('#publicCredits')).toBeVisible();
+    await expect(page.locator('#publicCreditsText strong')).toHaveText('Mitwirkende');
+    await expect(page.locator('#publicCreditsText a')).toHaveAttribute('href', 'https://credits.example.invalid');
+    await expect(page.locator('#publicCreditsText a')).toHaveAttribute('target', '_blank');
+    await expect(page.locator('#publicImprintText strong')).toHaveText('Beispielverein Münster e. V.');
+    await expect(page.locator('#publicImprintText a')).toHaveAttribute('href', 'https://impressum.example.invalid');
+    await expect(page.locator('#publicImprintText a')).toHaveAttribute('target', '_blank');
+    const sectionOrder = await page.locator('#p-more').evaluate((panel) => {
+      const ids = ['publicCredits', 'publicImprint'].map((id) => Array.from(panel.children).indexOf(document.getElementById(id)));
+      const attribution = Array.from(panel.children).findIndex((child) => child.textContent.includes('Kartendaten'));
+      return { ids, attribution };
+    });
+    expect(sectionOrder.ids.every((index) => index >= 0 && index < sectionOrder.attribution)).toBe(true);
   });
 });
