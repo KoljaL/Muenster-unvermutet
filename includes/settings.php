@@ -69,32 +69,38 @@ const LOCATION_SETTING_DEFAULTS = ['location_radius_m' => 50, 'location_max_accu
 const LOCATION_SETTING_LIMITS = ['location_radius_m' => [5, 5000], 'location_max_accuracy_m' => [1, 500]];
 const PUBLIC_TEXT_LIMIT = 10000;
 
-/** @return array{credits: string, imprint: string} */
+const PUBLIC_TEXT_KEYS = ['credits' => 'public_credits', 'imprint' => 'public_imprint', 'routeHint' => 'public_route_hint'];
+const PUBLIC_TEXT_DEFAULTS = [
+    'credits' => '',
+    'imprint' => '',
+    'routeHint' => 'Du findest den Ort selbst? Dann nutze „Standort aktualisieren“. Lieber mit Navigation? „Route starten“ öffnet deine Karten-App mit dem Ziel.',
+];
+
+/** @return array{credits: string, imprint: string, routeHint: string} */
 function public_text_settings(): array
 {
-    $settings = ['credits' => '', 'imprint' => ''];
-    $rows = db()->query("SELECT key, value FROM settings WHERE key IN ('public_credits', 'public_imprint')")->fetchAll();
+    $settings = PUBLIC_TEXT_DEFAULTS;
+    $rows = db()->query("SELECT key, value FROM settings WHERE key IN ('public_credits', 'public_imprint', 'public_route_hint')")->fetchAll();
+    $byDbKey = array_flip(PUBLIC_TEXT_KEYS);
     foreach ($rows as $row) {
-        if ($row['key'] === 'public_credits') {
-            $settings['credits'] = (string) $row['value'];
-        } elseif ($row['key'] === 'public_imprint') {
-            $settings['imprint'] = (string) $row['value'];
+        if (isset($byDbKey[$row['key']])) {
+            $settings[$byDbKey[$row['key']]] = (string) $row['value'];
         }
     }
     return $settings;
 }
 
 /** @param array<string, mixed> $values
- *  @return array{credits: string, imprint: string}
+ *  @return array{credits: string, imprint: string, routeHint: string}
  */
 function validate_public_text_settings(array $values): array
 {
-    if (array_diff(array_keys($values), ['credits', 'imprint']) !== []) {
+    if (array_diff(array_keys($values), array_keys(PUBLIC_TEXT_KEYS)) !== []) {
         throw new InvalidArgumentException('Ungültiger öffentlicher Text.');
     }
 
     $validated = [];
-    foreach (['credits', 'imprint'] as $key) {
+    foreach (array_keys(PUBLIC_TEXT_KEYS) as $key) {
         $value = $values[$key] ?? null;
         if (!is_string($value) || mb_strlen($value) > PUBLIC_TEXT_LIMIT) {
             throw new InvalidArgumentException('Öffentlicher Text ist ungültig oder zu lang.');
@@ -104,7 +110,7 @@ function validate_public_text_settings(array $values): array
     return $validated;
 }
 
-/** @param array{credits: string, imprint: string} $values */
+/** @param array{credits: string, imprint: string, routeHint: string} $values */
 function save_public_text_settings(array $values): void
 {
     $pdo = db();
@@ -115,8 +121,9 @@ function save_public_text_settings(array $values): void
              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
         );
         $timestamp = now();
-        $statement->execute(['public_credits', $values['credits'], $timestamp]);
-        $statement->execute(['public_imprint', $values['imprint'], $timestamp]);
+        foreach (PUBLIC_TEXT_KEYS as $key => $dbKey) {
+            $statement->execute([$dbKey, $values[$key], $timestamp]);
+        }
         $pdo->commit();
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) {

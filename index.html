@@ -236,6 +236,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @keyframes spin{to{transform:rotate(360deg)}}
 .loc.fail{background:color-mix(in srgb,var(--bad) 10%,var(--solid))}
 .loc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.route-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;text-decoration:none}
+.route-hint{font-size:13px;color:var(--muted);margin-top:10px}
 .btn{padding:14px 20px;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-weight:700;transition:transform .25s var(--spring),opacity .3s}
 .btn:active{transform:scale(.94)}.btn:disabled{opacity:.45}
 .btn.ghost{background:var(--bg);color:var(--text)}
@@ -603,13 +605,25 @@ const Stats = {
 const UI_DEFAULTS = Object.freeze({ suggest: true, legend: true, station_list: true, hint_button: true, reveal_button: true, location_gate: false, station_map: true, completion: true });
 let ui = UI_DEFAULTS;
 let locationConfig = { radius: 50, maxAccuracy: 50 };
+let routeHintText = '';
 const isEnabled = (key) => ui[key] === true;
 function resolveUi(settings) {
   const resolved = {};
   Object.keys(UI_DEFAULTS).forEach((key) => { resolved[key] = settings && typeof settings[key] === 'boolean' ? settings[key] : UI_DEFAULTS[key]; });
   return Object.freeze(resolved);
 }
+function routeUrl(st) {
+  const dest = st.lat + ',' + st.lon;
+  return isIos()
+    ? 'https://maps.apple.com/?daddr=' + encodeURIComponent(dest) + '&dirflg=w'
+    : 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(dest) + '&travelmode=walking';
+}
+function routeLinkHtml(st) {
+  return '<a class="btn ghost route-btn" href="' + esc(routeUrl(st)) + '" target="_blank" rel="noopener noreferrer">🧭 Route starten</a>';
+}
+function routeHintHtml() { return routeHintText ? '<p class="route-hint">' + esc(routeHintText) + '</p>' : ''; }
 function renderPublicText(settings) {
+  routeHintText = typeof settings?.routeHint === 'string' ? settings.routeHint.trim() : '';
   const credits = typeof settings?.credits === 'string' ? settings.credits : '';
   const imprint = typeof settings?.imprint === 'string' ? settings.imprint : '';
   $('#publicCreditsText').innerHTML = credits;
@@ -916,6 +930,8 @@ function openStation(id, opts = {}) {
   U.lastTrigger = opts.trigger || null;
   U.optionsKey = ''; U.orientKey = ''; U.teaserExpanded = false;
   destroyOrientMap();
+  const orientEl = $('#orient');
+  if (orientEl) orientEl.open = !Store.get(id).solved;
   const st = $('#station');
   setOrigin(opts.trigger);
   st.classList.remove('on');
@@ -1060,8 +1076,8 @@ function renderUnsolved(st, p, gated, solved) {
     const s = locationStates.get(st.id) || {};
     const msg = s.message || 'Begib dich zum abgebildeten Ort und aktualisiere anschließend deinen Standort.';
     const icon = s.loading ? '🧭' : s.message ? '🚶' : '📍';
-    box.innerHTML = '<div class="loc' + (s.loading ? ' busy' : '') + (s.message && !s.loading ? ' fail' : '') + '"><div class="loc-row"><span class="ic" aria-hidden="true">' + icon + '</span><p role="status" aria-live="polite">' + esc(msg) + '</p></div><div class="loc-actions"><button type="button" class="btn" data-act="verify"' + (s.loading ? ' disabled' : '') + '>Standort aktualisieren</button>' +
-      /* DEV-FAKE-POSITION (1/3) */ '<button type="button" class="btn dev" data-act="fake"' + (s.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>' /* /DEV-FAKE-POSITION */ + '</div></div>';
+    box.innerHTML = '<div class="loc' + (s.loading ? ' busy' : '') + (s.message && !s.loading ? ' fail' : '') + '"><div class="loc-row"><span class="ic" aria-hidden="true">' + icon + '</span><p role="status" aria-live="polite">' + esc(msg) + '</p></div><div class="loc-actions"><button type="button" class="btn" data-act="verify"' + (s.loading ? ' disabled' : '') + '>Standort aktualisieren</button>' + routeLinkHtml(st) +
+      /* DEV-FAKE-POSITION (1/3) */ '<button type="button" class="btn dev" data-act="fake"' + (s.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>' /* /DEV-FAKE-POSITION */ + '</div></div>' + routeHintHtml();
   } else {
     box.innerHTML = '<div class="options' + (animate ? ' enter' : '') + '">' + st.options.map((o, i) => {
       const wrong = !p.solved && p.selectedOptionIndex === i && i !== st.correctOptionIndex;

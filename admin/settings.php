@@ -55,6 +55,12 @@ admin_header('Einstellungen', $admin);
     <label for="public-imprint">Impressum</label>
     <textarea id="public-imprint" name="public_text[imprint]" maxlength="<?= PUBLIC_TEXT_LIMIT ?>" rows="8"><?= h($publicTexts['imprint']) ?></textarea>
   </fieldset>
+  <fieldset class="setting-group">
+    <legend>Navigation zur Station</legend>
+    <p>Dieser Text steht in der Aufgabenansicht unter den Buttons „Standort aktualisieren“ und „Route starten“ und erklärt den Unterschied zwischen interner und externer Navigation. Reiner Text, keine HTML-Auszeichnung.</p>
+    <label for="public-route-hint">Erläuterungstext</label>
+    <textarea id="public-route-hint" name="public_text[routeHint]" maxlength="<?= PUBLIC_TEXT_LIMIT ?>" rows="3"><?= h($publicTexts['routeHint']) ?></textarea>
+  </fieldset>
   <div class="admin-toolbar"><button type="submit">Einstellungen speichern</button></div>
 </form>
 <fieldset class="setting-group">

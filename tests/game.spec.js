@@ -292,8 +292,10 @@ test.describe('Station spielen', () => {
     const orientation = page.locator('#orient');
     const summary = orientation.locator('summary');
     await expect(summary).toHaveText('OpenStreetMap-Orientierungskarte');
-    await expect(orientation).toHaveJSProperty('open', false);
+    await expect(orientation).toHaveJSProperty('open', true);
     await summary.focus();
+    await page.keyboard.press('Enter');
+    await expect(orientation).toHaveJSProperty('open', false);
     await page.keyboard.press('Enter');
     await expect(orientation).toHaveJSProperty('open', true);
     await expect(summary).toBeFocused();
@@ -306,6 +308,24 @@ test.describe('Station spielen', () => {
 
     const transitionDuration = await page.locator('#imgSol').evaluate((image) => getComputedStyle(image).transitionDuration);
     expect(transitionDuration.split(',').every((duration) => Number.parseFloat(duration) <= 0.001)).toBe(true);
+  });
+
+  test('Route starten steht neben Standort aktualisieren mit Erläuterung', async ({ page }) => {
+    await page.route('**/api/settings.php*', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.data.publicText = { ...body.data.publicText, routeHint: 'Erläuterung Navigation' };
+      await route.fulfill({ response, json: body });
+    });
+    await openGame(page, { path: `index.html?preview=ui.location_gate&station=${first().id}` });
+    await expect(page.locator('#orient')).toHaveJSProperty('open', true);
+    const route = page.locator('#sOptions .loc-actions a.route-btn');
+    await expect(route).toBeVisible();
+    await expect(route).toHaveAttribute('target', '_blank');
+    await expect(route).toHaveAttribute('rel', /noopener/);
+    await expect(route).toHaveAttribute('href', /destination=|daddr=/);
+    await expect(page.locator('#sOptions .loc-actions [data-act="verify"]')).toBeVisible();
+    await expect(page.locator('#sOptions .route-hint')).toHaveText('Erläuterung Navigation');
   });
 
   test('Hinweis lässt sich ein- und ausklappen', async ({ page }) => {
@@ -716,7 +736,7 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     await expect(page.locator('#action [data-act="hint"]')).toHaveCount(0);
     await expect(page.locator('#action [data-act="reveal"]')).toHaveCount(0);
     await expect(page.locator('#sCoords')).toHaveCount(0);
-    await expect(page.locator('#sUnsolved a[href*="google.com/maps"]')).toHaveCount(0);
+    await expect(page.locator('#sUnsolved a[href*="google.com/maps"]:not(.route-btn)')).toHaveCount(0);
 
     await page.locator('#sOptions [data-act="fake"]').tap();
 

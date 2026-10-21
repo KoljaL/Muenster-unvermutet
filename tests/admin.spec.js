@@ -120,12 +120,14 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     const imprintText = '<p><strong>Beispielverein Münster e. V.</strong></p><p>Vertreten durch: Erika Beispiel</p><p><a href="https://impressum.example.invalid" target="_blank" rel="noopener noreferrer">Kontakt</a></p>';
     await page.locator('#public-credits').fill(creditsText);
     await page.locator('#public-imprint').fill(imprintText);
+    const routeHintText = 'Eigener Erläuterungstext zur Navigation.';
+    await page.locator('#public-route-hint').fill(routeHintText);
     await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
     await expect(page.getByRole('status')).toHaveText('Einstellungen gespeichert.');
     const settingsResponse = await page.request.get('api/settings.php');
     expect(settingsResponse.ok()).toBeTruthy();
     const savedSettings = await settingsResponse.json();
-    expect(savedSettings.data.publicText).toEqual({ credits: creditsText, imprint: imprintText });
+    expect(savedSettings.data.publicText).toEqual({ credits: creditsText, imprint: imprintText, routeHint: routeHintText });
 
     await page.locator('#database-file').setInputFiles({
       name: 'invalid.sqlite',
