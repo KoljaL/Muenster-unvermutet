@@ -1,0 +1,4 @@
+# MIME-Typ für das Web-App-Manifest (PWA-Installation)
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+</IfModule>

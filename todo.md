@@ -1,4 +1,8 @@
-Noch von euch zu klären
+#to do 
 
-Als Verantwortliche steht nur „Spielleitung (laut Impressum)“ drin. Name und Kontaktdaten müssen ergänzt werden, und die Webseite braucht ein Impressum.
-Die Erklärung ist ein sachlicher Entwurf und keine Rechtsberatung. Bitte lasst sie von eurer Datenschutzstelle prüfen, besonders die Punkte Speicherdauer und Auskunft über die Kennung.
+- alle Texte auf der Webseite (Datenschutz, PWA Install etc) müssen im Admin bereich bearbeitbar sein.
+- Icon besser machen
+- Header besser machen
+- Alle Animationen überprüfen und einheitlich gestalten.
+- Domain registrieren
+- alle DEV Features entfernen oder abschalten

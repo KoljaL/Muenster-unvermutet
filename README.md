@@ -235,6 +235,29 @@ Freigaben verknüpft werden.
 Freigaben ermöglichen, erfordert aber deutlich mehr Aufwand und zusätzliche
 Datenschutzanforderungen.
 
+## Installation als App (PWA)
+
+Das Spiel lässt sich zum Startbildschirm hinzufügen und öffnet sich dann
+ohne Browser-Adressleiste. **Es bleibt netzabhängig:** Es gibt keinen Service
+Worker und keinen Offline-Cache; Stationsdaten, Karte und Standortprüfung
+brauchen weiterhin eine Internetverbindung.
+
+- **iPhone/iPad (iOS 15+):** In Safari auf „Teilen“ → „Zum Home-Bildschirm“.
+  Die Home-Bildschirm-App kann einen eigenen Datenspeicher haben; ein vorher
+  im Browser gespeicherter Spielstand wird dann nicht automatisch übernommen.
+- **Android (Chrome, ab Android 12) und Desktop (Chrome/Edge):** Über das
+  Browsermenü „App installieren“ bzw. die Schaltfläche im Installationshinweis.
+- Beim ersten Besuch erscheint ein dezenter, schließbarer Hinweis
+  (`muenster-unvermutet:install-hint` in `localStorage`). In der installierten
+  App wird er nicht angezeigt.
+- Dateien: `manifest.webmanifest`, `assets/icons/`, `.htaccess` (MIME-Typ des
+  Manifests). `start_url` und `scope` sind relativ und passen zu
+  `https://stina-ms.de/muenster-unvermutet/`.
+- Die Symbole sind eine **vorläufige** Nachzeichnung von `MS_Rathhaus_Logo.jpg`
+  (`python3 tools/make-icons.py`, benötigt Pillow). Finale PNGs erstellt und
+  gibt die Designabteilung frei; sie ersetzen die Dateien in `assets/icons/`
+  (192, 512, 512-maskable, apple-touch-icon 180, favicon 32).
+
 ## Voraussetzungen und Dateien
 
 - Für die interaktive Karte und die Kartendaten wird eine Internetverbindung benötigt.

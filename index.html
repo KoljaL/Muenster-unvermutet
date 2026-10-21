@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Münster unvermutet – Foto-Schnitzeljagd</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Münster unvermutet">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
 <script>
   /* Look vor dem ersten Rendern setzen, damit nichts aufblitzt. */
   (function () {
@@ -298,6 +305,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 .toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 16px);z-index:60;transform:translate(-50%,-150%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:99px;font-weight:600;font-size:14px;transition:transform .5s var(--spring);max-width:90%;text-align:center}
 .toast.on{transform:translate(-50%,0)}
+.install-hint{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 12px);z-index:50;max-width:460px;margin:0 auto;background:var(--solid);color:var(--text);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;font-size:14px;line-height:1.4}
+.install-hint[hidden]{display:none}
+.install-hint strong{display:block;font-size:15px;margin-bottom:4px}
+.install-hint p{margin-bottom:6px;color:var(--muted)}
+.install-hint .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+.install-hint .btn{padding:9px 14px;font-size:14px;border-radius:12px}
 
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}
@@ -482,6 +495,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   </div>
 
   <div class="toast" id="toast" role="status"></div>
+  <section class="install-hint" id="installHint" aria-labelledby="installHintT" hidden>
+    <strong id="installHintT">Als App installieren</strong>
+    <div id="installHintBody"></div>
+    <div class="actions"><button type="button" class="btn" id="installHintGo" hidden>Installieren</button><button type="button" class="btn ghost" id="installHintClose">Schließen</button></div>
+  </section>
   <div class="vh" id="statusMessage" role="status" aria-live="polite" aria-atomic="true"></div>
 </div>
 
@@ -1473,11 +1491,65 @@ async function sgSubmit(event) {
 }
 
 /* ==========================================================
+   12b. Installationshinweis (optional, kein Offline-Betrieb)
+   ========================================================== */
+const INSTALL_HINT_KEY = 'muenster-unvermutet:install-hint';
+let deferredInstallPrompt = null;
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function installHintDismissed() { try { return localStorage.getItem(INSTALL_HINT_KEY) !== null; } catch (e) { return true; } }
+function dismissInstallHint() {
+  $('#installHint').hidden = true;
+  try { localStorage.setItem(INSTALL_HINT_KEY, 'dismissed'); } catch (e) { /* nur Sitzung */ }
+}
+function maybeShowInstallHint(attempt = 0) {
+  if (isStandalone() || installHintDismissed()) return;
+  const ios = isIos();
+  if (!ios && !deferredInstallPrompt) return;
+  // Nicht über Einwilligung, Einführung oder andere Dialoge legen.
+  if (openModalEl) { if (attempt < 30) setTimeout(() => maybeShowInstallHint(attempt + 1), 2000); return; }
+  const body = $('#installHintBody');
+  body.textContent = '';
+  const add = (text) => { const p = document.createElement('p'); p.textContent = text; body.appendChild(p); };
+  if (ios) {
+    const safari = !/CriOS|FxiOS|EdgiOS|OPiOS/.test(navigator.userAgent);
+    add(safari
+      ? 'Tippe in Safari auf „Teilen“ und dann auf „Zum Home-Bildschirm“, um Münster unvermutet wie eine App zu starten.'
+      : 'Über das Teilen-Menü deines Browsers kannst du Münster unvermutet je nach iOS-Version zum Home-Bildschirm hinzufügen.');
+    add('Hinweis: Dein bisheriger Spielstand aus dem Browser wird in der Home-Bildschirm-App möglicherweise nicht übernommen.');
+  } else {
+    add('Du kannst Münster unvermutet auf deinem Gerät installieren und wie eine App starten.');
+  }
+  add('Für das Spiel ist weiterhin eine Internetverbindung nötig.');
+  $('#installHintGo').hidden = ios || !deferredInstallPrompt;
+  $('#installHint').hidden = false;
+}
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  if (initialized) maybeShowInstallHint();
+});
+window.addEventListener('appinstalled', () => { deferredInstallPrompt = null; dismissInstallHint(); });
+$('#installHintClose').addEventListener('click', dismissInstallHint);
+$('#installHintGo').addEventListener('click', async () => {
+  const prompt = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  if (!prompt) { dismissInstallHint(); return; }
+  try { await prompt.prompt(); } catch (e) { /* egal */ }
+  dismissInstallHint();
+});
+
+/* ==========================================================
    13. Look & Barrierefreiheit
    ========================================================== */
+function syncThemeColor(look) {
+  // Überschreibt die Medienabfragen, wenn der Look manuell gewählt wurde.
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', look === 'night' ? '#0b0f17' : '#f2f2f7'));
+}
 function setLook(look, persist = true) {
   look = look === 'night' ? 'night' : 'clean';
   document.documentElement.dataset.look = look;
+  syncThemeColor(look);
   $$('#lookSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.look === look)));
   if (persist) { try { localStorage.setItem(LOOK_KEY, look); } catch (e) { /* nur Sitzung */ } }
 }
@@ -1621,11 +1693,12 @@ async function loadStations() {
     handleStationUrlChange(true);
     if (Stats.consent() === null) setTimeout(() => showModal('#m-consent', null), 500);
     else if (!U.selectedId && shouldShowIntro()) setTimeout(() => openHelp(null), 500);
+    setTimeout(maybeShowInstallHint, 1500);
   } catch (error) {
     U.loading = false;
     if (!initialized) { initializeUi(); }
     renderAll();
-    showLoadError('Kategorien oder Stationen konnten nicht geladen werden.', true);
+    showLoadError('Kategorien oder Stationen konnten nicht geladen werden. Für das Spiel ist eine Internetverbindung nötig.', true);
   }
 }
 loadStations();
