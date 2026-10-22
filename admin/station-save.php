@@ -134,7 +134,7 @@ try {
         $pdo->rollBack();
     }
     array_map('delete_upload', $newFiles);
-    error_log('[muenster-admin] ' . $e);
+    log_server_error('muenster-admin station-save', $e);
     $message = 'Speichern fehlgeschlagen.';
     $databasePath = (string) config('db_path');
     if (!is_writable(dirname($databasePath)) || (is_file($databasePath) && !is_writable($databasePath))) {

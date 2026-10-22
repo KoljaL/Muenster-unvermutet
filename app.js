@@ -33,7 +33,7 @@ function previewQuery(separator = '&') {
   return preview === null ? '' : separator + 'preview=' + encodeURIComponent(preview);
 }
 const Api = {
-  urls: { pins: 'api/map_pins.php', details: 'api/get_details.php', categories: 'api/categories.php', submit: 'api/submit_station.php', settings: 'api/settings.php', verifyLocation: 'api/verify_location.php', track: 'api/track.php' },
+  urls: { pins: 'api/map_pins.php', details: 'api/get_details.php', categories: 'api/categories.php', submit: 'api/submit_station.php', settings: 'api/settings.php', verifyLocation: 'api/verify_location.php', track: 'api/track.php', logError: 'api/log_error.php' },
   async fetchApi(url, options = {}) {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -94,6 +94,22 @@ const Stats = {
     fetch(Api.urls.track, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
   },
 };
+/* Fehlerprotokoll: sendet JavaScript-Fehler an den Server (Kennung nur mit Einwilligung, höchstens 5 pro Sitzung) */
+const ErrorLog = {
+  sent: 0,
+  report(message, source, stack) {
+    if (this.sent >= 5 || new URLSearchParams(window.location.search).has('preview')) return;
+    this.sent++;
+    try {
+      const body = { message: String(message || 'Unbekannter Fehler'), source: source || null, stack: stack || null, url: window.location.pathname };
+      if (Stats.enabled()) body.playerId = Stats.playerId();
+      fetch(Api.urls.logError, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
+    } catch (e) { /* Fehlerprotokoll darf nie selbst Fehler auslösen */ }
+  },
+};
+window.addEventListener('error', (e) => ErrorLog.report(e.message, e.filename ? e.filename + ':' + e.lineno + ':' + e.colno : null, e.error && e.error.stack));
+window.addEventListener('unhandledrejection', (e) => ErrorLog.report(e.reason && e.reason.message ? e.reason.message : e.reason, 'promise', e.reason && e.reason.stack));
+
 const UI_DEFAULTS = Object.freeze({ suggest: true, legend: true, station_list: true, hint_button: true, reveal_button: true, location_gate: false, station_map: true, completion: true });
 let ui = UI_DEFAULTS;
 let locationConfig = { radius: 50, maxAccuracy: 50 };

@@ -72,10 +72,13 @@ function admin_header(string $title, ?array $admin = null, string $extraHead = '
         'index.php' => ['Stationen', ['index.php', 'station-edit.php']],
         'categories.php' => ['Kategorien', ['categories.php', 'category-edit.php']],
         'suggestions.php' => ['Vorschläge', ['suggestions.php']],
+        'help.php' => ['Hilfe', ['help.php']],
+    ];
+    $menu = [
         'statistics.php' => ['Statistik', ['statistics.php']],
+        'errors.php' => ['Fehler', ['errors.php']],
         'settings.php' => ['Einstellungen', ['settings.php']],
         'admins.php' => ['Admins', ['admins.php', 'password.php']],
-        'help.php' => ['Hilfe', ['help.php']],
     ];
     echo '<!doctype html><html lang="de"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
@@ -83,14 +86,28 @@ function admin_header(string $title, ?array $admin = null, string $extraHead = '
         '<meta name="robots" content="noindex,nofollow">',
         '<title>', h($title), ' – Admin Münster unvermutet</title>',
         '<link rel="stylesheet" href="admin.css">', $extraHead, '</head><body><div class="page">';
-    echo '<header class="hero"><div class="admin-bar"><strong class="admin-brand">Münster unvermutet</strong>';
+    echo '<header class="hero"><div class="admin-bar"><a class="admin-brand" href="index.php"><img src="../MS_Rathhaus_Logo.jpg" alt="Münster unvermutet"></a>';
     if ($admin) {
         echo '<nav class="admin-nav" aria-label="Hauptnavigation">';
         foreach ($nav as $href => [$label, $pages]) {
             echo '<a href="', $href, '"', in_array($current, $pages, true) ? ' aria-current="page"' : '', '>', $label, '</a>';
         }
+        $menuLabel = 'Einstellungen';
+        $menuActive = false;
+        $items = '';
+        foreach ($menu as $href => [$label, $pages]) {
+            $active = in_array($current, $pages, true);
+            if ($active) {
+                $menuLabel = $label;
+                $menuActive = true;
+            }
+            $items .= '<a href="' . $href . '"' . ($active ? ' aria-current="page"' : '') . '>' . $label . '</a>';
+        }
+        echo '<div class="nav-menu"><button type="button" class="nav-menu-toggle"', $menuActive ? ' aria-current="page"' : '',
+            ' aria-haspopup="true">', $menuLabel, ' <span aria-hidden="true">▾</span></button><div class="nav-menu-list">', $items, '</div></div>';
         echo '</nav><div class="admin-user">',
-            '<form method="post" action="logout.php">', csrf_field(), '<button class="secondary small">Abmelden</button></form></div>';
+            '<form method="post" action="logout.php">', csrf_field(),
+            '<button class="logout-btn" title="Abmelden" aria-label="Abmelden"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button></form></div>';
     }
     echo '</div></header><main>';
     foreach ($_SESSION['flash'] ?? [] as $f) {

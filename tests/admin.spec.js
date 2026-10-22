@@ -177,4 +177,62 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     });
     expect(sectionOrder.ids.every((index) => index >= 0 && index < sectionOrder.attribution)).toBe(true);
   });
+
+  test('Fehlerprotokoll zeigt Serverfehler und filtert nach Herkunft', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'Admin', 'Admin-Workflow läuft einmal gegen die gemeinsame Testdatenbank');
+    const marker = `PW Serverfehler ${Date.now()}`;
+    const databasePath = resolve(projectRoot, '.playwright-data/game.sqlite');
+    const script = `
+      putenv('MS_DB_PATH=' . $argv[1]);
+      require 'includes/database.php';
+      log_server_error('pw-test', new RuntimeException($argv[2]));
+      db()->prepare("INSERT INTO client_errors (origin, message, created_at) VALUES ('client', ?, ?)")->execute(['PW Clientfehler', date(DATE_ATOM)]);
+    `;
+    execFileSync('php', ['-r', script, databasePath, marker], { cwd: projectRoot, stdio: 'pipe' });
+
+    await page.goto('admin/login.php');
+    await page.locator('#username').fill(testUsername);
+    await page.locator('#password').fill(testPassword);
+    await page.getByRole('button', { name: 'Anmelden' }).click();
+    await page.getByRole('link', { name: 'Fehler', exact: true }).click();
+    await expect(page.locator('h1')).toHaveText('Fehlerprotokoll');
+    await expect(page.locator('tbody tr', { hasText: marker }).first()).toContainText('Server');
+
+    await page.getByRole('link', { name: 'Server', exact: true }).click();
+    await expect(page.locator('tbody tr', { hasText: marker }).first()).toBeVisible();
+    await expect(page.locator('tbody tr', { hasText: 'PW Clientfehler' })).toHaveCount(0);
+
+    await page.getByRole('link', { name: 'Spiel (Browser)' }).click();
+    await expect(page.locator('tbody tr', { hasText: 'PW Clientfehler' }).first()).toBeVisible();
+    await expect(page.locator('tbody tr', { hasText: marker })).toHaveCount(0);
+  });
+
+  test('Error-Handler protokollieren Warnungen (begrenzt) und Fatal Errors, aber keine Notices oder @-Meldungen', async ({}, testInfo) => {
+    test.skip(testInfo.project.name !== 'Admin', 'Läuft einmal gegen die gemeinsame Testdatenbank');
+    const databasePath = resolve(projectRoot, '.playwright-data/game.sqlite');
+    // Jeder Lauf leert zuerst die Testeinträge. Über stdin statt -r, weil php -r Exception-Handler für Top-Level-Exceptions nicht aufruft.
+    const run = (body) => execFileSync('php', [], { cwd: projectRoot, stdio: 'pipe', env: { ...process.env, MS_DB_PATH: databasePath }, input: `<?php
+      require 'includes/error_handling.php';
+      db()->exec("DELETE FROM client_errors WHERE message LIKE 'pw-handler%'");
+      install_error_handlers('pw-handler', function ($e) {});
+      ${body}
+    ` });
+    const count = () => Number(execFileSync('php', ['-r', `
+      $db = new PDO('sqlite:' . $argv[1]);
+      echo $db->query("SELECT COUNT(*) FROM client_errors WHERE message LIKE 'pw-handler%'")->fetchColumn();
+    `, databasePath], { encoding: 'utf8' }));
+
+    run(`trigger_error('notice', E_USER_NOTICE); @trigger_error('stumm', E_USER_WARNING);`);
+    expect(count()).toBe(0);
+
+    run(`for ($i = 0; $i < 20; $i++) trigger_error('warnung ' . $i, E_USER_WARNING);`);
+    expect(count()).toBe(5);
+
+    run(`throw new RuntimeException('boom');`);
+    expect(count()).toBe(1);
+
+    // Ein Fatal Error beendet PHP mit Fehlercode; protokolliert wird er trotzdem.
+    try { run(`ini_set('memory_limit', '2M'); $a = []; while (true) { $a[] = str_repeat('x', 100000); }`); } catch (e) { /* erwartet */ }
+    expect(count()).toBe(1);
+  });
 });

@@ -23,7 +23,7 @@ try {
     flash('err', 'Ungültige oder unvollständige Einstellungen. Bitte prüfe das Formular.');
     redirect('settings.php');
 } catch (Throwable $error) {
-    error_log('[muenster-admin] UI settings save failed: ' . $error);
+    log_server_error('muenster-admin settings-save', $error);
     flash('err', 'Die Einstellungen konnten nicht gespeichert werden.');
     redirect('settings.php');
 }

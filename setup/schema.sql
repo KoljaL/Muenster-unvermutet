@@ -122,6 +122,21 @@ CREATE INDEX IF NOT EXISTS stat_events_player ON stat_events(player_id);
 CREATE UNIQUE INDEX IF NOT EXISTS stat_events_once ON stat_events(player_id, COALESCE(station_id, ''), event)
     WHERE event IN ('location_verified', 'solution_shown', 'solved', 'game_completed');
 
+-- Fehlerprotokoll des Spiels (ohne Einwilligung nur anonym: player_id bleibt dann NULL, keine IP)
+CREATE TABLE IF NOT EXISTS client_errors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    origin TEXT NOT NULL DEFAULT 'client',
+    player_id TEXT,
+    message TEXT NOT NULL,
+    source TEXT,
+    stack TEXT,
+    url TEXT,
+    user_agent TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS client_errors_day ON client_errors(created_at);
+
 -- Beispieldaten für die Statistik (20 Ereignisse, Kennungen 'aaaaaaaa-…', 'bbbbbbbb-…', 'cccccccc-…').
 -- Werden nur eingefügt, solange stat_events leer ist. Vor dem Livegang löschen:
 -- DELETE FROM stat_events WHERE player_id LIKE 'aaaaaaaa-%' OR player_id LIKE 'bbbbbbbb-%' OR player_id LIKE 'cccccccc-%';

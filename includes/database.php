@@ -24,6 +24,10 @@ function db(): PDO
         if (!in_array('teaser_text', $stationColumns, true)) {
             $pdo->exec('ALTER TABLE stations ADD COLUMN teaser_text TEXT');
         }
+        $errorColumns = $pdo->query('PRAGMA table_info(client_errors)')->fetchAll(PDO::FETCH_COLUMN, 1);
+        if (!in_array('origin', $errorColumns, true)) {
+            $pdo->exec("ALTER TABLE client_errors ADD COLUMN origin TEXT NOT NULL DEFAULT 'client'");
+        }
         $adminColumns = $pdo->query('PRAGMA table_info(admins)')->fetchAll(PDO::FETCH_COLUMN, 1);
         if (!in_array('must_change_password', $adminColumns, true)) {
             $pdo->exec('ALTER TABLE admins ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0');
@@ -35,6 +39,30 @@ function db(): PDO
 function now(): string
 {
     return date('c');
+}
+
+/** Protokolliert einen Serverfehler in error_log und in der Tabelle client_errors (Admin: Fehlerprotokoll). */
+function log_server_error(string $context, $error): void
+{
+    $isThrowable = $error instanceof Throwable;
+    error_log('[' . $context . '] ' . ($isThrowable ? (string) $error : (string) $error));
+    try {
+        $message = $isThrowable ? get_class($error) . ': ' . $error->getMessage() : (string) $error;
+        $source = $isThrowable ? basename($error->getFile()) . ':' . $error->getLine() : null;
+        $stack = $isThrowable ? $error->getTraceAsString() : null;
+        $url = parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+        db()->prepare("INSERT INTO client_errors (origin, message, source, stack, url, user_agent, created_at) VALUES ('server', ?, ?, ?, ?, NULL, ?)")
+            ->execute([
+                mb_substr($context . ' – ' . $message, 0, 500),
+                $source,
+                $stack === null ? null : mb_substr($stack, 0, 3000),
+                is_string($url) ? mb_substr($url, 0, 300) : null,
+                now(),
+            ]);
+        db()->exec('DELETE FROM client_errors WHERE id <= (SELECT MAX(id) FROM client_errors) - 1000');
+    } catch (Throwable $ignored) {
+        // Datenbank selbst defekt: error_log oben ist der Fallback.
+    }
 }
 
 /** Zählt Ereignisse im Zeitfenster und prüft das Limit. */

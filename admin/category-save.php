@@ -86,7 +86,7 @@ try {
     }
 } catch (Throwable $e) {
     delete_upload($newFile);
-    error_log('[muenster-admin] ' . $e);
+    log_server_error('muenster-admin category-save', $e);
     fail(['Speichern fehlgeschlagen.'], $back);
 }
 

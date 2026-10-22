@@ -228,7 +228,7 @@ function store_suggestion(array $suggestion, string $ip): void
         foreach ($stored as $path) {
             delete_upload($path);
         }
-        error_log('[muenster-api] suggestion insert failed: ' . $error->getMessage());
+        log_server_error('muenster-api suggestion insert', $error);
         json_error(422, 'suggestion_not_saved', 'Der Vorschlag konnte nicht gespeichert werden.');
     }
     rate_limit_hit('suggest', $ip);
