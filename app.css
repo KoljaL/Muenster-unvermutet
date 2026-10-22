@@ -49,7 +49,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .map-pin::after{content:"";position:absolute;left:50%;bottom:-9px;width:12px;height:12px;margin-left:-6px;background:var(--pin);border-right:3px solid #fff;border-bottom:3px solid #fff;transform:rotate(45deg);z-index:-1}
 .map-pin img{width:26px;height:26px;object-fit:contain}
 .pin-number{position:absolute;right:-8px;top:-8px;min-width:22px;height:22px;padding:0 5px;border-radius:99px;background:#fff;color:#1c1917;font-size:12px;font-weight:800;display:grid;place-items:center;box-shadow:0 1px 4px #0004}
-.map-pin.no-icon .pin-number{position:static;background:none;box-shadow:none;font-size:19px;color:inherit}
+.map-pin.no-icon .pin-number{position:absolute;inset:0;right:0;top:0;min-width:0;height:auto;padding:0;line-height:1;background:none;box-shadow:none;font-size:19px;color:inherit}
 .pin-check{display:none;position:absolute;right:-8px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--ok);color:#fff;font-size:12px;font-weight:800;place-items:center;border:2px solid #fff}
 .map-pin--solved{filter:saturate(.35)}
 .map-pin--solved .pin-check{display:grid}
