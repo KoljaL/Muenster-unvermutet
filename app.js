@@ -568,7 +568,7 @@ function renderUnsolved(st, p, gated, solved) {
   if (orient) {
     orient.hidden = !isEnabled('station_map') || typeof L === 'undefined';
     const player = playerLocations.get(st.id);
-    $('#orientDist').textContent = player ? Math.round(distanceBetween(player.lat, player.lon, st.lat, st.lon)) + ' m bis zum Ziel' : 'Der eigene Standort erscheint nach einer Standortaktualisierung.';
+    $('#orientDist').textContent = player ? Math.round(distanceBetween(player.lat, player.lon, st.lat, st.lon)) + ' m bis zum Ziel' : '';
     if (!orient.hidden) setupOrientMap(st);
   }
   const key = st.id + (gated ? ':gate' : ':opts');
@@ -577,11 +577,21 @@ function renderUnsolved(st, p, gated, solved) {
   const box = $('#sOptions');
   if (gated) {
     const s = locationStates.get(st.id) || {};
-    const msg = s.message || 'Begib dich zum abgebildeten Ort und aktualisiere anschließend deinen Standort.';
-    const icon = s.loading ? '🧭' : s.message ? '🚶' : '📍';
-    box.innerHTML = '<div class="loc' + (s.loading ? ' busy' : '') + (s.message && !s.loading ? ' fail' : '') + '"><div class="loc-row"><span class="ic" aria-hidden="true">' + icon + '</span><p role="status" aria-live="polite">' + esc(msg) + '</p></div><div class="loc-actions"><button type="button" class="btn" data-act="verify"' + (s.loading ? ' disabled' : '') + '>Standort aktualisieren</button>' + routeLinkHtml(st) +
-      /* DEV-FAKE-POSITION (1/3) */ '<button type="button" class="btn dev" data-act="fake"' + (s.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>' /* /DEV-FAKE-POSITION */ + '</div></div>' + routeHintHtml();
+    const icon = s.loading ? '🧭' : '🚶';
+    const hasPos = playerLocations.has(st.id);
+    const locHtml = '<div class="loc-actions"><button type="button" class="btn" data-act="verify"' + (s.loading ? ' disabled' : '') + '>' + (hasPos ? 'Standort aktualisieren' : 'Eigener Standort') + '</button>' +
+      '<a class="btn route-btn" href="' + esc(routeUrl(st)) + '" target="_blank" rel="noopener noreferrer">Route</a></div>' + routeHintHtml() +
+      (s.message || s.loading ? '<div class="loc' + (s.loading ? ' busy' : '') + (s.message && !s.loading ? ' fail' : '') + '"><div class="loc-row"><span class="ic" aria-hidden="true">' + icon + '</span><p role="status" aria-live="polite">' + esc(s.message || '') + '</p></div></div>' : '');
+    const devHtml = /* DEV-FAKE-POSITION (1/3) */ '<button type="button" class="btn dev" data-act="fake"' + (s.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>' /* /DEV-FAKE-POSITION */;
+    if (orient && !orient.hidden) {
+      $('#orientLoc').innerHTML = locHtml;
+      $('#orientDev').innerHTML = devHtml;
+      box.innerHTML = '';
+    } else {
+      box.innerHTML = locHtml + devHtml;
+    }
   } else {
+    if ($('#orientLoc')) { $('#orientLoc').innerHTML = ''; $('#orientDev').innerHTML = ''; }
     box.innerHTML = '<div class="options' + (animate ? ' enter' : '') + '">' + st.options.map((o, i) => {
       const wrong = !p.solved && p.selectedOptionIndex === i && i !== st.correctOptionIndex;
       return '<button type="button" class="option' + (wrong ? ' option--wrong' + (U.freshWrong === i ? ' fresh' : '') : '') + '" style="--i:' + i + '" data-act="option" data-i="' + i + '"><span class="option-letter" aria-hidden="true">' + OPTION_LETTERS[i] + '</span><span>' + esc(o) + '</span></button>';

@@ -412,13 +412,14 @@ test.describe('Station spielen', () => {
     });
     await openGame(page, { path: `index.html?preview=ui.location_gate&station=${first().id}` });
     await expect(page.locator('#orient')).toHaveJSProperty('open', true);
-    const route = page.locator('#sOptions .loc-actions a.route-btn');
+    const route = page.locator('#orientLoc .loc-actions a.route-btn');
+    await expect(route).toHaveText('Route');
     await expect(route).toBeVisible();
     await expect(route).toHaveAttribute('target', '_blank');
     await expect(route).toHaveAttribute('rel', /noopener/);
     await expect(route).toHaveAttribute('href', /destination=|daddr=/);
-    await expect(page.locator('#sOptions .loc-actions [data-act="verify"]')).toBeVisible();
-    await expect(page.locator('#sOptions .route-hint')).toHaveText('Erläuterung Navigation');
+    await expect(page.locator('#orientLoc .loc-actions [data-act="verify"]')).toHaveText('Eigener Standort');
+    await expect(page.locator('#orientLoc .route-hint')).toHaveText('Erläuterung Navigation');
   });
 
   test('Hinweis lässt sich ein- und ausklappen', async ({ page }) => {
@@ -824,14 +825,14 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     await openGame(page, { path: gated(station.id) });
     await expect(page.locator('#sTeaserText')).toHaveText(teaser);
     await expect(page.locator('#sTeaser')).toBeVisible();
-    await expect(page.locator('#sOptions [data-act="verify"]')).toBeVisible();
+    await expect(page.locator('#orient [data-act="verify"]')).toBeVisible();
     await expect(page.locator('#sOptions .option')).toHaveCount(0);
     await expect(page.locator('#action [data-act="hint"]')).toHaveCount(0);
     await expect(page.locator('#action [data-act="reveal"]')).toHaveCount(0);
     await expect(page.locator('#sCoords')).toHaveCount(0);
     await expect(page.locator('#sUnsolved a[href*="google.com/maps"]:not(.route-btn)')).toHaveCount(0);
 
-    await page.locator('#sOptions [data-act="fake"]').tap();
+    await page.locator('#orient [data-act="fake"]').tap();
 
     await expect(page.locator('#sOptions .option')).toHaveCount(station.options.length);
     expect(await page.locator('#sTeaser').evaluate((teaserNode) => (
@@ -855,11 +856,11 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
 
   test('Freigabe gilt nur für die jeweilige Station', async ({ page }) => {
     await openGame(page, { path: gated(stations[0].id) });
-    await page.locator('#sOptions [data-act="fake"]').tap();
+    await page.locator('#orient [data-act="fake"]').tap();
     await expect(page.locator('#sOptions .option').first()).toBeVisible();
     await page.locator('#back').tap();
     await page.goto(gated(stations[1].id));
-    await expect(page.locator('#sOptions [data-act="verify"]')).toBeVisible();
+    await expect(page.locator('#orient [data-act="verify"]')).toBeVisible();
     await expect(page.locator('#sOptions .option')).toHaveCount(0);
   });
 
@@ -874,13 +875,13 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     await openGame(page, { path: gated(station.id) });
 
     await page.evaluate((p) => { window.__fakePos = p; }, { latitude: station.lat + 0.01, longitude: station.lon, accuracy: 10 });
-    await page.locator('#sOptions [data-act="verify"]').tap();
-    await expect(page.locator('#sOptions .loc.fail')).toBeVisible();
-    await expect(page.locator('#sOptions .loc')).not.toContainText('veraltet');
+    await page.locator('#orient [data-act="verify"]').tap();
+    await expect(page.locator('#orient .loc.fail')).toBeVisible();
+    await expect(page.locator('#orient .loc')).not.toContainText('veraltet');
     await expect(page.locator('#sOptions .option')).toHaveCount(0);
 
     await page.evaluate((p) => { window.__fakePos = p; }, { latitude: station.lat, longitude: station.lon, accuracy: 10 });
-    await page.locator('#sOptions [data-act="verify"]').tap();
+    await page.locator('#orient [data-act="verify"]').tap();
     await expect(page.locator('#sOptions .option')).toHaveCount(station.options.length);
   });
 
@@ -907,8 +908,8 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     }));
     await openGame(page, { path: gated(station.id) });
 
-    const verify = page.locator('#sOptions [data-act="verify"]');
-    const message = page.locator('#sOptions .loc p');
+    const verify = page.locator('#orient [data-act="verify"]');
+    const message = page.locator('#orient .loc p');
     for (const [code, expectedMessage] of [
       [1, 'Der Zugriff auf den Standort wurde verweigert.'],
       [3, 'Die Standortabfrage dauerte zu lange. Bitte erneut versuchen.'],
