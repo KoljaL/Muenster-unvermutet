@@ -79,3 +79,8 @@ Aufbau, Abstände, Ausrichtung und Größenverhältnisse von Logo, Titel und Nav
 ### End-to-End-Abnahme auf der veröffentlichten Website durchführen ✦
 
 Nach dem Deployment die Kernabläufe auf der endgültigen HTTPS-Adresse mit aktuellem iOS/Safari und Android/Chrome prüfen: Karte und Stationen laden, Standortfreigabe erteilen und verweigern, Antworten absenden, Spielstand nach Neuladen behalten, Installation der PWA testen und Vorschläge übermitteln. Dabei auch Kartenkacheln, Fotos, externe Links und verständliche Fehlermeldungen bei fehlender Verbindung kontrollieren.
+
+
+
+
+

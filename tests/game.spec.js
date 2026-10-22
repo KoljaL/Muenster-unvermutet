@@ -256,6 +256,28 @@ test.describe('Station spielen', () => {
     expect(progress.stations[first().id].solved).toBe(false);
   });
 
+  test('Orientierungskarte bleibt bei der Frage offen, klappt nach richtiger Antwort ein und öffnet an der nächsten Station', async ({ page }) => {
+    await openGame(page, { path: `index.html?station=${first().id}` });
+    const orientation = page.locator('#orient');
+    await expect(orientation).toBeVisible();
+    await expect(orientation).toHaveJSProperty('open', true);
+
+    await page.locator(`#sOptions .option[data-i="${wrongIndex()}"]`).tap();
+    await expect(page.locator('#errMsg')).toBeVisible();
+    await expect(orientation).toHaveJSProperty('open', true);
+
+    await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
+    await expect(page.locator('#station')).toHaveClass(/solved/);
+    await expect(orientation).toHaveJSProperty('open', false);
+
+    const nextId = await page.locator('#action [data-act="next"]').getAttribute('data-next-id');
+    expect(nextId).toBeTruthy();
+    await page.locator('#action [data-act="next"]').tap();
+    await expect(page.locator('#station')).not.toHaveClass(/solved/);
+    await expect(page.locator('#orient')).toBeVisible();
+    await expect(page.locator('#orient')).toHaveJSProperty('open', true);
+  });
+
   test('richtige Antwort löst die Station und persistiert nach Reload', async ({ page }) => {
     await openGame(page, { path: `index.html?station=${first().id}` });
     await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
@@ -282,6 +304,7 @@ test.describe('Station spielen', () => {
     await expect(page.locator('#station')).toHaveClass(/solved/);
     await expect(page.locator('#imgSol')).toBeVisible();
     await expect(page.locator('#sCaption')).toHaveText(caption);
+    await expect(page.locator('#orient')).toHaveJSProperty('open', false);
     expect(await page.locator('#sCaption').evaluate((captionNode) => (
       captionNode.previousElementSibling?.id === 'hero' && captionNode.nextElementSibling?.classList.contains('body')
     ))).toBe(true);
@@ -292,22 +315,70 @@ test.describe('Station spielen', () => {
     const orientation = page.locator('#orient');
     const summary = orientation.locator('summary');
     await expect(summary).toHaveText('OpenStreetMap-Orientierungskarte');
-    await expect(orientation).toHaveJSProperty('open', true);
+    await expect(orientation).toHaveJSProperty('open', false);
     await summary.focus();
     await page.keyboard.press('Enter');
-    await expect(orientation).toHaveJSProperty('open', false);
-    await page.keyboard.press('Enter');
     await expect(orientation).toHaveJSProperty('open', true);
-    await expect(summary).toBeFocused();
     await expect(page.locator('#orientMap')).toBeVisible();
     const attribution = page.locator('#orientMap .leaflet-control-attribution');
     if (await attribution.count()) await expect(attribution).toContainText('OSM');
-    await page.keyboard.press('Space');
+    await page.keyboard.press('Enter');
     await expect(orientation).toHaveJSProperty('open', false);
+    await expect(summary).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(orientation).toHaveJSProperty('open', true);
     expect(await page.locator('#sScroll').evaluate((scroll) => scroll.scrollWidth <= scroll.clientWidth)).toBe(true);
 
     const transitionDuration = await page.locator('#imgSol').evaluate((image) => getComputedStyle(image).transitionDuration);
     expect(transitionDuration.split(',').every((duration) => Number.parseFloat(duration) <= 0.001)).toBe(true);
+  });
+
+  test('Lösungsfoto ohne Beschreibung zeigt weder Ersatztext noch technischen Dateinamen', async ({ page }) => {
+    await page.route('**/api/get_details.php*', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.data.solutionCaption = '';
+      body.data.solutionImage = '/uploads/pw-private-solution-filename.jpg';
+      await route.fulfill({ response, json: body });
+    });
+    await page.route('**/uploads/pw-private-solution-filename.jpg', (route) => route.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+    }));
+
+    await openGame(page, { path: `index.html?station=${first().id}` });
+    await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
+
+    await expect(page.locator('#imgSol')).toBeVisible();
+    await expect(page.locator('#sCaption')).toBeHidden();
+    await expect(page.locator('#sCaption')).toHaveText('');
+    await expect(page.locator('#station')).not.toContainText('pw-private-solution-filename.jpg');
+    await expect(page.locator('#station')).not.toContainText('Lösungsfoto');
+  });
+
+  test('Antwort- und Stationswechselanimationen sind abgestimmt und respektieren reduzierte Bewegung', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await openGame(page, { path: `index.html?station=${first().id}` });
+
+    const standardDurations = await page.evaluate(() => [
+      getComputedStyle(document.querySelector('#imgSol')).transitionDuration,
+      getComputedStyle(document.querySelector('#sSolved')).transitionDuration.split(',')[0],
+      getComputedStyle(document.querySelector('#sScroll')).transitionDuration,
+    ]);
+    expect(standardDurations).toEqual(['0.22s', '0.22s', '0.22s']);
+
+    await page.locator(`#sOptions .option[data-i="${first().correctOptionIndex}"]`).tap();
+    await expect(page.locator('#station')).toHaveClass(/solved/);
+    await page.locator('#action [data-act="next"]').tap();
+    await expect(page.locator('#station')).toHaveClass(/switching/);
+    await expect(page.locator('#sNum')).not.toHaveText(`Station ${first().number}`);
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const reducedDurations = await page.locator('#sScroll').evaluate((element) => (
+      getComputedStyle(element).transitionDuration.split(',').map((duration) => Number.parseFloat(duration) * 1000)
+    ));
+    expect(reducedDurations.every((duration) => duration <= 1)).toBe(true);
   });
 
   test('Route starten steht neben Standort aktualisieren mit Erläuterung', async ({ page }) => {

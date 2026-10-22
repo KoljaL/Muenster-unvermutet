@@ -425,10 +425,14 @@ function openStation(id, opts = {}) {
   const orientEl = $('#orient');
   if (orientEl) orientEl.open = !Store.get(id).solved;
   const st = $('#station');
-  setOrigin(opts.trigger);
-  st.classList.remove('on');
-  instant(() => { $('#sScroll').scrollTop = 0; renderStation(); });
-  st.classList.add('on');
+  if (opts.preserveView) {
+    instant(() => { $('#sScroll').scrollTop = 0; renderStation(); });
+  } else {
+    setOrigin(opts.trigger);
+    st.classList.remove('on');
+    instant(() => { $('#sScroll').scrollTop = 0; renderStation(); });
+    st.classList.add('on');
+  }
   $('#tabs').inert = true;
   ensureDetails(id, { passive: source !== 'user' });
   setTimeout(() => { if (U.selectedId === id) $('#sTitle').focus({ preventScroll: true }); }, 380);
@@ -513,11 +517,13 @@ function renderStation() {
   const gate = isEnabled('location_gate');
   const gated = gate && !st.protectedDetailsLoaded;
   const solved = has && p.solved && (!gate || st.protectedDetailsLoaded);
-  $('#sCaption').hidden = !solved || !st.solutionImage;
-  $('#sCaption').textContent = st.solutionCaption || 'Lösungsfoto';
+  const solutionCaption = typeof st.solutionCaption === 'string' ? st.solutionCaption.trim() : '';
+  $('#sCaption').hidden = !solved || !st.solutionImage || !solutionCaption;
+  $('#sCaption').textContent = solutionCaption;
   root.style.setProperty('--cat', c.color);
   root.style.setProperty('--tag-ink', categoryTextColor(c.color));
   root.classList.toggle('solved', solved);
+  root.classList.toggle('has-solution-image', solved && Boolean(st.solutionImage));
   $('#sNum').textContent = 'Station ' + st.number;
   $('#sTag').innerHTML = catImg(c) + esc(c.name);
   $('#sTitle').textContent = solved ? st.solutionTitle : has ? st.title : 'Station ' + st.number;
@@ -763,7 +769,11 @@ function markSolved(id, selectedOptionIndex) {
   Store.update(id, { solved: true, selectedOptionIndex });
   if (selectedOptionIndex !== null) Stats.track('solved', id, Store.get(id).attempts);
   if (countSolved() === stations.length) Stats.track('game_completed');
-  if (U.selectedId === id) { renderStation(); renderProgress(); renderList(); updateMapPins(); }
+  if (U.selectedId === id) {
+    const orient = $('#orient');
+    if (orient) orient.open = false;
+    renderStation(); renderProgress(); renderList(); updateMapPins();
+  }
   else renderAll();
   announce('Station ' + st.number + ' gelöst: ' + st.solutionTitle + (countSolved() === stations.length ? '. Alle Aufgaben sind gelöst.' : ''));
   setTimeout(() => { const v = $('.verdict'); if (v && U.selectedId === id) v.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' }); }, 450);
@@ -775,7 +785,7 @@ function selectOption(id, index, btn) {
     btn.classList.add('option--right');
     btn.closest('.options').classList.add('locked');
     buzz([30, 40, 30]);
-    setTimeout(() => markSolved(id, index), reducedMotion() ? 0 : 650);
+    setTimeout(() => markSolved(id, index), reducedMotion() ? 0 : 300);
     return;
   }
   U.freshWrong = index;
@@ -796,17 +806,15 @@ function toggleHint() {
 }
 function goToNext(nextId) {
   const st = $('#station');
-  const dur = reducedMotion() ? 0 : 300;
-  st.style.transition = 'transform ' + dur + 'ms var(--ease),opacity ' + dur + 'ms';
-  st.style.transform = 'translateX(-40px)'; st.style.opacity = '0';
-  setTimeout(() => {
-    st.style.transition = 'none'; st.style.transform = 'translateX(40px)';
-    void st.offsetWidth;
+  const dur = reducedMotion() ? 0 : 220;
+  st.classList.add('switching');
+  const switchStation = () => {
     updateStationUrl(nextId, 'push');
-    openStation(nextId, { source: 'internal', trigger: null });
-    st.style.transition = 'transform .45s var(--ease),opacity .3s'; st.style.transform = ''; st.style.opacity = '';
-    setTimeout(() => { st.style.transition = ''; }, 500);
-  }, dur + 30);
+    openStation(nextId, { source: 'internal', trigger: null, preserveView: true });
+    requestAnimationFrame(() => st.classList.remove('switching'));
+  };
+  if (dur) setTimeout(switchStation, dur);
+  else switchStation();
 }
 function handleStationClick(event) {
   const btn = event.target.closest('[data-act]');
