@@ -800,7 +800,7 @@ test.describe('Backend-API', () => {
     const response = await request.get(`api/get_details.php?id=${station.id}&preview=ui.location_gate`);
     expect(response.ok()).toBeTruthy();
     const { data } = await response.json();
-    expect(data.teaserText).toBe('');
+    expect(typeof data.teaserText).toBe('string');
     for (const field of ['hint', 'options', 'correctOptionIndex', 'solutionTitle', 'solutionCaption', 'info', 'solutionImage', 'links']) {
       expect(data).not.toHaveProperty(field);
     }

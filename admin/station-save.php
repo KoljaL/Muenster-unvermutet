@@ -44,21 +44,24 @@ if ($mode === 'create' && $suggestionId !== null) {
 }
 
 // ID und Nummer bestimmen
+$number = $s['number'] ?? ($mode === 'update' ? (int) $existing['number'] : (int) $pdo->query('SELECT COALESCE(MAX(number), 0) + 1 FROM stations')->fetchColumn());
 if ($mode === 'update') {
     $id = $origId;
 } else {
     $base = slugify($s['title']);
-    $id = $base;
-    $check = $pdo->prepare('SELECT 1 FROM stations WHERE id = ?');
-    for ($n = 2;; $n++) {
-        $check->execute([$id]);
-        if (!$check->fetchColumn()) {
+    $checkId = $pdo->prepare('SELECT 1 FROM stations WHERE id = ?');
+    $checkNumber = $pdo->prepare('SELECT 1 FROM stations WHERE number = ?');
+    do {
+        $id = $base . '-' . $number;
+        $checkId->execute([$id]);
+        $checkNumber->execute([$number]);
+        if ($checkId->fetchColumn() || $checkNumber->fetchColumn()) {
+            $number++;
+        } else {
             break;
         }
-        $id = $base . '-' . $n;
-    }
+    } while (true);
 }
-$number = $s['number'] ?? ($mode === 'update' ? (int) $existing['number'] : (int) $pdo->query('SELECT COALESCE(MAX(number), 0) + 1 FROM stations')->fetchColumn());
 $check = $pdo->prepare('SELECT 1 FROM stations WHERE number = ? AND id <> ?');
 $check->execute([$number, $id]);
 if ($check->fetchColumn()) {

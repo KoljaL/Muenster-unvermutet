@@ -13,7 +13,7 @@ admin_header('Hilfe', $admin);
   <div>
     <ul>
       <li><strong>Neue Station:</strong> Unter „Stationen“ auf „+ Neue Station“ klicken und alle Pflichtfelder ausfüllen (Titel, Hinweis, Standort, Antworten, Lösung, Aufgabenfoto).</li>
-      <li><strong>Nummer und ID</strong> werden automatisch vergeben, sind unveränderlich und werden daher nicht angezeigt.</li>
+      <li><strong>Nummer und ID</strong> werden automatisch vergeben, sind unveränderlich und werden daher nicht angezeigt. Die ID setzt sich beim Anlegen aus dem Titel-Slug und der Stationsnummer zusammen.</li>
       <li><strong>Standort:</strong> Ein Klick auf die Karte setzt die Koordinaten.</li>
       <li><strong>Archivieren</strong> blendet eine Station im Spiel aus; sie kann jederzeit wiederhergestellt werden.</li>
     </ul>

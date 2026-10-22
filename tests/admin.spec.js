@@ -58,6 +58,11 @@ test.describe('Admin (lokale Testdatenbank)', () => {
 
     let stationRow = page.locator('.station-item').filter({ hasText: stationTitle });
     await expect(stationRow).toBeVisible();
+    const pinsResponse = await page.request.get('api/map_pins.php');
+    const pins = (await pinsResponse.json()).data;
+    const createdStation = pins.find((station) => station.title === stationTitle);
+    expect(createdStation).toBeDefined();
+    expect(createdStation.id).toBe(`pw-station-${suffix}-${createdStation.number}`);
     const editHref = await stationRow.getByRole('link', { name: 'Bearbeiten' }).getAttribute('href');
     const editUrl = new URL(editHref, page.url()).toString();
     await page.goto(editUrl);
@@ -67,6 +72,8 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     await page.locator('form[action="station-save.php"]').evaluate((form) => form.requestSubmit());
     stationRow = page.locator('.station-item').filter({ hasText: editedStationTitle });
     await expect(stationRow).toBeVisible();
+    const editedHref = await stationRow.getByRole('link', { name: 'Bearbeiten' }).getAttribute('href');
+    expect(new URL(editedHref, page.url()).searchParams.get('id')).toBe(createdStation.id);
 
     const editLink = stationRow.getByRole('link', { name: 'Bearbeiten' });
     await page.goto(new URL(await editLink.getAttribute('href'), page.url()).toString());
