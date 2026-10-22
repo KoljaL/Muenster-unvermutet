@@ -169,6 +169,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .tag img{width:16px;height:16px;object-fit:contain}
 .body h2{font-size:28px;letter-spacing:-.02em;margin:10px 0 8px;line-height:1.15;transition:opacity var(--motion-duration) var(--ease)}
 .teaser{margin:0 0 14px}
+.station.solved .teaser{margin-top:20px}
 .teaser p{margin:0 0 6px;color:var(--muted);white-space:pre-line}
 .teaser:not(.expanded) p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .teaser-toggle{padding:4px 0;border:0;background:none;color:var(--accent);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}

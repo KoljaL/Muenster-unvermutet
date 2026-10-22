@@ -173,7 +173,7 @@ test.describe('Station spielen', () => {
     await expect(page.locator('#sheet')).toHaveAttribute('data-snap', 'full');
   });
 
-  test('optional sichtbarer Anreißer ist Klartext und lässt sich auf- und zuklappen', async ({ page }) => {
+  test('Anreißer bleibt bei falschen Antworten stehen und ist nach dem Lösen dauerhaft ausgeklappt', async ({ page }) => {
     const station = stations[0];
     const teaser = '<b>Ein langer Anreißer</b> mit genügend Inhalt, damit die Vorschau über mehrere Zeilen läuft. '.repeat(8);
     await page.route('**/api/get_details.php*', async (route) => {
@@ -187,6 +187,9 @@ test.describe('Station spielen', () => {
     await expect(page.locator('#sTeaser')).toBeVisible();
     await expect(page.locator('#sTitle')).toHaveText(station.title);
     await expect(page.locator('#sTeaserText')).toHaveText(teaser);
+    expect(await page.locator('#sTeaser').evaluate((teaserNode) => (
+      teaserNode.previousElementSibling?.id === 'sTitle' && teaserNode.nextElementSibling?.id === 'sMain'
+    ))).toBe(true);
     await expect(page.locator('#sTeaserText b')).toHaveCount(0);
     await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveAttribute('aria-expanded', 'false');
     await page.locator('#sTeaser [data-act="teaser"]').tap();
@@ -194,6 +197,25 @@ test.describe('Station spielen', () => {
     await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveText('Weniger anzeigen');
     await page.locator('#sTeaser [data-act="teaser"]').tap();
     await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveAttribute('aria-expanded', 'false');
+
+    await page.locator(`#sOptions .option[data-i="${wrongIndex()}"]`).tap();
+    await expect(page.locator('#errMsg')).toBeVisible();
+    await expect(page.locator('#sTeaser')).toBeVisible();
+    expect(await page.locator('#sTeaser').evaluate((teaserNode) => (
+      teaserNode.previousElementSibling?.id === 'sTitle' && teaserNode.nextElementSibling?.id === 'sMain'
+    ))).toBe(true);
+
+    await page.locator(`#sOptions .option[data-i="${station.correctOptionIndex}"]`).tap();
+    await expect(page.locator('#station')).toHaveClass(/solved/);
+    await expect(page.locator('#sTeaser')).toBeVisible();
+    expect(await page.locator('#sTeaser').evaluate((teaserNode) => (
+      teaserNode.previousElementSibling?.id === 'sSolved' && teaserNode.nextElementSibling?.id === 'orient'
+    ))).toBe(true);
+    await expect(page.locator('#sTeaser')).toHaveClass(/expanded/);
+    await expect(page.locator('#sTeaser')).toHaveCSS('margin-top', '20px');
+    await expect(page.locator('#sTeaserText')).toHaveCSS('display', 'block');
+    await expect(page.locator('#sTeaser [data-act="teaser"]')).toBeHidden();
+    await expect(page.locator('#sTeaser [data-act="teaser"]')).toHaveAttribute('aria-expanded', 'true');
   });
 
   test('Browser-Zurück und -Vor wechseln zwischen Stationen', async ({ page }) => {
@@ -812,6 +834,9 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     await page.locator('#sOptions [data-act="fake"]').tap();
 
     await expect(page.locator('#sOptions .option')).toHaveCount(station.options.length);
+    expect(await page.locator('#sTeaser').evaluate((teaserNode) => (
+      teaserNode.previousElementSibling?.id === 'sTitle' && teaserNode.nextElementSibling?.id === 'sMain'
+    ))).toBe(true);
     for (const [i, text] of station.options.entries()) {
       await expect(page.locator(`#sOptions .option[data-i="${i}"]`)).toContainText(text);
     }
@@ -823,6 +848,9 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
     await page.locator(`#sOptions .option[data-i="${station.correctOptionIndex}"]`).tap();
     await expect(page.locator('#station')).toHaveClass(/solved/);
     await expect(page.locator('#sTitle')).toHaveText(station.solutionTitle);
+    expect(await page.locator('#sTeaser').evaluate((teaserNode) => (
+      teaserNode.previousElementSibling?.id === 'sSolved' && teaserNode.nextElementSibling?.id === 'orient'
+    ))).toBe(true);
   });
 
   test('Freigabe gilt nur für die jeweilige Station', async ({ page }) => {

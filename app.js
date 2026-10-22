@@ -527,7 +527,7 @@ function renderStation() {
   $('#sNum').textContent = 'Station ' + st.number;
   $('#sTag').innerHTML = catImg(c) + esc(c.name);
   $('#sTitle').textContent = solved ? st.solutionTitle : has ? st.title : 'Station ' + st.number;
-  renderTeaser(st, has);
+  renderTeaser(st, has, solved);
   $('#heroFb').textContent = has && !st.taskImage ? '📷 Für diese Station liegt noch kein Foto vor.' : '';
   setImage($('#imgTask'), has ? st.taskImage : '', 'Rätselfoto zu Station ' + st.number);
   setImage($('#imgSol'), has && solved ? st.solutionImage : (has && st.solutionImage && p.solved ? st.solutionImage : ''), has ? 'Lösungsfoto: ' + (st.solutionTitle || '') : '');
@@ -546,14 +546,19 @@ function renderStation() {
   }
   renderActionBar(st, p, has, gated, solved);
 }
-function renderTeaser(st, has) {
+function renderTeaser(st, has, solved) {
   const teaser = $('#sTeaser'), toggle = teaser.querySelector('[data-act="teaser"]');
   const text = has && typeof st.teaserText === 'string' ? st.teaserText : '';
   teaser.hidden = text === '';
+  const previous = solved ? $('#sSolved') : $('#sTitle');
+  const next = solved ? $('#orient') : $('#sMain');
+  if (teaser.previousElementSibling !== previous || teaser.nextElementSibling !== next) next.before(teaser);
   $('#sTeaserText').textContent = text;
+  if (solved) U.teaserExpanded = true;
   teaser.classList.toggle('expanded', U.teaserExpanded);
   toggle.setAttribute('aria-expanded', String(U.teaserExpanded));
   toggle.textContent = U.teaserExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen';
+  toggle.hidden = solved;
 }
 function renderUnsolved(st, p, gated, solved) {
   const hintAvailable = !gated && isEnabled('hint_button') && typeof st.hint === 'string';
@@ -823,7 +828,7 @@ function handleStationClick(event) {
   switch (btn.dataset.act) {
     case 'teaser':
       U.teaserExpanded = !U.teaserExpanded;
-      renderTeaser(stationsById.get(id), hasDetails(stationsById.get(id)));
+      renderTeaser(stationsById.get(id), hasDetails(stationsById.get(id)), $('#station').classList.contains('solved'));
       break;
     case 'verify': verifyStationLocation(id); break;
     case 'fake': verifyStationLocation(id, true); break; // DEV-FAKE-POSITION
