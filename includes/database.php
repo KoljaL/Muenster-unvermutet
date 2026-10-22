@@ -19,7 +19,12 @@ function db(): PDO
         if ($isNew) {
             @chmod($path, 0660);
         }
-        $pdo->exec((string) file_get_contents(config('schema_path')));
+        $schema = is_readable(config('schema_path')) ? trim((string) file_get_contents(config('schema_path'))) : '';
+        if ($schema !== '') {
+            $pdo->exec($schema);
+        } elseif ($isNew) {
+            throw new RuntimeException('Schema-Datei fehlt oder ist leer: ' . config('schema_path'));
+        }
         $stationColumns = $pdo->query('PRAGMA table_info(stations)')->fetchAll(PDO::FETCH_COLUMN, 1);
         if (!in_array('teaser_text', $stationColumns, true)) {
             $pdo->exec('ALTER TABLE stations ADD COLUMN teaser_text TEXT');
