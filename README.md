@@ -68,7 +68,9 @@ nur für die aktuelle Sitzung.
 
 Die Kategorien unter der Karte sind Filter-Schalter. Ein leerer Filter zeigt alle
 Stationen. Der UI-Zustand liegt in `uiState`; Rendering und Interaktionen sind getrennt.
-Für zukünftige Animationen oder Erweiterungen stellt `index.html` folgende
+`index.html` enthält das HTML-Grundgerüst und bindet `app.css` sowie `app.js` ein.
+Der frühe Theme-Code bleibt inline, damit der richtige Look vor dem ersten Rendern
+gesetzt wird. Für zukünftige Animationen oder Erweiterungen stellt `app.js` folgende
 `CustomEvent`s auf `document` bereit:
 
 `ms:beforeRender`, `ms:afterRender`, `ms:beforeDetailsOpen`,
@@ -296,14 +298,14 @@ Die folgenden Zugangsdaten sind ausschließlich für eine Testinstallation vorge
 
 Auf jeder Stationsseite gibt es den Button „🛠 Fake Position (Dev)“. Er verwendet die Stationskoordinaten als eigene Position und löst die Standortfreigabe aus, sodass man nicht zu jeder Station fahren muss. Der Server prüft dabei normal. Vor dem Livegang **muss er entfernt werden**, da sonst jeder die Standortprüfung umgehen kann.
 
-Alle Stellen in `index.html` sind mit `DEV-FAKE-POSITION` markiert (nach dem Begriff suchen):
+Alle Stellen in `app.js` sind mit `DEV-FAKE-POSITION` markiert (nach dem Begriff suchen):
 
 1. Block mit `devFakePositionButton` und `devFakePosition` vor `renderLocationStatus` komplett löschen.
 2. In `renderLocationStatus` den Aufruf `+ devFakePositionButton(state)` entfernen.
 3. In `verifyStationLocation` den Parameter `devFake`, die Bedingung `!devFake &&` und den Zweig `devFake ? devFakePosition(stationId) :` entfernen.
 4. In `handleTaskListClick` den `case 'fake-position'` löschen.
 
-Kontrolle: Die Suche nach `DEV-FAKE-POSITION`, `devFake` und `fake-position` darf in `index.html` keine Treffer mehr liefern.
+Kontrolle: Die Suche nach `DEV-FAKE-POSITION`, `devFake` und `fake-position` darf in `app.js` keine Treffer mehr liefern.
 
 ### Einrichtung und lokaler Test
 
