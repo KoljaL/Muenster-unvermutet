@@ -63,7 +63,7 @@ $head = '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leafl
 admin_header($isNew ? 'Neue Station' : 'Station bearbeiten', $admin, $head);
 $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
 ?>
-<h1 class="admin-title"><?= $isNew ? 'Neue Station' : 'Station bearbeiten'. ' – ' . h($st['title']) ?></h1>
+<h1 class="admin-title"><?= $isNew ? 'Neue Station' : 'Station bearbeiten'. ' – ' . h($st['number']) . ' – ' . h($st['title']) ?></h1>
 <form method="post" action="station-save.php" enctype="multipart/form-data">
   <?= csrf_field() ?>
   <input type="hidden" name="mode" value="<?= $isNew ? 'create' : 'update' ?>">

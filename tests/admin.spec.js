@@ -63,6 +63,7 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     const createdStation = pins.find((station) => station.title === stationTitle);
     expect(createdStation).toBeDefined();
     expect(createdStation.id).toBe(`pw-station-${suffix}-${createdStation.number}`);
+    await expect(stationRow.locator('.ico')).toHaveText(String(createdStation.number));
     const editHref = await stationRow.getByRole('link', { name: 'Bearbeiten' }).getAttribute('href');
     const editUrl = new URL(editHref, page.url()).toString();
     await page.goto(editUrl);

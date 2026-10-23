@@ -4,7 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 $admin = require_admin();
 
-$stations = db()->query('SELECT id, title, category, status, task_image FROM stations ORDER BY number')->fetchAll();
+$stations = db()->query('SELECT id, number, title, category, status, task_image FROM stations ORDER BY number')->fetchAll();
 $categories = array_column(all_categories(), null, 'id');
 $pending = (int) db()->query("SELECT COUNT(*) FROM station_suggestions WHERE status = 'pending'")->fetchColumn();
 
@@ -20,7 +20,7 @@ admin_header('Stationen', $admin);
 <ul class="station-list">
   <?php foreach ($stations as $s): $c = $categories[$s['category']] ?? null; $archived = $s['status'] !== 'published'; ?>
   <li class="station-item<?= $archived ? ' station-item--archived' : '' ?>">
-    <span class="ico" aria-hidden="true"><?= category_ico($c) ?></span>
+    <span class="ico" aria-hidden="true"><?= h($s['number']) ?></span>
     <a class="admin-main" href="station-edit.php?id=<?= h(urlencode($s['id'])) ?>"><?= h($s['title']) ?>
       <small><?= h($c['name'] ?? $s['category']) ?><?= $s['task_image'] === '' ? ' · ⚠ Aufgabenbild fehlt' : '' ?></small></a>
     <span class="badge<?= $archived ? ' badge--archived' : '' ?>"><?= $archived ? 'archiviert' : 'veröffentlicht' ?></span>

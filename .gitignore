@@ -1,6 +1,7 @@
 setup/images/*.*
 uploads/
 .vscode/
+secret.md
 
 # Playwright
 node_modules/
