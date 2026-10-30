@@ -13,10 +13,10 @@ Muss das nicht 1/14 heißen???
 3. Wenn ich eine neue Station einrichten will: erscheint das hochgeladene Foto erst, wenn die Station veröffentlich ist????. Ich sehe immer nur den Dateinamen, aber nicht das Bild in der Vorschau
  
 
- 
-
 4. Kann man die Standortgenauigkeit von 50 m auf 30 m verringern?
 5. Wenn ich den liunk per whatstapp verschicke, kommt nur der Link, aber keine Vorschau des Bildes. Kann man das ändern?
+
+
 
 
 1. Neue URL
@@ -35,11 +35,11 @@ Sollte jetzt korrekt angezeigt werden.
 4. Mitwirkende
 Die Angaben zu Idee und Umsetzung können im Admin-Bereich unter Einstellungen → Credits und Impressum ergänzt oder geändert werden. 
 
-1. Standortprüfung
+5. Standortprüfung
 Der Radius kann in den Admin-Einstellungen unter „Standortprüfung“ angepasst werden. Die derzeitigen 50 Meter sind ein guter Kompromiss: Die Standortbestimmung per Handy ist nicht immer exakt und kann je nach Gerät, Empfang und Umgebung schwanken. Mit nur 30 Metern könnte es passieren, dass Besucher direkt am richtigen Ort stehen, aber trotzdem nicht freigeschaltet werden. Wenn ihr auf 30 Meter verkleinern möchtet, sollte das vorher an den Stationen mit verschiedenen Handys ausprobiert werden.
 
 
-3. Titel und Beschreibung welche angezeigt werden, wenn der Link geteilt wird (z. B. in WhatsApp oder Signal)
+6. Titel und Beschreibung welche angezeigt werden, wenn der Link geteilt wird (z. B. in WhatsApp oder Signal)
    
 
 Titelvorschläge: 
