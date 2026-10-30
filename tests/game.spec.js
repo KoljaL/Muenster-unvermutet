@@ -482,11 +482,12 @@ test.describe('Fortschritt, Finale und Zurücksetzen', () => {
   });
 
   test('vorhandener Fortschritt wird in Ring, Liste und Fortschrittsseite angezeigt', async ({ page }) => {
-    await openGame(page, { progress: solvedProgress(3) });
-    await expect(page.locator('#ringTxt')).toHaveText(`3/${stations.length}`);
+    await openGame(page, { progress: solvedProgress(2) });
+    await expect(page.locator('#ringTxt')).toHaveText(`2/${stations.length}`);
     await page.locator('.tab[data-t="progress"]').tap();
-    await expect(page.locator('#bigCount')).toHaveText(`3/${stations.length}`);
-    await expect(page.locator('#badges .badge.got')).toHaveCount(3);
+    await expect(page.locator('#bigCount')).toHaveText(`2/${stations.length}`);
+    await expect(page.locator('#badges .badge.got')).toHaveCount(2);
+    await expect(page.locator('#stats > div:first-child b')).toHaveText(`2/${stations.length}`);
   });
 
   test('letzte Station lösen zeigt das Finale mit Statistik', async ({ page }) => {

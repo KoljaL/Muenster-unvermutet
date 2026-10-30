@@ -335,7 +335,8 @@ function computeStats() {
   const attempts = stats.reduce((sum, p) => sum + p.attempts, 0);
   const hints = stats.filter((p) => p.hintUsed).length;
   const revealed = stats.filter((p) => p.revealed).length;
-  return { attempts, hints, revealed, own: stations.length - revealed };
+  const own = stats.filter((p) => p.solved && !p.revealed).length;
+  return { attempts, hints, revealed, own };
 }
 function rankText(st) {
   if (st.revealed === 0 && st.attempts === 0) return '🏅 Münster-Meister:in';

@@ -49,11 +49,15 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     await page.locator('[name="options[1]"]').fill('Falsche Antwort');
     await page.locator('#solution_title').fill('Playwright-Lösung');
     await page.locator('#info').fill('Playwright-Information');
+    await page.waitForLoadState('load');
     await page.locator('#task_image').setInputFiles({
       name: 'test.png',
       mimeType: 'image/png',
       buffer: png,
     });
+    await expect(page.locator('#task_image_preview')).toBeVisible();
+    await expect(page.locator('#task_image_preview')).toHaveAttribute('src', /^blob:/);
+    await expect(page.locator('#task_image_preview_note')).toContainText('Hochgeladen wird erst beim Speichern');
     await page.locator('form[action="station-save.php"]').evaluate((form) => form.requestSubmit());
 
     let stationRow = page.locator('.station-item').filter({ hasText: stationTitle });

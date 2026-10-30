@@ -7,8 +7,8 @@ import { defineConfig, devices } from '@playwright/test';
  * Standardmäßig wird lokal getestet und der PHP-Server automatisch gestartet.
  */
 const IS_LIVE = process.env.TEST_ENV === 'live';
-// Der abschließende Slash ist nötig, damit relative Pfade (z. B. 'index.html') unter dem Unterordner aufgelöst werden.
-const LIVE_URL = 'https://stina-ms.de/muenster-unvermutet/';
+// Der abschließende Slash ist nötig, damit relative Pfade (z. B. 'index.html') korrekt aufgelöst werden.
+const LIVE_URL = 'https://muenster-unvermutet.de/';
 const LOCAL_PORT = 8123;
 const LOCAL_URL = `http://127.0.0.1:${LOCAL_PORT}/`;
 // Die Standortfreigabe steht in der Test-DB auf 'test' und wird nur mit ?preview=ui.location_gate aktiv.

@@ -198,6 +198,19 @@ mit allen Ereignistypen, Detailliste je Tag und Zahlen pro Station.
 
 ## Geplante Verbesserungen (zukünftige Updates)
 
+### Vorschaubild für geteilte Links im Admin pflegen
+
+**Erinnerung:** Titel, Beschreibung und das gemeinsame Vorschaubild
+(`assets/share-preview.jpg`, 1200 × 630 px) für Messenger wie WhatsApp sind vorerst
+fest als Open-Graph-Angaben im `<head>` der `index.html` hinterlegt. Das Bild ist ein
+vorläufiges Motiv (Lupe und Titel) und kann durch ein eigenes ersetzt werden; bei
+Änderungen empfiehlt sich ein neuer Dateiname, weil Messenger Vorschauen zwischenspeichern.
+
+Nach dem Release soll geprüft werden, ob sich Bild, Titel und Beschreibung im
+Admin-Bereich einstellen lassen. Messenger führen kein JavaScript aus; der Server müsste
+die Angaben deshalb beim Ausliefern der Startseite in den HTML-Kopf schreiben (z. B.
+über eine PHP-Startseite). Das hängt von der Hosting-Konfiguration ab.
+
 ### Persistente serverseitige Standortfreigabe
 
 **Problem:** Die Freigabe einer Station wird an zwei Stellen gespeichert: als
@@ -254,7 +267,7 @@ brauchen weiterhin eine Internetverbindung.
   App wird er nicht angezeigt.
 - Dateien: `manifest.webmanifest`, `assets/icons/`, `.htaccess` (MIME-Typ des
   Manifests). `start_url` und `scope` sind relativ und passen zu
-  `https://stina-ms.de/muenster-unvermutet/`.
+  `https://muenster-unvermutet.de/`.
 - Die Symbole sind eine **vorläufige** Nachzeichnung von `MS_Rathhaus_Logo.jpg`
   (`python3 tools/make-icons.py`, benötigt Pillow). Finale PNGs erstellt und
   gibt die Designabteilung frei; sie ersetzen die Dateien in `assets/icons/`

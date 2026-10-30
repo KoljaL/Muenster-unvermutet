@@ -124,13 +124,15 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
     <div class="admin-media-grid">
       <div class="admin-media-item">
         <label for="task_image">Aufgabenfoto</label>
-        <?php if ($st['task_image'] !== ''): ?><img class="thumb" src="<?= $img($st['task_image']) ?>" alt="Aufgabenfoto"><?php endif; ?>
-        <input type="file" id="task_image" name="task_image" accept="image/jpeg,image/png">
+        <img class="thumb" id="task_image_preview" data-saved="<?= $img($st['task_image']) ?>" src="<?= $img($st['task_image']) ?>" alt="Aufgabenfoto"<?= $st['task_image'] === '' ? ' hidden' : '' ?>>
+        <input type="file" id="task_image" name="task_image" accept="image/jpeg,image/png" data-preview="task_image_preview">
+        <p class="muted" id="task_image_preview_note" hidden>Vorschau der ausgewählten Datei. Hochgeladen wird erst beim Speichern.</p>
       </div>
       <div class="admin-media-item">
         <label for="solution_image">Lösungsfoto</label>
-        <?php if ($st['solution_image'] !== ''): ?><img class="thumb" src="<?= $img($st['solution_image']) ?>" alt="Lösungsfoto"><?php endif; ?>
-        <input type="file" id="solution_image" name="solution_image" accept="image/jpeg,image/png">
+        <img class="thumb" id="solution_image_preview" data-saved="<?= $img($st['solution_image']) ?>" src="<?= $img($st['solution_image']) ?>" alt="Lösungsfoto"<?= $st['solution_image'] === '' ? ' hidden' : '' ?>>
+        <input type="file" id="solution_image" name="solution_image" accept="image/jpeg,image/png" data-preview="solution_image_preview">
+        <p class="muted" id="solution_image_preview_note" hidden>Vorschau der ausgewählten Datei. Hochgeladen wird erst beim Speichern.</p>
       </div>
     </div>
   </fieldset>
@@ -148,6 +150,36 @@ $img = static fn(string $p): string => $p !== '' ? '../' . h($p) : '';
   <div class="admin-sticky"><button class="next-button">Speichern</button> <a class="btn secondary" href="index.php">Abbrechen</a></div>
 </form>
 
+<script>
+  (function () {
+    document.querySelectorAll('input[type="file"][data-preview]').forEach(function (input) {
+      var preview = document.getElementById(input.dataset.preview);
+      var note = document.getElementById(input.dataset.preview + '_note');
+      var objectUrl = null;
+      function reset() {
+        if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+        var saved = preview.dataset.saved;
+        if (saved) { preview.src = saved; preview.hidden = false; } else { preview.removeAttribute('src'); preview.hidden = true; }
+        note.hidden = true;
+      }
+      function update() {
+        var file = input.files && input.files[0];
+        if (!file) { reset(); return; }
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = URL.createObjectURL(file);
+        note.textContent = 'Vorschau der ausgewählten Datei. Hochgeladen wird erst beim Speichern.';
+        note.hidden = false;
+        preview.src = objectUrl;
+        preview.hidden = false;
+      }
+      preview.addEventListener('error', function () {
+        if (objectUrl) { note.textContent = 'Diese Datei kann im Browser nicht angezeigt werden. Bitte ein JPEG- oder PNG-Bild wählen.'; note.hidden = false; preview.hidden = true; }
+      });
+      input.addEventListener('change', update);
+      if (input.files && input.files.length) update();
+    });
+  })();
+</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   (function () {

@@ -2,6 +2,9 @@ setup/images/*.*
 uploads/
 .vscode/
 secret.md
+.DS_Store
+Thumbs.db
+
 
 # Playwright
 node_modules/

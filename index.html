@@ -1,221 +1,316 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de" data-look="clean">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Münster unvermutet – Foto-Schnitzeljagd</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Münster unvermutet">
-<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
-<script>
-  /* Look vor dem ersten Rendern setzen, damit nichts aufblitzt. */
-  (function () {
-    var look = null;
-    try { look = localStorage.getItem('muenster-unvermutet:look'); } catch (e) {}
-    if (look === 'muensterland') {
-      look = 'clean';
-      try { localStorage.setItem('muenster-unvermutet:look', look); } catch (e) {}
-    }
-    if (look !== 'clean' && look !== 'night') {
-      look = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'clean';
-    }
-    document.documentElement.dataset.look = look;
-  })();
-</script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
-<link rel="stylesheet" href="app.css">
-</head>
-<body>
-<div class="app" id="app">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Münster unvermutet – Foto-Schnitzeljagd</title>
+    <meta name="description" content="Begib dich auf Spurensuche durch Münster! Entdecke historische Details und lerne die Geschichte der Stadt auf spannende Weise kennen." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Münster unvermutet" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:title" content="Münster unvermutet – Die historische Schnitzeljagd" />
+    <meta property="og:description" content="Begib dich auf Spurensuche durch Münster! Entdecke historische Details und lerne die Geschichte der Stadt auf spannende Weise kennen." />
+    <meta property="og:url" content="https://muenster-unvermutet.de/" />
+    <meta property="og:image" content="https://muenster-unvermutet.de/assets/share-preview.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Lupe über Gebäudelinien und der Titel „Münster unvermutet“" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Münster unvermutet" />
+    <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)" />
+    <script>
+      /* Look vor dem ersten Rendern setzen, damit nichts aufblitzt. */
+      (function () {
+        var look = null;
+        try {
+          look = localStorage.getItem('muenster-unvermutet:look');
+        } catch (e) {}
+        if (look === 'muensterland') {
+          look = 'clean';
+          try {
+            localStorage.setItem('muenster-unvermutet:look', look);
+          } catch (e) {}
+        }
+        if (look !== 'clean' && look !== 'night') {
+          look = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'clean';
+        }
+        document.documentElement.dataset.look = look;
+      })();
+    </script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <div class="layer" id="map" role="region" aria-label="Karte von Münster – die Stationen sind per Tastatur erreichbar"></div>
+      <div class="map-fallback" id="mapFallback" hidden>🗺️ Die Karte konnte nicht geladen werden. Nutze die Liste, um Stationen zu öffnen.</div>
 
-  <div class="layer" id="map" role="region" aria-label="Karte von Münster – die Stationen sind per Tastatur erreichbar"></div>
-  <div class="map-fallback" id="mapFallback" hidden>🗺️ Die Karte konnte nicht geladen werden. Nutze die Liste, um Stationen zu öffnen.</div>
+      <header class="top" id="top">
+        <img class="top-logo" src="MS_Rathhaus_Logo.jpg" alt="Logo der Stadt Münster" />
+        <h1 id="pageTitle" tabindex="-1">Münster unvermutet</h1>
+        <button type="button" class="help-shortcut" id="openHelpMap" aria-label="So funktioniert's" aria-haspopup="dialog">?</button>
+        <button type="button" class="ring" id="ring" aria-label="Fortschritt anzeigen">
+          <svg viewBox="0 0 46 46" aria-hidden="true">
+            <circle class="bg" cx="23" cy="23" r="18" />
+            <circle class="fg" id="ringFg" cx="23" cy="23" r="18" />
+          </svg>
+          <b id="ringTxt">–</b>
+        </button>
+      </header>
+      <div class="chips chips--map" id="chipsMap" data-ui-option="legend" role="group" aria-label="Kategorien – zum Filtern auswählen"></div>
 
-  <header class="top" id="top">
-    <img class="top-logo" src="MS_Rathhaus_Logo.jpg" alt="Logo der Stadt Münster">
-    <h1 id="pageTitle" tabindex="-1">Münster unvermutet</h1>
-    <button type="button" class="help-shortcut" id="openHelpMap" aria-label="So funktioniert's" aria-haspopup="dialog">?</button>
-    <button type="button" class="ring" id="ring" aria-label="Fortschritt anzeigen">
-      <svg viewBox="0 0 46 46" aria-hidden="true"><circle class="bg" cx="23" cy="23" r="18"/><circle class="fg" id="ringFg" cx="23" cy="23" r="18"/></svg>
-      <b id="ringTxt">–</b>
-    </button>
-  </header>
-  <div class="chips chips--map" id="chipsMap" data-ui-option="legend" role="group" aria-label="Kategorien – zum Filtern auswählen"></div>
-
-  <div class="banner" id="loadError" role="alert" hidden><p id="loadErrorText"></p><button type="button" class="btn" id="loadRetry">Erneut versuchen</button></div>
-  <section class="sheet" id="sheet" data-ui-option="station_list" data-snap="hidden" aria-label="Alle Stationen">
-    <div class="sheet-head" id="sheetHead"><h2>Stationen</h2><span id="sheetCount"></span></div>
-    <div class="chips chips--sheet" id="chipsSheet" data-ui-option="legend" role="group" aria-label="Kategorien – zum Filtern auswählen"></div>
-    <ul class="list" id="list" aria-label="Alle Stationen"></ul>
-  </section>
-
-  <section class="layer panel" id="p-progress" aria-label="Fortschritt">
-    <h2>Fortschritt</h2>
-    <div class="card"><div class="big" id="bigCount">–</div><div class="bar" role="progressbar" id="bigTrack" aria-label="Fortschritt" aria-valuemin="0"><i id="bigBar"></i></div><p id="rank" style="color:var(--muted);margin-top:10px"></p></div>
-    <div class="card"><b>Stationen</b><div class="badges" id="badges"></div></div>
-    <div class="card"><b>Statistik</b><div class="stats" id="stats"></div></div>
-    <button type="button" class="btn wide" id="openFinale" data-ui-option="completion" hidden>🏆 Finale ansehen</button>
-  </section>
-
-  <section class="layer panel" id="p-more" aria-label="Mehr">
-    <h2>Mehr</h2>
-    <div class="card">
-      <div class="set"><span>Look</span>
-        <div class="seg" id="lookSeg" role="group" aria-label="Look wählen">
-          <button type="button" data-look="clean" aria-pressed="false">Tag</button>
-          <button type="button" data-look="night" aria-pressed="false">Nacht</button>
-        </div></div>
-      <button type="button" class="set" id="setA11y" role="switch" aria-checked="false"><span>Barrierefrei<small>Größere Pins und Schrift</small></span><i class="sw" aria-hidden="true"></i></button>
-      <button type="button" class="set" id="setStats" role="switch" aria-checked="false"><span>Anonyme Statistik<small>Zufällige Kennung, keine Standortdaten</small></span><i class="sw" aria-hidden="true"></i></button>
-    </div>
-    <div class="card">
-      <button type="button" class="set" id="openSuggest" data-ui-option="suggest" aria-haspopup="dialog"><span>📍 Station vorschlagen</span><span aria-hidden="true">›</span></button>
-      <button type="button" class="set" id="openHelp" aria-haspopup="dialog"><span>❓ So funktioniert's</span><span aria-hidden="true">›</span></button>
-      <button type="button" class="set" id="openPrivacy" aria-haspopup="dialog"><span>🔒 Datenschutz</span><span aria-hidden="true">›</span></button>
-      <button type="button" class="set" id="openReset" style="color:var(--bad)" aria-haspopup="dialog"><span>↻ Fortschritt zurücksetzen</span><span aria-hidden="true">›</span></button>
-    </div>
-    <section class="card" id="publicCredits" hidden><h3>Credits / Mitwirkende</h3><div class="public-text" id="publicCreditsText"></div></section>
-    <section class="card" id="publicImprint" hidden><h3>Impressum</h3><div class="public-text" id="publicImprintText"></div></section>
-    <p style="color:var(--muted);font-size:13px;text-align:center">Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>-Mitwirkende</p>
-  </section>
-
-  <section class="layer station" id="station" role="dialog" aria-modal="true" aria-labelledby="sTitle">
-    <button type="button" class="back" id="back" aria-label="Zurück zum Stadtplan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <div class="scroll" id="sScroll">
-      <div class="hero" id="hero">
-        <div class="hero-fallback" id="heroFb"></div>
-        <img class="hero-img" id="imgTask" alt="" hidden>
-        <img class="hero-img sol" id="imgSol" alt="" hidden>
-        <span class="hero-zoom-hint" id="heroZoomHint" aria-hidden="true" title="Foto antippen zum Vergrößern" hidden><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg></span>
-        <span class="pill" id="sNum"></span><span class="pill ok">✓ gelöst</span>
+      <div class="banner" id="loadError" role="alert" hidden>
+        <p id="loadErrorText"></p>
+        <button type="button" class="btn" id="loadRetry">Erneut versuchen</button>
       </div>
-      <p class="caption" id="sCaption" hidden></p>
-      <div class="body stagger">
-        <div style="--i:0"><span class="tag" id="sTag"></span></div>
-        <h2 id="sTitle" tabindex="-1" style="--i:1"></h2>
-        <div class="teaser" id="sTeaser" style="--i:1" hidden>
-          <p id="sTeaserText"></p>
-          <button type="button" class="teaser-toggle" data-act="teaser" aria-controls="sTeaserText" aria-expanded="false">Mehr anzeigen</button>
+      <section class="sheet" id="sheet" data-ui-option="station_list" data-snap="hidden" aria-label="Alle Stationen">
+        <div class="sheet-head" id="sheetHead">
+          <h2>Stationen</h2>
+          <span id="sheetCount"></span>
         </div>
-        <div style="--i:2" id="sMain">
-          <div id="sStatus" hidden></div>
-          <div id="sContent" hidden>
-            <div class="collapse" id="sUnsolved"><div>
-              <div class="collapse hint-box" id="hintBox"><div><p id="hintText"></p></div></div>
-              <p class="intro" id="sIntro">Suche den Ort und beantworte dann, worum es geht.</p>
-              <div id="sOptions" role="group" aria-labelledby="sIntro"></div>
-              <p class="err" id="errMsg" role="status" hidden>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>
-            </div></div>
-            <div class="collapse" id="sSolved"><div>
-              <div class="verdict"><span class="check" aria-hidden="true">✓</span><span>Richtig – gut gesehen!</span></div>
-              <p class="info" id="sInfo"></p>
-              <div class="sources" id="sSources"></div>
-            </div></div>
-            <details class="orient" id="orient" data-ui-option="station_map"><summary>OpenStreetMap-Orientierungskarte</summary><div id="orientMap" role="region" aria-label="Karte mit Stationsziel und eigener Position"></div><div id="orientLoc"></div><p id="orientDist"></p><div id="orientDev"></div></details>
+        <div class="chips chips--sheet" id="chipsSheet" data-ui-option="legend" role="group" aria-label="Kategorien – zum Filtern auswählen"></div>
+        <ul class="list" id="list" aria-label="Alle Stationen"></ul>
+      </section>
+
+      <section class="layer panel" id="p-progress" aria-label="Fortschritt">
+        <h2>Fortschritt</h2>
+        <div class="card">
+          <div class="big" id="bigCount">–</div>
+          <div class="bar" role="progressbar" id="bigTrack" aria-label="Fortschritt" aria-valuemin="0"><i id="bigBar"></i></div>
+          <p id="rank" style="color: var(--muted); margin-top: 10px"></p>
+        </div>
+        <div class="card">
+          <b>Stationen</b>
+          <div class="badges" id="badges"></div>
+        </div>
+        <div class="card">
+          <b>Statistik</b>
+          <div class="stats" id="stats"></div>
+        </div>
+        <button type="button" class="btn wide" id="openFinale" data-ui-option="completion" hidden>🏆 Finale ansehen</button>
+      </section>
+
+      <section class="layer panel" id="p-more" aria-label="Mehr">
+        <h2>Mehr</h2>
+        <div class="card">
+          <div class="set">
+            <span>Look</span>
+            <div class="seg" id="lookSeg" role="group" aria-label="Look wählen">
+              <button type="button" data-look="clean" aria-pressed="false">Tag</button>
+              <button type="button" data-look="night" aria-pressed="false">Nacht</button>
+            </div>
+          </div>
+          <button type="button" class="set" id="setA11y" role="switch" aria-checked="false">
+            <span>Barrierefrei<small>Größere Pins und Schrift</small></span
+            ><i class="sw" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="set" id="setStats" role="switch" aria-checked="false">
+            <span>Anonyme Statistik<small>Zufällige Kennung, keine Standortdaten</small></span
+            ><i class="sw" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="card">
+          <button type="button" class="set" id="openSuggest" data-ui-option="suggest" aria-haspopup="dialog"><span>📍 Station vorschlagen</span><span aria-hidden="true">›</span></button>
+          <button type="button" class="set" id="openHelp" aria-haspopup="dialog"><span>❓ So funktioniert's</span><span aria-hidden="true">›</span></button>
+          <button type="button" class="set" id="openPrivacy" aria-haspopup="dialog"><span>🔒 Datenschutz</span><span aria-hidden="true">›</span></button>
+          <button type="button" class="set" id="openReset" style="color: var(--bad)" aria-haspopup="dialog"><span>↻ Fortschritt zurücksetzen</span><span aria-hidden="true">›</span></button>
+        </div>
+        <section class="card" id="publicCredits" hidden>
+          <h3>Credits / Mitwirkende</h3>
+          <div class="public-text" id="publicCreditsText"></div>
+        </section>
+        <section class="card" id="publicImprint" hidden>
+          <h3>Impressum</h3>
+          <div class="public-text" id="publicImprintText"></div>
+        </section>
+        <p style="color: var(--muted); font-size: 13px; text-align: center">Kartendaten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>-Mitwirkende</p>
+      </section>
+
+      <section class="layer station" id="station" role="dialog" aria-modal="true" aria-labelledby="sTitle">
+        <button type="button" class="back" id="back" aria-label="Zurück zum Stadtplan">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <div class="scroll" id="sScroll">
+          <div class="hero" id="hero">
+            <div class="hero-fallback" id="heroFb"></div>
+            <img class="hero-img" id="imgTask" alt="" hidden />
+            <img class="hero-img sol" id="imgSol" alt="" hidden />
+            <span class="hero-zoom-hint" id="heroZoomHint" aria-hidden="true" title="Foto antippen zum Vergrößern" hidden
+              ><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" /></svg
+            ></span>
+            <span class="pill" id="sNum"></span><span class="pill ok">✓ gelöst</span>
+          </div>
+          <p class="caption" id="sCaption" hidden></p>
+          <div class="body stagger">
+            <div style="--i: 0"><span class="tag" id="sTag"></span></div>
+            <h2 id="sTitle" tabindex="-1" style="--i: 1"></h2>
+            <div class="teaser" id="sTeaser" style="--i: 1" hidden>
+              <p id="sTeaserText"></p>
+              <button type="button" class="teaser-toggle" data-act="teaser" aria-controls="sTeaserText" aria-expanded="false">Mehr anzeigen</button>
+            </div>
+            <div style="--i: 2" id="sMain">
+              <div id="sStatus" hidden></div>
+              <div id="sContent" hidden>
+                <div class="collapse" id="sUnsolved">
+                  <div>
+                    <div class="collapse hint-box" id="hintBox">
+                      <div><p id="hintText"></p></div>
+                    </div>
+                    <p class="intro" id="sIntro">Suche den Ort und beantworte dann, worum es geht.</p>
+                    <div id="sOptions" role="group" aria-labelledby="sIntro"></div>
+                    <p class="err" id="errMsg" role="status" hidden>Noch nicht – probier es nochmal oder nutze den Hinweis.</p>
+                  </div>
+                </div>
+                <div class="collapse" id="sSolved">
+                  <div>
+                    <div class="verdict"><span class="check" aria-hidden="true">✓</span><span>Richtig – gut gesehen!</span></div>
+                    <p class="info" id="sInfo"></p>
+                    <div class="sources" id="sSources"></div>
+                  </div>
+                </div>
+                <details class="orient" id="orient" data-ui-option="station_map">
+                  <summary>OpenStreetMap-Orientierungskarte</summary>
+                  <div id="orientMap" role="region" aria-label="Karte mit Stationsziel und eigener Position"></div>
+                  <div id="orientLoc"></div>
+                  <p id="orientDist"></p>
+                  <div id="orientDev"></div>
+                </details>
+              </div>
+            </div>
           </div>
         </div>
+        <div class="action" id="action"></div>
+      </section>
+
+      <div class="image-viewer" id="imageViewer" role="dialog" aria-modal="true" aria-labelledby="imageViewerCaption" aria-hidden="true" inert>
+        <img class="image-viewer-bg" id="imageViewerBg" alt="" aria-hidden="true" />
+        <button type="button" class="image-viewer-close" id="imageViewerClose" aria-label="Foto schließen">×</button>
+        <img class="image-viewer-img" id="imageViewerImg" alt="" />
+        <p class="image-viewer-caption" id="imageViewerCaption"></p>
       </div>
+
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Hauptnavigation">
+        <button type="button" class="tab" role="tab" data-t="map" aria-selected="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z" />
+            <path d="M9 4v14M15 6v14" /></svg
+          >Karte
+        </button>
+        <button type="button" class="tab" role="tab" data-t="list" data-ui-option="station_list" aria-selected="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>Liste
+        </button>
+        <button type="button" class="tab" role="tab" data-t="progress" aria-selected="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="9" r="6" />
+            <path d="M8.5 14L7 22l5-3 5 3-1.5-8" /></svg
+          >Fortschritt
+        </button>
+        <button type="button" class="tab" role="tab" data-t="more" aria-selected="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="5" cy="12" r="1" />
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="19" cy="12" r="1" /></svg
+          >Mehr
+        </button>
+      </nav>
+
+      <div class="scrim" id="scrim"></div>
+
+      <div class="modal" id="m-suggest" data-ui-option="suggest" role="dialog" aria-modal="true" aria-labelledby="sgT">
+        <h3 id="sgT" tabindex="-1">Station vorschlagen</h3>
+        <form id="sgForm" novalidate>
+          <p class="sub">Kennst du einen besonderen Ort in Münster, dann schlage ihn hier vor. Ich brauche den Ort und eine kurze Beschreibung. Vielleicht findest du dann bald deinen Vorschlag im Spiel.</p>
+          <div class="field">
+            <label for="sgName">Ort *</label><input type="text" id="sgName" name="name" maxlength="100" required aria-required="true" autocomplete="off" />
+            <p class="field-error" id="sgNameErr" hidden></p>
+          </div>
+          <div class="field">
+            <label for="sgDesc">Kurze Beschreibung *</label><textarea id="sgDesc" name="description" maxlength="1000" required aria-required="true"></textarea>
+            <p class="field-error" id="sgDescErr" hidden></p>
+          </div>
+          <p class="form-status" id="sgStatus" role="status" data-kind="" hidden></p>
+          <div class="form-actions"><button type="button" class="btn ghost" id="sgBack">Abbrechen</button><button type="submit" class="btn main" id="sgNext">Absenden</button></div>
+        </form>
+        <div id="sgDone" class="center" hidden>
+          <div class="trophy" style="font-size: 64px; animation: none" aria-hidden="true">🎉</div>
+          <p class="form-status" data-kind="success" id="sgSuccess" tabindex="-1">Danke! Dein Vorschlag wurde zur Prüfung übermittelt.</p>
+          <div class="form-actions"><button type="button" class="btn ghost" id="sgAnother">Weitere Station</button><button type="button" class="btn main" id="sgClose">Schließen</button></div>
+        </div>
+      </div>
+
+      <div class="modal center-modal center" id="m-reset" role="alertdialog" aria-modal="true" aria-labelledby="rsT" aria-describedby="rsD">
+        <h3 id="rsT" tabindex="-1">Fortschritt zurücksetzen?</h3>
+        <p class="sub" id="rsD">Alle gespeicherten Lösungen, Fehlversuche und Hinweise werden gelöscht.</p>
+        <div style="display: grid; gap: 8px"><button type="button" class="btn danger" id="rsYes">Fortschritt löschen</button><button type="button" class="btn ghost" id="rsNo">Abbrechen</button></div>
+      </div>
+
+      <div class="modal center-modal center" id="m-consent" role="dialog" aria-modal="true" aria-labelledby="coT" aria-describedby="coD">
+        <h3 id="coT" tabindex="-1">Anonyme Statistik erlauben?</h3>
+        <p class="sub" id="coD">Die Spielleitung möchte wissen, wie viele Menschen das Spiel nutzen. Wenn du zustimmst, wird eine zufällige Kennung (ohne Name, Standort oder IP-Adresse) gespeichert, dazu mit Zeitstempel: welche Stationen du öffnest, erreichst und löst, Fehlversuche sowie ob du Hinweis oder Lösung anzeigst. Ohne Zustimmung wird nichts gesendet. Du kannst das jederzeit in den Einstellungen ändern; bereits gesendete Daten bleiben gespeichert.</p>
+        <div style="display: grid; gap: 8px"><button type="button" class="btn" id="coYes">Zustimmen</button><button type="button" class="btn ghost" id="coNo">Nicht zustimmen</button></div>
+      </div>
+
+      <div class="modal" id="m-privacy" role="dialog" aria-modal="true" aria-labelledby="pvT">
+        <h3 id="pvT" tabindex="-1">Datenschutz</h3>
+        <div class="privacy">
+          <h4>Verantwortlich</h4>
+          <p>Die Spielleitung von „Münster unvermutet“ (Name und Kontaktdaten laut Impressum der Webseite).</p>
+          <h4>Was nur auf deinem Gerät bleibt</h4>
+          <p>Dein Spielfortschritt (gelöste Stationen, Fehlversuche, Hinweise), die Anzeigeeinstellungen (Look, Barrierefrei) und deine Auswahl zur Statistik werden ausschließlich im Speicher deines Browsers (<code>localStorage</code>) abgelegt. Sie werden nicht an uns übertragen. „Fortschritt zurücksetzen“ löscht den Spielfortschritt.</p>
+          <h4>Standortprüfung</h4>
+          <p>Ist die Standortprüfung aktiv, sendet dein Gerät den aktuellen Standort einmalig an den Server, der nur die Entfernung zur Station berechnet. Der Standort wird nicht gespeichert. Für die Prüfung wird eine technisch notwendige Sitzung (Cookie <code>muenster_game</code>, bis zu 30 Tage) angelegt, die sich nur merkt, welche Stationen freigeschaltet sind. Zum Schutz vor Missbrauch wird die IP-Adresse kurzzeitig (höchstens 24 Stunden) für Anfragebegrenzungen vorgehalten.</p>
+          <h4>Anonyme Statistik (nur mit deiner Zustimmung)</h4>
+          <p><b>Zweck:</b> Die Spielleitung möchte wissen, wie viele Menschen das Spiel nutzen und wo Stationen zu schwer oder unklar sind.</p>
+          <p><b>Was gespeichert wird:</b> eine zufällig erzeugte Kennung (ohne Bezug zu Name, Gerät oder Konto), die Station, die Art des Ereignisses (Station geöffnet, Standort erreicht, Hinweis genutzt, falsche Antwort, Lösung angezeigt, richtig beantwortet, Spiel abgeschlossen), bei Antworten die Zahl der Versuche und Datum mit Uhrzeit.</p>
+          <p><b>Was nicht gespeichert wird:</b> Standortdaten, IP-Adresse, Name, E-Mail, Geräte- oder Browserdaten, die gewählten Antworten.</p>
+          <p><b>Wer sieht es:</b> Die Daten sind nur im geschützten Admin-Bereich für die Spielleitung als Zahlen und Tageslisten einsehbar. Sie werden nicht an Dritte weitergegeben und nicht für Werbung verwendet.</p>
+          <p><b>Rechtsgrundlage:</b> deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Ohne Zustimmung wird nichts gesendet, das Spiel ist vollständig nutzbar. Es wird dann nur auf deinem Gerät vermerkt, dass du nicht zugestimmt hast.</p>
+          <p><b>Speicherdauer:</b> Die Statistikdaten werden nicht automatisch gelöscht.</p>
+          <p><b>Widerruf:</b> Unter „Mehr“ kannst du die Statistik jederzeit ausschalten. Danach werden keine Ereignisse mehr gesendet und die Kennung wird auf deinem Gerät entfernt. Bereits gespeicherte Ereignisse lassen sich dadurch nicht mehr dir zuordnen, weil die Kennung nicht mehr vorhanden ist. Auch nach „Fortschritt zurücksetzen“ erhältst du eine neue Kennung.</p>
+          <h4>Stationsvorschläge</h4>
+          <p>Wenn du eine Station vorschlägst, werden deine Eingaben (Text, optional Koordinaten und Angaben zur Station) zur Prüfung durch die Spielleitung gespeichert. Gib dabei keine personenbezogenen Daten an.</p>
+          <h4>Karte</h4>
+          <p>Für die Karte werden Kartenkacheln von OpenStreetMap geladen und Leaflet von unpkg.com. Dabei erhalten diese Anbieter technisch bedingt deine IP-Adresse.</p>
+          <h4>Deine Rechte</h4>
+          <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch und Beschwerde bei einer Datenschutzaufsichtsbehörde. Da die Statistik nur eine zufällige Kennung enthält, können wir Daten nur zuordnen, wenn du uns deine Kennung nennst (sie steht im <code>localStorage</code> deines Browsers unter <code>muenster-unvermutet:player-id</code>).</p>
+        </div>
+        <button type="button" class="btn wide" id="pvClose">Schließen</button>
+      </div>
+
+      <div class="modal" id="m-help" role="dialog" aria-modal="true" aria-labelledby="hlT">
+        <h3 id="hlT" tabindex="-1">So funktioniert's</h3>
+        <div id="hlBody" class="help-slide center" aria-live="polite"></div>
+        <div class="steps" id="hlDots" aria-hidden="true"></div>
+        <button type="button" class="btn wide" id="hlNext">Weiter</button>
+      </div>
+
+      <div class="layer finale" id="finale" data-ui-option="completion" role="dialog" aria-modal="true" aria-labelledby="finT">
+        <div>
+          <div class="trophy" aria-hidden="true">🏆</div>
+          <h2 id="finT" tabindex="-1">Geschafft – Münster entdeckt!</h2>
+          <p>Du hast alle Stationen gelöst. Gut gesehen!</p>
+          <div class="stats" id="finStats"></div>
+          <p id="finRank" style="font-weight: 800; font-size: 20px; margin-bottom: 12px"></p>
+          <button type="button" class="btn" id="finMap">🗺️ Zur Karte</button><button type="button" class="btn" id="finAgain">↻ Nochmal spielen</button>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" role="status"></div>
+      <section class="install-hint" id="installHint" aria-labelledby="installHintT" hidden>
+        <strong id="installHintT">Als App installieren</strong>
+        <div id="installHintBody"></div>
+        <div class="actions"><button type="button" class="btn" id="installHintGo" hidden>Installieren</button><button type="button" class="btn ghost" id="installHintClose">Schließen</button></div>
+      </section>
+      <div class="vh" id="statusMessage" role="status" aria-live="polite" aria-atomic="true"></div>
     </div>
-    <div class="action" id="action"></div>
-  </section>
 
-  <div class="image-viewer" id="imageViewer" role="dialog" aria-modal="true" aria-labelledby="imageViewerCaption" aria-hidden="true" inert>
-    <img class="image-viewer-bg" id="imageViewerBg" alt="" aria-hidden="true">
-    <button type="button" class="image-viewer-close" id="imageViewerClose" aria-label="Foto schließen">×</button>
-    <img class="image-viewer-img" id="imageViewerImg" alt="">
-    <p class="image-viewer-caption" id="imageViewerCaption"></p>
-  </div>
-
-  <nav class="tabs" id="tabs" role="tablist" aria-label="Hauptnavigation">
-    <button type="button" class="tab" role="tab" data-t="map" aria-selected="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Karte</button>
-    <button type="button" class="tab" role="tab" data-t="list" data-ui-option="station_list" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Liste</button>
-    <button type="button" class="tab" role="tab" data-t="progress" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/></svg>Fortschritt</button>
-    <button type="button" class="tab" role="tab" data-t="more" aria-selected="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>Mehr</button>
-  </nav>
-
-  <div class="scrim" id="scrim"></div>
-
-  <div class="modal" id="m-suggest" data-ui-option="suggest" role="dialog" aria-modal="true" aria-labelledby="sgT">
-    <h3 id="sgT" tabindex="-1">Station vorschlagen</h3>
-    <form id="sgForm" novalidate>
-      <p class="sub">Kennst du einen besonderen Ort in Münster, dann schlage ihn hier vor. Ich brauche den Ort und eine kurze Beschreibung. Vielleicht findest du dann bald deinen Vorschlag im Spiel.</p>
-      <div class="field"><label for="sgName">Ort *</label><input type="text" id="sgName" name="name" maxlength="100" required aria-required="true" autocomplete="off"><p class="field-error" id="sgNameErr" hidden></p></div>
-      <div class="field"><label for="sgDesc">Kurze Beschreibung *</label><textarea id="sgDesc" name="description" maxlength="1000" required aria-required="true"></textarea><p class="field-error" id="sgDescErr" hidden></p></div>
-      <p class="form-status" id="sgStatus" role="status" data-kind="" hidden></p>
-      <div class="form-actions"><button type="button" class="btn ghost" id="sgBack">Abbrechen</button><button type="submit" class="btn main" id="sgNext">Absenden</button></div>
-    </form>
-    <div id="sgDone" class="center" hidden>
-      <div class="trophy" style="font-size:64px;animation:none" aria-hidden="true">🎉</div>
-      <p class="form-status" data-kind="success" id="sgSuccess" tabindex="-1">Danke! Dein Vorschlag wurde zur Prüfung übermittelt.</p>
-      <div class="form-actions"><button type="button" class="btn ghost" id="sgAnother">Weitere Station</button><button type="button" class="btn main" id="sgClose">Schließen</button></div>
-    </div>
-  </div>
-
-  <div class="modal center-modal center" id="m-reset" role="alertdialog" aria-modal="true" aria-labelledby="rsT" aria-describedby="rsD">
-    <h3 id="rsT" tabindex="-1">Fortschritt zurücksetzen?</h3><p class="sub" id="rsD">Alle gespeicherten Lösungen, Fehlversuche und Hinweise werden gelöscht.</p>
-    <div style="display:grid;gap:8px"><button type="button" class="btn danger" id="rsYes">Fortschritt löschen</button><button type="button" class="btn ghost" id="rsNo">Abbrechen</button></div>
-  </div>
-
-  <div class="modal center-modal center" id="m-consent" role="dialog" aria-modal="true" aria-labelledby="coT" aria-describedby="coD">
-    <h3 id="coT" tabindex="-1">Anonyme Statistik erlauben?</h3>
-    <p class="sub" id="coD">Die Spielleitung möchte wissen, wie viele Menschen das Spiel nutzen. Wenn du zustimmst, wird eine zufällige Kennung (ohne Name, Standort oder IP-Adresse) gespeichert, dazu mit Zeitstempel: welche Stationen du öffnest, erreichst und löst, Fehlversuche sowie ob du Hinweis oder Lösung anzeigst. Ohne Zustimmung wird nichts gesendet. Du kannst das jederzeit in den Einstellungen ändern; bereits gesendete Daten bleiben gespeichert.</p>
-    <div style="display:grid;gap:8px"><button type="button" class="btn" id="coYes">Zustimmen</button><button type="button" class="btn ghost" id="coNo">Nicht zustimmen</button></div>
-  </div>
-
-  <div class="modal" id="m-privacy" role="dialog" aria-modal="true" aria-labelledby="pvT">
-    <h3 id="pvT" tabindex="-1">Datenschutz</h3>
-    <div class="privacy">
-      <h4>Verantwortlich</h4>
-      <p>Die Spielleitung von „Münster unvermutet“ (Name und Kontaktdaten laut Impressum der Webseite).</p>
-      <h4>Was nur auf deinem Gerät bleibt</h4>
-      <p>Dein Spielfortschritt (gelöste Stationen, Fehlversuche, Hinweise), die Anzeigeeinstellungen (Look, Barrierefrei) und deine Auswahl zur Statistik werden ausschließlich im Speicher deines Browsers (<code>localStorage</code>) abgelegt. Sie werden nicht an uns übertragen. „Fortschritt zurücksetzen“ löscht den Spielfortschritt.</p>
-      <h4>Standortprüfung</h4>
-      <p>Ist die Standortprüfung aktiv, sendet dein Gerät den aktuellen Standort einmalig an den Server, der nur die Entfernung zur Station berechnet. Der Standort wird nicht gespeichert. Für die Prüfung wird eine technisch notwendige Sitzung (Cookie <code>muenster_game</code>, bis zu 30 Tage) angelegt, die sich nur merkt, welche Stationen freigeschaltet sind. Zum Schutz vor Missbrauch wird die IP-Adresse kurzzeitig (höchstens 24 Stunden) für Anfragebegrenzungen vorgehalten.</p>
-      <h4>Anonyme Statistik (nur mit deiner Zustimmung)</h4>
-      <p><b>Zweck:</b> Die Spielleitung möchte wissen, wie viele Menschen das Spiel nutzen und wo Stationen zu schwer oder unklar sind.</p>
-      <p><b>Was gespeichert wird:</b> eine zufällig erzeugte Kennung (ohne Bezug zu Name, Gerät oder Konto), die Station, die Art des Ereignisses (Station geöffnet, Standort erreicht, Hinweis genutzt, falsche Antwort, Lösung angezeigt, richtig beantwortet, Spiel abgeschlossen), bei Antworten die Zahl der Versuche und Datum mit Uhrzeit.</p>
-      <p><b>Was nicht gespeichert wird:</b> Standortdaten, IP-Adresse, Name, E-Mail, Geräte- oder Browserdaten, die gewählten Antworten.</p>
-      <p><b>Wer sieht es:</b> Die Daten sind nur im geschützten Admin-Bereich für die Spielleitung als Zahlen und Tageslisten einsehbar. Sie werden nicht an Dritte weitergegeben und nicht für Werbung verwendet.</p>
-      <p><b>Rechtsgrundlage:</b> deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Ohne Zustimmung wird nichts gesendet, das Spiel ist vollständig nutzbar. Es wird dann nur auf deinem Gerät vermerkt, dass du nicht zugestimmt hast.</p>
-      <p><b>Speicherdauer:</b> Die Statistikdaten werden nicht automatisch gelöscht.</p>
-      <p><b>Widerruf:</b> Unter „Mehr“ kannst du die Statistik jederzeit ausschalten. Danach werden keine Ereignisse mehr gesendet und die Kennung wird auf deinem Gerät entfernt. Bereits gespeicherte Ereignisse lassen sich dadurch nicht mehr dir zuordnen, weil die Kennung nicht mehr vorhanden ist. Auch nach „Fortschritt zurücksetzen“ erhältst du eine neue Kennung.</p>
-      <h4>Stationsvorschläge</h4>
-      <p>Wenn du eine Station vorschlägst, werden deine Eingaben (Text, optional Koordinaten und Angaben zur Station) zur Prüfung durch die Spielleitung gespeichert. Gib dabei keine personenbezogenen Daten an.</p>
-      <h4>Karte</h4>
-      <p>Für die Karte werden Kartenkacheln von OpenStreetMap geladen und Leaflet von unpkg.com. Dabei erhalten diese Anbieter technisch bedingt deine IP-Adresse.</p>
-      <h4>Deine Rechte</h4>
-      <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch und Beschwerde bei einer Datenschutzaufsichtsbehörde. Da die Statistik nur eine zufällige Kennung enthält, können wir Daten nur zuordnen, wenn du uns deine Kennung nennst (sie steht im <code>localStorage</code> deines Browsers unter <code>muenster-unvermutet:player-id</code>).</p>
-    </div>
-    <button type="button" class="btn wide" id="pvClose">Schließen</button>
-  </div>
-
-  <div class="modal" id="m-help" role="dialog" aria-modal="true" aria-labelledby="hlT">
-    <h3 id="hlT" tabindex="-1">So funktioniert's</h3>
-    <div id="hlBody" class="help-slide center" aria-live="polite"></div>
-    <div class="steps" id="hlDots" aria-hidden="true"></div>
-    <button type="button" class="btn wide" id="hlNext">Weiter</button>
-  </div>
-
-  <div class="layer finale" id="finale" data-ui-option="completion" role="dialog" aria-modal="true" aria-labelledby="finT">
-    <div><div class="trophy" aria-hidden="true">🏆</div><h2 id="finT" tabindex="-1">Geschafft – Münster entdeckt!</h2><p>Du hast alle Stationen gelöst. Gut gesehen!</p>
-      <div class="stats" id="finStats"></div><p id="finRank" style="font-weight:800;font-size:20px;margin-bottom:12px"></p>
-      <button type="button" class="btn" id="finMap">🗺️ Zur Karte</button><button type="button" class="btn" id="finAgain">↻ Nochmal spielen</button></div>
-  </div>
-
-  <div class="toast" id="toast" role="status"></div>
-  <section class="install-hint" id="installHint" aria-labelledby="installHintT" hidden>
-    <strong id="installHintT">Als App installieren</strong>
-    <div id="installHintBody"></div>
-    <div class="actions"><button type="button" class="btn" id="installHintGo" hidden>Installieren</button><button type="button" class="btn ghost" id="installHintClose">Schließen</button></div>
-  </section>
-  <div class="vh" id="statusMessage" role="status" aria-live="polite" aria-atomic="true"></div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
-<script src="app.js"></script>
-</body>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+    <script src="app.js"></script>
+  </body>
 </html>

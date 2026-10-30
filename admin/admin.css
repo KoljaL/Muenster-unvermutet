@@ -647,6 +647,9 @@ textarea {
 .opt input[type='text'] {
   flex: 1;
 }
+img.thumb[hidden] {
+  display: none;
+}
 img.thumb {
   max-width: 200px;
   max-height: 140px;
