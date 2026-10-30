@@ -21,7 +21,9 @@ Muss das nicht 1/14 heißen???
 
 1. Neue URL
 Ich war mal so frei und habe für das Spiel eine eigene URL registriert.
-muenster-unvermutet.de
+
+https://muenster-unvermutet.de
+
 Kostet 10 Euro pro Jahr, zahlt mein Bruder ;-)
 Wenn jetzt alles funktioniert, werde ich die Datenbank nicht mehr verändern.
 
@@ -36,7 +38,7 @@ Sollte jetzt korrekt angezeigt werden.
 Die Angaben zu Idee und Umsetzung können im Admin-Bereich unter Einstellungen → Credits und Impressum ergänzt oder geändert werden. 
 
 5. Standortprüfung
-Der Radius kann in den Admin-Einstellungen unter „Standortprüfung“ angepasst werden. Die derzeitigen 50 Meter sind ein guter Kompromiss: Die Standortbestimmung per Handy ist nicht immer exakt und kann je nach Gerät, Empfang und Umgebung schwanken. Mit nur 30 Metern könnte es passieren, dass Besucher direkt am richtigen Ort stehen, aber trotzdem nicht freigeschaltet werden. Wenn ihr auf 30 Meter verkleinern möchtet, sollte das vorher an den Stationen mit verschiedenen Handys ausprobiert werden.
+Der Radius kann in den Admin-Einstellungen unter „Standortprüfung“ angepasst werden. Die derzeitigen 50 Meter sind ein guter Kompromiss: Die Standortbestimmung per Handy ist nicht immer exakt und kann je nach Gerät, Empfang und Umgebung schwanken. Mit nur 10 Metern könnte es passieren, dass Besucher direkt am richtigen Ort stehen, aber trotzdem nicht freigeschaltet werden. 
 
 
 6. Titel und Beschreibung welche angezeigt werden, wenn der Link geteilt wird (z. B. in WhatsApp oder Signal)
@@ -52,6 +54,8 @@ Titelvorschläge:
 - Münster unvermutet – Auf den Spuren der Geschichte
 - Münster unvermutet – Entdecke Münster wie ein Einheimischer
 - Münster unvermutet – Eine aufregende Stadtrallye
+  
+  
 
 Beschreibungsvorschläge:
 - „Entdecke Münster aus neuen Perspektiven! Finde versteckte historische Details im Stadtgebiet, fotografiere die Orte und sammle Punkte auf der Stadtrallye.“
