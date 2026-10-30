@@ -261,6 +261,23 @@ INSERT INTO stat_events (player_id, station_id, event, attempts, created_at) VAL
     ('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'der-denker-mit-dem-strich-durch-die-rechnung-1', 'location_verified', NULL, '2026-10-20T09:20:03+02:00'),
     ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', NULL, 'game_completed', NULL, '2026-10-20T16:45:00+02:00');
 
+-- --------------------------------------------------------
+-- Tabellenstruktur: client_errors (Fehlerprotokoll, ohne Daten)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS client_errors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    origin TEXT NOT NULL DEFAULT 'client',
+    player_id TEXT,
+    message TEXT NOT NULL,
+    source TEXT,
+    stack TEXT,
+    url TEXT,
+    user_agent TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS client_errors_day ON client_errors(created_at);
+
 -- Sequence-Zähler zurücksetzen
 INSERT INTO sqlite_sequence VALUES('admins',3);
 INSERT INTO sqlite_sequence VALUES('options',42);

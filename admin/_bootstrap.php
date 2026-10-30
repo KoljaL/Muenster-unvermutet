@@ -85,6 +85,8 @@ function admin_header(string $title, ?array $admin = null, string $extraHead = '
         '<meta name="color-scheme" content="light dark">',
         '<meta name="robots" content="noindex,nofollow">',
         '<title>', h($title), ' – Admin Münster unvermutet</title>',
+        '<link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/favicon-32.png">',
+        '<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">',
         '<link rel="stylesheet" href="admin.css">', $extraHead, '</head><body><div class="page">';
     echo '<header class="hero"><div class="admin-bar"><a class="admin-brand" href="index.php"><img src="../MS_Rathhaus_Logo.jpg" alt="Münster unvermutet"></a>';
     if ($admin) {
