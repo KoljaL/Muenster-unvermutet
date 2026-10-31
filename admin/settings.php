@@ -15,7 +15,7 @@ foreach (UI_REGISTRY as $key => $definition) {
 admin_header('Einstellungen', $admin);
 ?>
 <h1 class="admin-title">Feature-Einstellungen</h1>
-<p class="task-intro">Hier legst du fest, welche Funktionen Besucher auf der Webseite sehen. Änderungen gelten sofort für alle. <strong>Aus</strong> = für niemanden sichtbar, <strong>An</strong> = für alle sichtbar, <strong>Test</strong> = nur für dich sichtbar (Adresse der Webseite mit <code>?preview=all</code> am Ende öffnen). Mehr dazu unter <a href="help.php">Hilfe</a>.</p>
+<p class="task-intro">Hier legst du fest, welche Funktionen Besucher auf der Webseite sehen. Änderungen gelten sofort für alle. <strong>Aus</strong> = für niemanden sichtbar, <strong>An</strong> = für alle sichtbar, <strong>Test</strong> = nur mit dem passenden Vorschau-Parameter sichtbar (z. B. <code>?preview=all</code>). Vorschau-Parameter sind keine Anmeldung oder Zugriffskontrolle. Mehr dazu unter <a href="help.php">Hilfe</a>.</p>
 <form method="post" action="settings-save.php">
   <?= csrf_field() ?>
   <?php foreach ($groups as $group => $options): ?>

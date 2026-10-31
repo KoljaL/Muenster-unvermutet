@@ -110,7 +110,7 @@ const ErrorLog = {
 window.addEventListener('error', (e) => ErrorLog.report(e.message, e.filename ? e.filename + ':' + e.lineno + ':' + e.colno : null, e.error && e.error.stack));
 window.addEventListener('unhandledrejection', (e) => ErrorLog.report(e.reason && e.reason.message ? e.reason.message : e.reason, 'promise', e.reason && e.reason.stack));
 
-const UI_DEFAULTS = Object.freeze({ suggest: true, legend: true, station_list: true, hint_button: true, reveal_button: true, location_gate: false, station_map: true, completion: true });
+const UI_DEFAULTS = Object.freeze({ suggest: true, legend: true, station_list: true, hint_button: true, reveal_button: true, location_gate: false, fake_position: false, station_map: true, completion: true });
 let ui = UI_DEFAULTS;
 let locationConfig = { radius: 50, maxAccuracy: 50 };
 let routeHintText = '';
@@ -599,7 +599,9 @@ function renderUnsolved(st, p, gated, solved) {
     const locHtml = '<div class="loc-actions"><button type="button" class="btn" data-act="verify"' + (s.loading ? ' disabled' : '') + '>' + (hasPos ? 'Standort aktualisieren' : 'Eigener Standort') + '</button>' +
       '<a class="btn route-btn" href="' + esc(routeUrl(st)) + '" target="_blank" rel="noopener noreferrer">Route</a></div>' + routeHintHtml() +
       (s.message || s.loading ? '<div class="loc' + (s.loading ? ' busy' : '') + (s.message && !s.loading ? ' fail' : '') + '"><div class="loc-row"><span class="ic" aria-hidden="true">' + icon + '</span><p role="status" aria-live="polite">' + esc(s.message || '') + '</p></div></div>' : '');
-    const devHtml = /* DEV-FAKE-POSITION (1/3) */ '<button type="button" class="btn dev" data-act="fake"' + (s.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>' /* /DEV-FAKE-POSITION */;
+    const devHtml = isEnabled('fake_position')
+      ? '<button type="button" class="btn dev" data-act="fake"' + (s.loading ? ' disabled' : '') + '>🛠 Fake Position (Dev)</button>'
+      : '';
     if (orient && !orient.hidden) {
       $('#orientLoc').innerHTML = locHtml;
       $('#orientDev').innerHTML = devHtml;

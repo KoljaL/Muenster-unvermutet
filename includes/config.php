@@ -25,6 +25,7 @@ function config(string $key = null)
             'login_window' => 900,
             'suggest_max_per_hour' => 5,
             'allow_http_links' => true,
+            'backup_token' => 'jkpowefjkporkfüwoerfkewofk',
             'timezone' => 'Europe/Berlin',
             'debug' => false, // in config.local.php auf true setzen, um Fehlerdetails in API-Antworten zu sehen
         ];

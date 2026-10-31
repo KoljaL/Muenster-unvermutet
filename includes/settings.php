@@ -48,6 +48,13 @@ const UI_REGISTRY = [
         'requires' => [],
         'server_enforced' => true,
     ],
+    'ui.fake_position' => [
+        'label' => 'Fake Position (Dev)',
+        'group' => 'Aufgaben',
+        'description' => 'Zeigt in der Standortprüfung eine Entwickler-Schaltfläche, die den Standort der Station verwendet. Im Livebetrieb ausgeschaltet lassen.',
+        'default' => 'off',
+        'requires' => [],
+    ],
     'ui.station_map' => [
         'label' => 'OSM-Orientierungskarte',
         'group' => 'Karte',

@@ -1,7 +1,8 @@
 // @ts-check
 import { execFileSync } from 'node:child_process';
+import { cpSync, copyFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { test, expect, IS_LIVE } from './fixtures.js';
+import { test, expect, IS_LIVE, openGame } from './fixtures.js';
 
 const projectRoot = process.cwd();
 const testUsername = 'playwright-test';
@@ -128,6 +129,7 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     await expect(page.locator('fieldset.task-card').filter({ hasText: acceptedTitle })).toHaveCount(0);
 
     await page.goto('admin/settings.php');
+    await expect(page.locator('input[name="settings[ui.fake_position]"][value="off"]')).toBeChecked();
     const creditsText = '<p><strong>Mitwirkende</strong></p><p><a href="https://credits.example.invalid" target="_blank" rel="noopener noreferrer">Beispiel-Link</a></p>';
     const imprintText = '<p><strong>Beispielverein Münster e. V.</strong></p><p>Vertreten durch: Erika Beispiel</p><p><a href="https://impressum.example.invalid" target="_blank" rel="noopener noreferrer">Kontakt</a></p>';
     await page.locator('#public-credits').fill(creditsText);
@@ -140,6 +142,37 @@ test.describe('Admin (lokale Testdatenbank)', () => {
     expect(settingsResponse.ok()).toBeTruthy();
     const savedSettings = await settingsResponse.json();
     expect(savedSettings.data.publicText).toEqual({ credits: creditsText, imprint: imprintText, routeHint: routeHintText });
+
+    for (const [state, expectedWithoutPreview, expectedWithPreview] of [
+      ['test', false, true],
+      ['on', true, true],
+      ['off', false, false],
+    ]) {
+      await page.locator(`input[name="settings[ui.fake_position]"][value="${state}"]`).check();
+      await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
+      await expect(page.getByRole('status')).toHaveText('Einstellungen gespeichert.');
+
+      const withoutPreview = await (await page.request.get('api/settings.php')).json();
+      const withFeaturePreview = await (await page.request.get('api/settings.php?preview=fake_position')).json();
+      const withAllPreview = await (await page.request.get('api/settings.php?preview=all')).json();
+      expect(withoutPreview.data.ui.fake_position).toBe(expectedWithoutPreview);
+      expect(withFeaturePreview.data.ui.fake_position).toBe(expectedWithPreview);
+      expect(withAllPreview.data.ui.fake_position).toBe(expectedWithPreview);
+    }
+
+    await page.locator('input[name="settings[ui.fake_position]"][value="on"]').check();
+    await page.locator('input[name="settings[ui.location_gate]"][value="on"]').check();
+    await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
+    await expect(page.getByRole('status')).toHaveText('Einstellungen gespeichert.');
+    const activePins = (await (await page.request.get('api/map_pins.php')).json()).data;
+    await openGame(page, { path: `index.html?station=${activePins[0].id}` });
+    await expect(page.locator('[data-act="fake"]')).toBeVisible();
+
+    await page.goto('admin/settings.php');
+    await page.locator('input[name="settings[ui.fake_position]"][value="off"]').check();
+    await page.locator('input[name="settings[ui.location_gate]"][value="test"]').check();
+    await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
+    await expect(page.getByRole('status')).toHaveText('Einstellungen gespeichert.');
 
     await page.locator('#database-file').setInputFiles({
       name: 'invalid.sqlite',
@@ -181,6 +214,86 @@ test.describe('Admin (lokale Testdatenbank)', () => {
       return { ids, attribution };
     });
     expect(sectionOrder.ids.every((index) => index >= 0 && index < sectionOrder.attribution)).toBe(true);
+  });
+
+  test('Cronjob-Backup ist ohne konfiguriertes Token geschlossen und erstellt geprüfte Sicherungen', async ({ request }, testInfo) => {
+    test.skip(IS_LIVE, 'Backup-Endpunkt darf im Live-Test nicht aufgerufen werden');
+    const missingToken = await request.get('api/backup.php', { headers: { 'X-Forwarded-Proto': 'https' } });
+    const wrongToken = await request.get('api/backup.php?token=unbekannter-test-token', { headers: { 'X-Forwarded-Proto': 'https' } });
+    const insecureRequest = await request.get('api/backup.php?token=unbekannter-test-token');
+    for (const response of [missingToken, wrongToken, insecureRequest]) {
+      expect(response.status()).toBe(403);
+      expect(response.headers()['cache-control']).toBe('no-store');
+      expect(await response.text()).not.toContain('unbekannter-test-token');
+    }
+
+    const databasePath = resolve(projectRoot, '.playwright-data/game.sqlite');
+    const backupDirectory = testInfo.outputPath('cron-backups');
+    const script = `
+      require 'includes/backup.php';
+      $databasePath = $argv[1];
+      $backupDirectory = $argv[2];
+      $source = new SQLite3($databasePath, SQLITE3_OPEN_READONLY);
+      $before = (int) $source->querySingle('SELECT COUNT(*) FROM stations');
+      $source->close();
+      $first = create_database_backup($databasePath, $backupDirectory);
+      $second = create_database_backup($databasePath, $backupDirectory);
+      $files = glob($backupDirectory . '/game-*.sqlite');
+      $checks = [];
+      foreach ($files as $file) {
+        $backup = new SQLite3($file, SQLITE3_OPEN_READONLY);
+        $checks[] = [$backup->querySingle('PRAGMA integrity_check'), (int) $backup->querySingle('SELECT COUNT(*) FROM stations'), fileperms($file) & 0777];
+        $backup->close();
+      }
+      $source = new SQLite3($databasePath, SQLITE3_OPEN_READONLY);
+      $after = (int) $source->querySingle('SELECT COUNT(*) FROM stations');
+      $source->close();
+      echo json_encode(['names' => [$first, $second], 'checks' => $checks, 'sourceCount' => [$before, $after]]);
+    `;
+    const result = JSON.parse(execFileSync('php', ['-r', script, databasePath, backupDirectory], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    }));
+    expect(result.names[0]).not.toBe(result.names[1]);
+    expect(result.names.every((name) => /^game-\d{8}-\d{6}(?:-\d{2,})?\.sqlite$/.test(name))).toBe(true);
+    expect(result.checks).toHaveLength(2);
+    expect(result.checks.every(([integrity, count, permissions]) => integrity === 'ok' && count === result.sourceCount[0] && permissions === 0o600)).toBe(true);
+    expect(result.sourceCount[1]).toBe(result.sourceCount[0]);
+
+    const fixtureRoot = testInfo.outputPath('authenticated-backup');
+    mkdirSync(fixtureRoot, { recursive: true });
+    cpSync(resolve(projectRoot, 'includes'), resolve(fixtureRoot, 'includes'), { recursive: true });
+    cpSync(resolve(projectRoot, 'api'), resolve(fixtureRoot, 'api'), { recursive: true });
+    cpSync(resolve(projectRoot, 'setup'), resolve(fixtureRoot, 'setup'), { recursive: true });
+    mkdirSync(resolve(fixtureRoot, 'data'), { recursive: true });
+    copyFileSync(databasePath, resolve(fixtureRoot, 'data/game.sqlite'));
+    const fixtureToken = 'playwright-cron-backup-test-token';
+    const configPath = resolve(fixtureRoot, 'includes/config.local.php');
+    const backupPath = resolve(fixtureRoot, 'api/backup.php');
+    const invokeEndpoint = (token) => execFileSync('php', ['-r', `
+      $_SERVER['HTTPS'] = 'on';
+      $_SERVER['REQUEST_METHOD'] = 'GET';
+      $_GET = $argv[2] === '' ? [] : ['token' => $argv[2]];
+      require $argv[1];
+    `, backupPath, token], {
+      cwd: fixtureRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+    writeFileSync(configPath, `<?php return ['debug' => false];`);
+    const unconfiguredOutput = invokeEndpoint(fixtureToken);
+    expect(JSON.parse(unconfiguredOutput).error.code).toBe('forbidden');
+    writeFileSync(configPath, `<?php return ['debug' => false, 'backup_token' => '${fixtureToken}'];`);
+    const wrongTokenOutput = invokeEndpoint('wrong-test-token');
+    expect(JSON.parse(wrongTokenOutput).error.code).toBe('forbidden');
+    expect(readdirSync(resolve(fixtureRoot, 'data')).filter((name) => name.endsWith('.sqlite'))).toHaveLength(1);
+
+    const endpointOutput = invokeEndpoint(fixtureToken);
+    expect(JSON.parse(endpointOutput)).toEqual({ ok: true });
+    expect(endpointOutput).not.toContain(fixtureToken);
+    expect(endpointOutput).not.toContain(fixtureRoot);
+    expect(readdirSync(resolve(fixtureRoot, 'data/backups')).filter((name) => name.endsWith('.sqlite'))).toHaveLength(1);
   });
 
   test('Fehlerprotokoll zeigt Serverfehler und filtert nach Herkunft', async ({ page }, testInfo) => {

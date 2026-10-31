@@ -307,22 +307,48 @@ Die folgenden Zugangsdaten sind ausschließlich für eine Testinstallation vorge
 
 **Wichtig:** Diese Testpasswörter dürfen nicht unverändert produktiv verwendet werden. Vor dem öffentlichen Deployment müssen neue Zugangsdaten gesetzt werden. In der SQLite-Datenbank werden nur Passwort-Hashes gespeichert.
 
-### Dev-Button „Fake Position“ (vor dem Release entfernen)
+### Fake Position (Dev)
 
-Auf jeder Stationsseite gibt es den Button „🛠 Fake Position (Dev)“. Er verwendet die Stationskoordinaten als eigene Position und löst die Standortfreigabe aus, sodass man nicht zu jeder Station fahren muss. Der Server prüft dabei normal. Vor dem Livegang **muss er entfernt werden**, da sonst jeder die Standortprüfung umgehen kann.
+Die Sichtbarkeit des Knopfs **Fake Position (Dev)** wird im Admin unter
+**Einstellungen → Aufgaben** gesteuert. Der Standard ist **Aus**. **An** zeigt
+ihn allen Besuchern; **Test** zeigt ihn mit `?preview=fake_position` oder
+`?preview=all`.
 
-Alle Stellen in `app.js` sind mit `DEV-FAKE-POSITION` markiert (nach dem Begriff suchen):
+**Im Livebetrieb auf Aus lassen.** Der Vorschau-Parameter ist öffentlich und
+keine Anmeldung. Die Schaltfläche verwendet die Stationskoordinaten als
+Browserposition; die Standortprüfung kann nicht erkennen, ob übermittelte
+Koordinaten tatsächlich vom GPS stammen. Sie ist daher keine Sicherheitsgrenze.
 
-1. Block mit `devFakePositionButton` und `devFakePosition` vor `renderLocationStatus` komplett löschen.
-2. In `renderLocationStatus` den Aufruf `+ devFakePositionButton(state)` entfernen.
-3. In `verifyStationLocation` den Parameter `devFake`, die Bedingung `!devFake &&` und den Zweig `devFake ? devFakePosition(stationId) :` entfernen.
-4. In `handleTaskListClick` den `case 'fake-position'` löschen.
+### Cronjob-Datenbank-Backup (All-Inkl)
 
-Kontrolle: Die Suche nach `DEV-FAKE-POSITION`, `devFake` und `fake-position` darf in `app.js` keine Treffer mehr liefern.
+Der geschützte HTTPS-Endpunkt `api/backup.php` erstellt eine valide,
+zeitgestempelte SQLite-Sicherung in `data/backups/`. Dafür ist keine
+Datenbankmigration erforderlich. Hinterlege das Geheimnis ausschließlich in
+der lokalen Konfiguration des Webspace, niemals in Git oder der Datenbank:
+
+```php
+// Ergänzung innerhalb des vorhandenen Rückgabe-Arrays in includes/config.local.php:
+'backup_token' => 'HIER_EIN_LANGES_ZUFAELLIGES_GEHEIMNIS_EINTRAGEN',
+```
+
+Erzeuge ein langes zufälliges Geheimnis, zum Beispiel mit
+`openssl rand -hex 32`. Stelle auf dem Webspace sicher, dass
+`data/backups/.htaccess` hochgeladen wurde, der PHP-Prozess dort schreiben kann
+und ein direkter HTTP-Abruf von Sicherungsdateien blockiert wird. Lege in
+All-Inkl einen HTTPS-GET-Cronjob mit dieser URL an:
+
+```text
+https://DEINE-DOMAIN/api/backup.php?token=DEIN-GEHEIMNIS
+```
+
+Teste den Aufruf zunächst manuell und kontrolliere, dass eine neue Datei
+entsteht und valide ist. Der Endpunkt liefert keine Datei aus und löscht keine
+alten Sicherungen. URLs können in Serverprotokollen auftauchen: Cronjob-URL und
+Logs vertraulich behandeln und das Geheimnis bei Bedarf rotieren.
 
 ### Einrichtung und lokaler Test
 
-Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
+Voraussetzung: PHP 8+ mit `PDO_SQLite`, `SQLite3` und `fileinfo`.
 
 ```bash
 ./setup/reset_database.sh          # löscht die lokale DB, spielt setup/snapshot.sql ein und startet den PHP-Server
@@ -337,6 +363,31 @@ Voraussetzung: PHP 8+ mit PDO/SQLite und `fileinfo`.
 - Die Import- und Migrationsskripte (`create_admins.php`, `migrate_*.php`), Seed-JSONs und Beispielbilder liegen archiviert in `setup/OLD/`. Ein einzelnes Admin-Passwort lässt sich weiterhin mit `php setup/OLD/create_admins.php <benutzer> <passwort>` setzen (mind. 12 Zeichen).
 - Ohne Reset wird die Datenbank beim ersten Zugriff automatisch aus `setup/schema.sql` angelegt (`data/game.sqlite`); additive Schemaänderungen wie `teaser_text` werden bei bestehenden Datenbanken idempotent nachgezogen.
 - Abweichende Einstellungen (z. B. DB-Pfad außerhalb des Webroots) in `includes/config.local.php` als `return [...]` ablegen.
+
+### Update auf dem Webspace
+
+1. Vor dem Update eine Sicherung der produktiven Datenbank über den Admin-Export
+   oder den bisherigen Sicherungsweg erstellen. `setup/snapshot.sql` ist nur
+   für lokale Resets gedacht und darf nicht in die Live-Datenbank importiert
+   werden.
+2. Die geänderten Anwendungsdateien (`app.js`, `api/backup.php`,
+   `includes/backup.php`, `includes/config.php`, `includes/settings.php`,
+   `admin/settings.php` und `admin/help.php`) sowie
+   `data/backups/.htaccess` per SFTP/FTP hochladen. Beim Upload versteckte
+   Dateien einblenden, damit `.htaccess` mit übertragen wird. Die bestehende
+   `includes/config.local.php` und `data/game.sqlite` nicht durch
+   Repository-Dateien ersetzen.
+3. Für dieses Update ist keine Änderung des Datenbankschemas nötig; weder
+   `setup/schema.sql` noch `setup/snapshot.sql` oder eine Datenbankmigration
+   ausführen.
+4. Für den Cronjob auf dem Webspace `backup_token` in
+   `includes/config.local.php` setzen und sicherstellen, dass PHP
+   `data/backups/` beschreiben kann. Die Fake-Position-Einstellung unter
+   **Einstellungen → Aufgaben** auf **Aus** lassen.
+5. Unter HTTPS testen: Spiel und Admin öffnen, **Fake Position (Dev)** bleibt
+   ausgeblendet; einen gültigen Cronjob-Aufruf durchführen und die entstandene
+   Sicherung prüfen. Zusätzlich direkt versuchen, eine Sicherungsdatei per
+   HTTP abzurufen; der Server muss den Zugriff verweigern.
 
 ### Automatisierte Tests (Playwright)
 
@@ -353,7 +404,7 @@ Getestet wird mit mobilen Profilen (iPhone 13 / WebKit und Pixel 7 / Chromium). 
 
 | Pfad                | Inhalt                                                                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `api/`              | Kategorien, Pins und Einstellungen; Stationsdetails, Standortprüfung und Freigabe-Reset; Vorschläge (rate-limitiert, Honeypot) |
+| `api/`              | Kategorien, Pins und Einstellungen; Stationsdetails, Standortprüfung und Freigabe-Reset; geschütztes Cronjob-Backup; Vorschläge (rate-limitiert, Honeypot) |
 | `admin/`            | Login (5 Min. Inaktivitäts-Timeout), Stations- und UI-Einstellungen, Leaflet-Kartenpicker, Archivieren, Vorschlagsmoderation    |
 | `includes/`         | Konfiguration, PDO, Auth, CSRF, Validierung, Uploads und UI-Registry                                                            |
 | `api/`              | `settings.php`, `map_pins.php`, `get_details.php`, `submit_station.php` (Vorschläge, rate-limitiert, Honeypot)                  |

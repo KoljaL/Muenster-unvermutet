@@ -812,10 +812,42 @@ test.describe('Backend-API', () => {
 test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
   test.skip(IS_LIVE, 'Der Dev-Button und die Gate-Vorschau existieren nur lokal');
   const gated = (id) => `index.html?preview=ui.location_gate&station=${id}`;
+  const setFakePositionSetting = (page, enabled) => page.route('**/api/settings.php*', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.ui.fake_position = enabled;
+    await route.fulfill({ response, json: body });
+  });
+
+  test('Testmodus zeigt die Fake-Position nur mit passender Vorschau', async ({ page }) => {
+    await page.route('**/api/settings.php*', async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      const preview = new URL(route.request().url()).searchParams.get('preview') || '';
+      body.data.ui.location_gate = true;
+      body.data.ui.fake_position = preview === 'all' || preview.split(',').includes('fake_position');
+      await route.fulfill({ response, json: body, headers: { ...response.headers(), 'cache-control': 'no-store' } });
+    });
+
+    await openGame(page, { path: `index.html?station=${stations[0].id}` });
+    await expect(page.locator('[data-act="fake"]')).toHaveCount(0);
+
+    await page.goto(`index.html?preview=fake_position,ui.location_gate&station=${stations[0].id}`);
+    await expect(page.locator('[data-act="fake"]')).toBeVisible();
+    await page.goto(`index.html?preview=all&station=${stations[0].id}`);
+    await expect(page.locator('[data-act="fake"]')).toBeVisible();
+  });
+
+  test('Aus bleibt auch mit Vorschau-Parameter ausgeschaltet', async ({ page }) => {
+    await setFakePositionSetting(page, false);
+    await openGame(page, { path: `index.html?preview=all&station=${stations[0].id}` });
+    await expect(page.locator('[data-act="fake"]')).toHaveCount(0);
+  });
 
   test('Antworten sind zunächst gesperrt und erscheinen nach der Freigabe', async ({ page, request }) => {
     const station = stations[0];
     const teaser = 'Ein öffentlicher Anreißer, während Antworten noch geschützt sind.';
+    await setFakePositionSetting(page, true);
     await page.route('**/api/get_details.php*', async (route) => {
       const response = await route.fetch();
       const body = await response.json();
@@ -856,6 +888,7 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
   });
 
   test('Freigabe gilt nur für die jeweilige Station', async ({ page }) => {
+    await setFakePositionSetting(page, true);
     await openGame(page, { path: gated(stations[0].id) });
     await page.locator('#orient [data-act="fake"]').tap();
     await expect(page.locator('#sOptions .option').first()).toBeVisible();
@@ -867,6 +900,7 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
 
   test('echte Standortprüfung: zu weit entfernt bleibt gesperrt, am Ziel wird freigegeben', async ({ page }) => {
     const station = stations[0];
+    await setFakePositionSetting(page, false);
     // Eigener Geolocation-Mock mit aktuellem Zeitstempel: WebKit liefert bei setGeolocation veraltete Zeitstempel.
     await page.addInitScript(() => {
       window.__fakePos = null;
@@ -888,6 +922,7 @@ test.describe('Standortfreigabe (Dev-Button "Fake Position")', () => {
 
   test('GPS-Fehler und ungenaue Position zeigen Hinweise und lassen Antworten gesperrt', async ({ page }) => {
     const station = stations[0];
+    await setFakePositionSetting(page, false);
     await page.addInitScript(() => {
       window.__geoErrorCode = 1;
       Object.defineProperty(navigator, 'geolocation', {

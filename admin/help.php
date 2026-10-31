@@ -53,7 +53,7 @@ admin_header('Hilfe', $admin);
     <ul>
       <li>Alle Schalter findest du im Menü „Einstellungen“. Nach dem Klick auf „Einstellungen speichern“ (unten auf der Seite) gelten sie sofort für alle Besucher.</li>
       <li><strong>Aus:</strong> Die Funktion ist für niemanden sichtbar. <strong>An:</strong> Alle Besucher sehen sie.</li>
-      <li><strong>Test:</strong> Nur du siehst die Funktion, um sie auszuprobieren. Öffne dazu die Webseite und hänge <code>?preview=all</code> an die Adresse an, z. B. <code>https://deine-seite.de/?preview=all</code>. Normale Besucher sehen weiterhin nichts.</li>
+      <li><strong>Test:</strong> Die Funktion erscheint nur mit dem passenden Vorschau-Parameter. Öffne dazu die Webseite und hänge <code>?preview=all</code> an die Adresse an, z. B. <code>https://deine-seite.de/?preview=all</code>. Für einzelne Funktionen reicht <code>?preview=funktion</code>. Der Parameter ist öffentlich und keine Anmeldung oder Zugriffskontrolle.</li>
       <li><strong>Credits und Impressum:</strong> Die beiden Texte kannst du weiter unten auf der Einstellungsseite bearbeiten. Sie erscheinen in der Ansicht „Mehr“ oberhalb des OpenStreetMap-Hinweises. HTML für Absätze, Überschriften, Listen und Links wird dargestellt. Mit <code>target="_blank" rel="noopener noreferrer"</code> öffnet sich ein Link in einem neuen Tab. Nur vertrauenswürdige Administratoren sollten diese Texte bearbeiten.</li>
       <li><strong>Karte:</strong>
         <ul>
@@ -68,9 +68,22 @@ admin_header('Hilfe', $admin);
           <li><em>Hinweis-Schaltfläche</em> – der Knopf „Hinweis anzeigen“ in der Aufgabe. Der Text kommt aus dem Feld „Hinweis“ der Station.</li>
           <li><em>Lösungs-Schaltfläche</em> – der Knopf „Lösung anzeigen“. Wer nicht weiterkommt, sieht damit die Lösung.</li>
           <li><em>Standortabhängige Antwortfreigabe</em> – siehe unten.</li>
+          <li><em>Fake Position (Dev)</em> – zeigt bei aktiver Standortprüfung einen Knopf, der die Koordinaten der Station als eigene Position verwendet. Auf produktiven Seiten auf <strong>Aus</strong> lassen. Die Vorschau schützt nicht vor Besuchern, die den Parameter kennen.</li>
           <li><em>Abschluss-Screen</em> – die Seite „Geschafft – Münster entdeckt!“ nach der letzten gelösten Station.</li>
         </ul>
       </li>
+    </ul>
+  </div>
+</details>
+
+<details class="how-to">
+  <summary>Cronjob-Datenbank-Backup</summary>
+  <div>
+    <ul>
+      <li>Der Cronjob-Endpunkt lautet <code>api/backup.php</code> und akzeptiert ausschließlich HTTPS-GET-Aufrufe mit einem geheimen Token.</li>
+      <li>Hinterlege auf dem Webspace in <code>includes/config.local.php</code> einen langen, zufälligen Token unter dem Schlüssel <code>backup_token</code>. Lege ihn nicht im Repository oder in der Datenbank ab.</li>
+      <li>Der Cronjob erstellt eine zeitgestempelte SQLite-Sicherung in <code>data/backups/</code>. Das Verzeichnis ist per <code>.htaccess</code> gegen direkten Webzugriff gesperrt.</li>
+      <li>Behandle die Cronjob-URL vertraulich, da URLs in Serverprotokollen auftauchen können. Schütze die Logs und rotiere den Token, wenn er offengelegt wurde.</li>
     </ul>
   </div>
 </details>
